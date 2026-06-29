@@ -16,7 +16,8 @@ import {
   MousePointer, 
   Eye, 
   CheckCircle2, 
-  SlidersHorizontal 
+  SlidersHorizontal,
+  Trash2
 } from "lucide-react";
 
 interface PerformancePost {
@@ -108,16 +109,46 @@ const generateDeterministicPosts = (brandId: string): PerformancePost[] => {
   return posts;
 };
 
-interface EnhancedReport extends PerformanceIntelligenceReport {
-  ceoSummary?: string;
-}
+const normalizePlatform = (p: string): "Facebook" | "Instagram" | "Linkedin" | "Tiktok" => {
+  const low = (p || "").toLowerCase();
+  if (low.includes("facebook") || low === "fb") return "Facebook";
+  if (low.includes("instagram") || low === "ig" || low === "insta") return "Instagram";
+  if (low.includes("linkedin") || low === "li") return "Linkedin";
+  if (low.includes("tiktok") || low === "tt") return "Tiktok";
+  return "Instagram"; 
+};
+
+const normalizeType = (t: string): "Carousel" | "Photo" | "Reel" | "Text" | "Video" => {
+  const low = (t || "").toLowerCase();
+  if (low.includes("carousel")) return "Carousel";
+  if (low.includes("photo") || low.includes("image") || low.includes("picture") || low.includes("graphic")) return "Photo";
+  if (low.includes("reel") || low.includes("short")) return "Reel";
+  if (low.includes("text") || low.includes("status") || low.includes("tweet") || low.includes("post")) return "Text";
+  if (low.includes("video") || low.includes("clip")) return "Video";
+  return "Photo"; 
+};
+
+const normalizeDay = (d: string): "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday" => {
+  const low = (d || "").toLowerCase();
+  if (low.includes("mon")) return "Monday";
+  if (low.includes("tue")) return "Tuesday";
+  if (low.includes("wed")) return "Wednesday";
+  if (low.includes("thu")) return "Thursday";
+  if (low.includes("fri")) return "Friday";
+  if (low.includes("sat")) return "Saturday";
+  if (low.includes("sun")) return "Sunday";
+  return "Wednesday"; 
+};
 
 export const PerformanceIntelligencePage: React.FC = () => {
-  const { activeBrand, metrics, theme, accentColor, rawAnalytics } = useBrand();
+  const { activeBrand, metrics, theme, accentColor, rawAnalytics, clearRawAnalytics } = useBrand();
   
   // Tab states
   const [activeTab, setActiveTab] = useState<"dashboard" | "ai_engine">("dashboard");
   const [subTab, setSubTab] = useState<"platform" | "content" | "days" | "metrics" | "posts">("platform");
+
+  // Choose data source state
+  const [selectedDataSource, setSelectedDataSource] = useState<"auto" | "demo" | "uploaded">("auto");
 
   // Filters
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["Facebook", "Instagram", "Linkedin", "Tiktok"]);
@@ -125,15 +156,30 @@ export const PerformanceIntelligencePage: React.FC = () => {
 
   // AI cloud function trigger state
   const [loading, setLoading] = useState(false);
-  const [report, setReport] = useState<EnhancedReport | null>(null);
+  const [report, setReport] = useState<PerformanceIntelligenceReport | null>(null);
 
   const isDark = theme === "dark";
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
-  // Generate 335 posts deterministically based on active brand ID
+  // Generate deterministic posts or map from real uploaded rawAnalytics
   const allPosts = useMemo(() => {
+    const hasUploaded = rawAnalytics && rawAnalytics.length > 0;
+    const useUploaded = selectedDataSource === "uploaded" || (selectedDataSource === "auto" && hasUploaded);
+
+    if (useUploaded && hasUploaded) {
+      return rawAnalytics.map((row) => ({
+        id: row.id,
+        platform: normalizePlatform(row.platform),
+        type: normalizeType(row.type),
+        impressions: row.impressions,
+        engagement: row.engagement,
+        engagementRate: row.engagementRate,
+        dayOfWeek: normalizeDay(row.dayOfWeek),
+        date: row.createdAt ? row.createdAt.split("T")[0] : new Date().toISOString().split("T")[0]
+      }));
+    }
     return generateDeterministicPosts(activeBrand?.id || "acme-corp");
-  }, [activeBrand?.id]);
+  }, [activeBrand?.id, rawAnalytics, selectedDataSource]);
 
   // Apply filters
   const filteredPosts = useMemo(() => {
@@ -222,45 +268,48 @@ export const PerformanceIntelligencePage: React.FC = () => {
     if (!activeBrand) return;
     setLoading(true);
     try {
-      // Package metrics payload for the CEO / manager report trigger
-      // Prefer rawAnalytics loaded via analytics import, fallback to deterministic metrics
-      const payload = {
-        metricsData: metrics.map(m => ({ label: m.label, value: m.value, change: m.change })),
-        rawAnalytics: rawAnalytics.length > 0 ? rawAnalytics : allPosts.slice(0, 50),
-        brandInfo: {
-          name: activeBrand.name,
-          tagline: activeBrand.tagline,
-          voiceTone: activeBrand.voiceTone
-        }
-      };
-
-      // Call our secure backend endpoint
-      const response = await fetch("/api/generate-ceo-report", {
+      // Fetch dynamic analysis directly from our Express server-side Gemini endpoint
+      const response = await fetch("/api/generate-performance-intelligence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          brandId: activeBrand.id,
+          tagline: activeBrand.tagline,
+          voiceTone: activeBrand.voiceTone,
+          analyticsData: allPosts
+        })
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to compile CEO Strategic Report");
+      if (response.ok) {
+        const resultReport = await response.json();
+        setReport(resultReport);
+      } else {
+        // Fallback to Cloud Function or static mock logic if server API fails
+        const payload = {
+          metricsData: metrics.map(m => ({ label: m.label, value: m.value, change: m.change })),
+          triggerContext: {
+            initiator: "SaaS Control Panel Client",
+            timestamp: new Date().toISOString()
+          }
+        };
+        const resultReport = await generatePerformanceIntelligence(activeBrand.id, payload);
+        setReport(resultReport);
       }
-
-      const resultReport = await response.json();
-      setReport({
-        id: resultReport.id || "rep-" + Math.random().toString(36).substr(2, 9),
-        brandId: activeBrand.id,
-        generatedAt: resultReport.generatedAt || new Date().toISOString(),
-        recommendations: resultReport.recommendations || [],
-        metricsSummary: resultReport.metricsSummary || {
-          bestChannel: "N/A",
-          optimalPostingHour: "N/A",
-          predictedGrowth: "0.0%",
-          roiFactor: "0.0x"
-        },
-        ceoSummary: resultReport.ceoSummary
-      });
-    } catch (error: any) {
-      console.error("Report generator error:", error);
+    } catch (error) {
+      console.error("Functions call error, falling back to client simulation:", error);
+      try {
+        const payload = {
+          metricsData: metrics.map(m => ({ label: m.label, value: m.value, change: m.change })),
+          triggerContext: {
+            initiator: "SaaS Control Panel Client",
+            timestamp: new Date().toISOString()
+          }
+        };
+        const resultReport = await generatePerformanceIntelligence(activeBrand.id, payload);
+        setReport(resultReport);
+      } catch (fallbackError) {
+        console.error("All fallbacks failed:", fallbackError);
+      }
     } finally {
       setLoading(false);
     }
@@ -344,6 +393,92 @@ export const PerformanceIntelligencePage: React.FC = () => {
             <Sparkles className="w-3.5 h-3.5" />
             <span>AI Report Engine</span>
           </button>
+        </div>
+      </div>
+
+      {/* Data Control Center */}
+      <div className={`p-4 border rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${
+        isDark ? "bg-[#161616] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+      }`}>
+        <div className="flex items-center space-x-3">
+          <div className={`p-2 rounded-lg ${isDark ? "bg-slate-900" : "bg-slate-50 border border-slate-200"}`}>
+            <Server className={`w-4 h-4 ${getBrandTextColor()}`} />
+          </div>
+          <div>
+            <h4 className={`text-xs font-bold font-mono uppercase tracking-wider ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+              Telemetry Console Data Source
+            </h4>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Choose the dataset source used to build the metric cards, graphs, and AI insights below.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Data Source Selector */}
+          <div className={`p-1 flex space-x-1 rounded-lg border text-xs font-mono font-medium ${
+            isDark ? "bg-slate-950 border-slate-800" : "bg-slate-50 border-slate-200"
+          }`}>
+            <button
+              id="datasource-btn-auto"
+              onClick={() => setSelectedDataSource("auto")}
+              className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                selectedDataSource === "auto"
+                  ? isDark ? "bg-slate-800 text-white" : "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              Auto {rawAnalytics && rawAnalytics.length > 0 ? "(Uploaded)" : "(Demo)"}
+            </button>
+            <button
+              id="datasource-btn-demo"
+              onClick={() => setSelectedDataSource("demo")}
+              className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                selectedDataSource === "demo"
+                  ? isDark ? "bg-slate-800 text-white" : "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              Demo Baseline
+            </button>
+            <button
+              id="datasource-btn-uploaded"
+              onClick={() => setSelectedDataSource("uploaded")}
+              disabled={!rawAnalytics || rawAnalytics.length === 0}
+              className={`px-2.5 py-1 rounded transition-all flex items-center space-x-1 ${
+                selectedDataSource === "uploaded"
+                  ? isDark ? "bg-slate-800 text-white" : "bg-white text-slate-900 shadow-sm"
+                  : !rawAnalytics || rawAnalytics.length === 0
+                    ? "text-slate-600 cursor-not-allowed opacity-40"
+                    : "text-slate-500 hover:text-slate-300 cursor-pointer"
+              }`}
+              title={(!rawAnalytics || rawAnalytics.length === 0) ? "No uploaded analytics data available. Import some first!" : ""}
+            >
+              <span>Uploaded Live</span>
+              {rawAnalytics && rawAnalytics.length > 0 && (
+                <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[9px] rounded-full font-bold ml-1">
+                  {rawAnalytics.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Clear Uploaded Data Button */}
+          {rawAnalytics && rawAnalytics.length > 0 && (
+            <button
+              id="clear-uploaded-data-btn"
+              onClick={async () => {
+                if (window.confirm("Are you sure you want to delete all uploaded raw analytics records for this brand? This action is irreversible.")) {
+                  await clearRawAnalytics();
+                  setSelectedDataSource("demo"); // Revert back to demo
+                }
+              }}
+              className="px-3 py-1.5 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 text-rose-400 rounded-lg text-xs font-mono font-medium flex items-center space-x-1.5 transition-all cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear Data</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -915,23 +1050,6 @@ export const PerformanceIntelligencePage: React.FC = () => {
                     <div className={`text-xs font-bold mt-1 ${getBrandTextColor()}`}>{report.metricsSummary.roiFactor}</div>
                   </div>
                 </div>
-
-                {/* Executive Summary for CEOs / Managers */}
-                {report.ceoSummary && (
-                  <div className={`border rounded-xl p-5 space-y-3 ${
-                    isDark ? "bg-[#1f1f1f] border-[#292929]" : "bg-slate-50 border-slate-200"
-                  }`}>
-                    <h4 className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold flex items-center">
-                      <Brain className={`w-3.5 h-3.5 mr-1.5 ${getBrandTextColor()}`} />
-                      Executive Narrative & Progress Briefing
-                    </h4>
-                    <p className={`text-xs leading-relaxed font-sans font-normal whitespace-pre-line ${
-                      isDark ? "text-slate-300" : "text-slate-700"
-                    }`}>
-                      {report.ceoSummary}
-                    </p>
-                  </div>
-                )}
 
                 {/* Recommendations list */}
                 <div className="space-y-3.5 pt-2">

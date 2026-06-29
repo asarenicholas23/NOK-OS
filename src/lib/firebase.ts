@@ -33,9 +33,8 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 // Initialize Firestore. 
-// Note: We use the default database or the custom one if configured, 
-// but getFirestore(app) automatically resolves to the proper DB.
-export const db = getFirestore(app);
+// Note: We use the specific custom database ID provisioned for this applet
+export const db = getFirestore(app, "ai-studio-e3932094-ce6a-4b33-8e66-55c4292dcc93");
 
 // Initialize Cloud Functions
 export const functions = getFunctions(app, "us-central1");

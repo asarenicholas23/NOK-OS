@@ -110,10 +110,29 @@ export const InsightsPage: React.FC = () => {
     }
   ];
 
-  // Seed Firestore if empty for the active brand
+  const [loadingDemo, setLoadingDemo] = useState(false);
+
+  const loadDemoInsights = async () => {
+    if (!activeBrand) return;
+    setLoadingDemo(true);
+    try {
+      for (const item of defaultMockInsights) {
+        await addInsight(item);
+      }
+      addNotification("Demo Data Loaded", "Successfully loaded sample strategic insights.", "success");
+    } catch (err) {
+      console.error("Error loading demo insights:", err);
+    } finally {
+      setLoadingDemo(false);
+    }
+  };
+
+  // Seed Firestore if empty for the active brand only once initially
   useEffect(() => {
     const seedIfEmpty = async () => {
-      if (insights.length === 0 && activeBrand) {
+      const hasSeeded = localStorage.getItem("nok-os-has-seeded-insights-v2");
+      if (!hasSeeded && insights.length === 0 && activeBrand) {
+        localStorage.setItem("nok-os-has-seeded-insights-v2", "true");
         for (const item of defaultMockInsights) {
           await addInsight(item);
         }
@@ -696,7 +715,29 @@ export const InsightsPage: React.FC = () => {
           <div className="col-span-full text-center py-16 border border-dashed border-slate-800/60 rounded-xl">
             <Lightbulb className="w-10 h-10 text-slate-500 mx-auto mb-3" />
             <h4 className="text-sm font-semibold text-slate-400">No strategic insights found</h4>
-            <p className="text-xs text-slate-500 mt-1">Try relaxing filters or generate insights from loaded analytics metrics above.</p>
+            <p className="text-xs text-slate-500 mt-1 mb-4">Try relaxing filters or generate insights from loaded analytics metrics above.</p>
+            <button
+              id="load-demo-insights-btn"
+              onClick={loadDemoInsights}
+              disabled={loadingDemo}
+              className={`mx-auto px-4 py-2 border rounded-lg font-mono text-xs font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
+                isDark
+                  ? "bg-slate-900 border-slate-800 text-slate-200 hover:border-slate-700 hover:bg-slate-850"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+              }`}
+            >
+              {loadingDemo ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Loading Demo Insights...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className={`w-3.5 h-3.5 ${getBrandTextColor()}`} />
+                  <span>Load Demo/Sample Insights</span>
+                </>
+              )}
+            </button>
           </div>
         )}
       </div>

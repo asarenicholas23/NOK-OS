@@ -6,7 +6,6 @@ import {
   CreativeBrief, 
   AnalyticsMetric,
   StrategicInsight,
-  BrandDirection,
   RawAnalyticsRow,
   subscribeToBrands,
   subscribeToCampaignQueues,
@@ -14,7 +13,6 @@ import {
   subscribeToBriefs,
   subscribeToMetrics,
   subscribeToInsights,
-  subscribeToDirections,
   subscribeToRawAnalytics,
   seedDatabaseIfEmpty,
   ensureAuthenticated,
@@ -40,9 +38,6 @@ interface BrandContextType {
   calendarEvents: CalendarEvent[];
   briefs: CreativeBrief[];
   metrics: AnalyticsMetric[];
-  insights: StrategicInsight[];
-  directions: BrandDirection[];
-  rawAnalytics: RawAnalyticsRow[];
   loading: boolean;
   user: any;
   logout: () => Promise<void>;
@@ -57,15 +52,6 @@ interface BrandContextType {
   updateCreativeBrief: (id: string, brief: Partial<CreativeBrief>) => Promise<void>;
   deleteCreativeBrief: (id: string) => Promise<void>;
   addBrand: (brand: Omit<Brand, "id">) => Promise<void>;
-  addInsight: (insight: Omit<StrategicInsight, "id" | "brandId">) => Promise<void>;
-  updateInsight: (id: string, insight: Partial<StrategicInsight>) => Promise<void>;
-  deleteInsight: (id: string) => Promise<void>;
-  bulkApproveInsights: (ids: string[]) => Promise<void>;
-  bulkDeleteInsights: (ids: string[]) => Promise<void>;
-  addDirection: (direction: Omit<BrandDirection, "id" | "brandId">) => Promise<void>;
-  updateDirection: (id: string, direction: Partial<BrandDirection>) => Promise<void>;
-  deleteDirection: (id: string) => Promise<void>;
-  saveRawAnalyticsRows: (rows: Omit<RawAnalyticsRow, "id" | "brandId">[]) => Promise<void>;
   theme: "dark" | "light";
   setTheme: (theme: "dark" | "light") => void;
   notifications: AppNotification[];
@@ -74,13 +60,24 @@ interface BrandContextType {
   clearAllNotifications: () => void;
   accentColor: "violet" | "emerald" | "amber" | "rose";
   setAccentColor: (color: "violet" | "emerald" | "amber" | "rose") => void;
+  insights: StrategicInsight[];
+  rawAnalytics: RawAnalyticsRow[];
+  addInsight: (insight: Omit<StrategicInsight, "id" | "brandId">) => Promise<void>;
+  updateInsight: (id: string, insight: Partial<StrategicInsight>) => Promise<void>;
+  deleteInsight: (id: string) => Promise<void>;
+  bulkApproveInsights: (ids: string[]) => Promise<void>;
+  bulkDeleteInsights: (ids: string[]) => Promise<void>;
+  saveRawAnalyticsRows: (rows: Omit<RawAnalyticsRow, "id" | "brandId">[]) => Promise<void>;
+  clearRawAnalytics: () => Promise<void>;
 }
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
 
 export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [activeBrandId, setActiveBrandId] = useState<string>("acme-corp");
+  const [activeBrandId, setActiveBrandId] = useState<string>(() => {
+    return localStorage.getItem("nok-os-active-brand-id") || "acme-corp";
+  });
   const [activeBrand, setActiveBrand] = useState<Brand | null>(null);
   
   const [queues, setQueues] = useState<CampaignQueue[]>([]);
@@ -88,7 +85,6 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [briefs, setBriefs] = useState<CreativeBrief[]>([]);
   const [metrics, setMetrics] = useState<AnalyticsMetric[]>([]);
   const [insights, setInsights] = useState<StrategicInsight[]>([]);
-  const [directions, setDirections] = useState<BrandDirection[]>([]);
   const [rawAnalytics, setRawAnalytics] = useState<RawAnalyticsRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
@@ -247,6 +243,13 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [brands, activeBrandId]);
 
+  // Persist activeBrandId changes to localStorage
+  useEffect(() => {
+    if (activeBrandId) {
+      localStorage.setItem("nok-os-active-brand-id", activeBrandId);
+    }
+  }, [activeBrandId]);
+
   // Listen to Campaign Queues for active Brand
   useEffect(() => {
     if (!activeBrandId) return;
@@ -283,29 +286,20 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => unsubscribe();
   }, [activeBrandId]);
 
-  // Listen to Insights for active Brand
+  // Listen to Strategic Insights for active Brand
   useEffect(() => {
     if (!activeBrandId) return;
-    const unsubscribe = subscribeToInsights(activeBrandId, (updatedInsights) => {
-      setInsights(updatedInsights);
+    const unsubscribe = subscribeToInsights(activeBrandId, (updated) => {
+      setInsights(updated);
     });
     return () => unsubscribe();
   }, [activeBrandId]);
 
-  // Listen to Brand Directions for active Brand
+  // Listen to Raw Analytics Rows for active Brand
   useEffect(() => {
     if (!activeBrandId) return;
-    const unsubscribe = subscribeToDirections(activeBrandId, (updatedDirections) => {
-      setDirections(updatedDirections);
-    });
-    return () => unsubscribe();
-  }, [activeBrandId]);
-
-  // Listen to Raw Analytics for active Brand
-  useEffect(() => {
-    if (!activeBrandId) return;
-    const unsubscribe = subscribeToRawAnalytics(activeBrandId, (updatedRaw) => {
-      setRawAnalytics(updatedRaw);
+    const unsubscribe = subscribeToRawAnalytics(activeBrandId, (updated) => {
+      setRawAnalytics(updated);
     });
     return () => unsubscribe();
   }, [activeBrandId]);
@@ -405,21 +399,21 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       brandId: activeBrandId,
       createdAt: new Date().toISOString()
     });
-    addNotification("Strategic Insight Logged", `New "${insight.standpoint}" standpoint insight successfully saved.`, "success");
+    addNotification("Strategic Insight Logged", `Insight "${insight.title}" has been successfully added.`, "success");
   };
 
   const updateInsight = async (id: string, insight: Partial<StrategicInsight>) => {
     const { db } = await import("../lib/firebase");
     const { doc, updateDoc } = await import("firebase/firestore");
     await updateDoc(doc(db, "strategicInsights", id), insight);
-    addNotification("Insight Updated", "Strategic insight successfully modified.", "info");
+    addNotification("Insight Updated", "Strategic insight details were modified.", "info");
   };
 
   const deleteInsight = async (id: string) => {
     const { db } = await import("../lib/firebase");
     const { doc, deleteDoc } = await import("firebase/firestore");
     await deleteDoc(doc(db, "strategicInsights", id));
-    addNotification("Insight Deleted", "Strategic insight removed from Workspace partitions.", "warning");
+    addNotification("Insight Removed", "Strategic insight was deleted from brand records.", "warning");
   };
 
   const bulkApproveInsights = async (ids: string[]) => {
@@ -430,7 +424,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       batch.update(doc(db, "strategicInsights", id), { status: "Approved" });
     });
     await batch.commit();
-    addNotification("Bulk Insights Approved", `Successfully approved ${ids.length} insights in bulk.`, "success");
+    addNotification("Insights Approved", `Successfully approved ${ids.length} insights in bulk.`, "success");
   };
 
   const bulkDeleteInsights = async (ids: string[]) => {
@@ -441,39 +435,13 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       batch.delete(doc(db, "strategicInsights", id));
     });
     await batch.commit();
-    addNotification("Bulk Insights Deleted", `Successfully removed ${ids.length} insights in bulk.`, "warning");
-  };
-
-  const addDirection = async (direction: Omit<BrandDirection, "id" | "brandId">) => {
-    const { db } = await import("../lib/firebase");
-    const { collection, addDoc } = await import("firebase/firestore");
-    await addDoc(collection(db, "brandDirections"), {
-      ...direction,
-      brandId: activeBrandId,
-      createdAt: new Date().toISOString()
-    });
-    addNotification("Positioning Pillar Logged", `New brand direction pillar "${direction.pillar}" successfully saved.`, "success");
-  };
-
-  const updateDirection = async (id: string, direction: Partial<BrandDirection>) => {
-    const { db } = await import("../lib/firebase");
-    const { doc, updateDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "brandDirections", id), direction);
-    addNotification("Direction Pillar Updated", "The brand direction pillar details were successfully modified.", "info");
-  };
-
-  const deleteDirection = async (id: string) => {
-    const { db } = await import("../lib/firebase");
-    const { doc, deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(doc(db, "brandDirections", id));
-    addNotification("Direction Pillar Removed", "Brand direction pillar was deleted from brand partitions.", "warning");
+    addNotification("Insights Removed", `Successfully deleted ${ids.length} insights in bulk.`, "warning");
   };
 
   const saveRawAnalyticsRows = async (rows: Omit<RawAnalyticsRow, "id" | "brandId">[]) => {
     const { db } = await import("../lib/firebase");
-    const { doc, writeBatch, collection } = await import("firebase/firestore");
+    const { collection, writeBatch, doc } = await import("firebase/firestore");
     const batch = writeBatch(db);
-    
     rows.forEach(row => {
       const newDocRef = doc(collection(db, "rawAnalytics"));
       batch.set(newDocRef, {
@@ -482,33 +450,19 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         createdAt: new Date().toISOString()
       });
     });
-
     await batch.commit();
+  };
 
-    const totals = rows.reduce((acc, r) => {
-      acc.impressions += r.impressions || 0;
-      acc.engagement += r.engagement || 0;
-      return acc;
-    }, { impressions: 0, engagement: 0 });
-
-    const avgRate = rows.length > 0 ? (totals.engagement / totals.impressions) * 100 : 0;
-
-    const metricsBatch = writeBatch(db);
-    const metricsToSet = [
-      { id: "m-uploaded-1", label: "Uploaded Total Impressions", value: totals.impressions.toLocaleString(), change: "+100%", changeType: "increase", trend: [0, totals.impressions] },
-      { id: "m-uploaded-2", label: "Uploaded Avg Engagement Rate", value: avgRate.toFixed(2) + "%", change: "+100%", changeType: "increase", trend: [0, avgRate] },
-      { id: "m-uploaded-3", label: "Uploaded Total Interactions", value: totals.engagement.toLocaleString(), change: "+100%", changeType: "increase", trend: [0, totals.engagement] }
-    ];
-
-    metricsToSet.forEach(m => {
-      metricsBatch.set(doc(db, "metrics", `${activeBrandId}-${m.id}`), {
-        ...m,
-        brandId: activeBrandId
-      });
+  const clearRawAnalytics = async () => {
+    const { db } = await import("../lib/firebase");
+    const { doc, writeBatch } = await import("firebase/firestore");
+    if (!rawAnalytics || rawAnalytics.length === 0) return;
+    const batch = writeBatch(db);
+    rawAnalytics.forEach(row => {
+      batch.delete(doc(db, "rawAnalytics", row.id));
     });
-    await metricsBatch.commit();
-
-    addNotification("Telemetry Logged", `Imported ${rows.length} rows of raw analytics performance data.`, "success");
+    await batch.commit();
+    addNotification("Data Cleared", "Successfully cleared uploaded raw analytics data.", "info");
   };
 
   return (
@@ -521,9 +475,6 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       calendarEvents,
       briefs,
       metrics,
-      insights,
-      directions,
-      rawAnalytics,
       loading,
       user,
       logout,
@@ -538,15 +489,6 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateCreativeBrief,
       deleteCreativeBrief,
       addBrand,
-      addInsight,
-      updateInsight,
-      deleteInsight,
-      bulkApproveInsights,
-      bulkDeleteInsights,
-      addDirection,
-      updateDirection,
-      deleteDirection,
-      saveRawAnalyticsRows,
       theme,
       setTheme,
       notifications,
@@ -554,7 +496,16 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       markNotificationAsRead,
       clearAllNotifications,
       accentColor,
-      setAccentColor
+      setAccentColor,
+      insights,
+      rawAnalytics,
+      addInsight,
+      updateInsight,
+      deleteInsight,
+      bulkApproveInsights,
+      bulkDeleteInsights,
+      saveRawAnalyticsRows,
+      clearRawAnalytics
     }}>
       {children}
     </BrandContext.Provider>
