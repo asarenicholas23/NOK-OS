@@ -1,0 +1,6 @@
+{
+  "name": "N.O.K Os Brand Control Panel",
+  "description": "An elegant brand management system called N.O.K Os featuring a multi-brand workspace dashboard, live campaigns queue, and content calendars.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

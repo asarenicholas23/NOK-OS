@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Open rules for the development sandbox to handle restricted anonymous auth
+    match /brands/{brandId} {
+      allow read, write: if true;
+    }
+
+    match /campaignQueues/{queueId} {
+      allow read, write: if true;
+    }
+
+    match /calendarEvents/{eventId} {
+      allow read, write: if true;
+    }
+
+    match /briefs/{briefId} {
+      allow read, write: if true;
+    }
+
+    match /metrics/{metricId} {
+      allow read, write: if true;
+    }
+  }
+}
