@@ -20,7 +20,8 @@ import {
   ChevronUp,
   Square,
   CheckSquare,
-  Database
+  Database,
+  Pencil
 } from "lucide-react";
 import { StrategicInsight } from "../lib/firebase";
 
@@ -60,6 +61,16 @@ export const InsightsPage: React.FC = () => {
   
   // Generating state
   const [generating, setGenerating] = useState(false);
+  const [generationCount, setGenerationCount] = useState<number>(5);
+
+  // Inline editing states for Insights
+  const [editingInsightId, setEditingInsightId] = useState<string | null>(null);
+  const [editInsightTitle, setEditInsightTitle] = useState("");
+  const [editInsightDesc, setEditInsightDesc] = useState("");
+  const [editInsightStandpoint, setEditInsightStandpoint] = useState<"analytics" | "observation" | "opportunity" | "pattern" | "lesson">("analytics");
+  const [editInsightMetric, setEditInsightMetric] = useState("");
+  const [editInsightChange, setEditInsightChange] = useState("");
+  const [editInsightType, setEditInsightType] = useState<"positive" | "warning" | "neutral">("positive");
 
   // Fallback initial mock data to seed Firestore if empty
   const defaultMockInsights: Omit<StrategicInsight, "id" | "brandId">[] = [
@@ -130,9 +141,11 @@ export const InsightsPage: React.FC = () => {
   // Seed Firestore if empty for the active brand only once initially
   useEffect(() => {
     const seedIfEmpty = async () => {
-      const hasSeeded = localStorage.getItem("nok-os-has-seeded-insights-v2");
-      if (!hasSeeded && insights.length === 0 && activeBrand) {
-        localStorage.setItem("nok-os-has-seeded-insights-v2", "true");
+      if (!activeBrand) return;
+      const seedKey = `nok-os-has-seeded-insights-v3-${activeBrand.id}`;
+      const hasSeeded = localStorage.getItem(seedKey);
+      if (!hasSeeded && insights.length === 0) {
+        localStorage.setItem(seedKey, "true");
         for (const item of defaultMockInsights) {
           await addInsight(item);
         }
@@ -215,6 +228,29 @@ export const InsightsPage: React.FC = () => {
     setSelectedIds(selectedIds.filter(item => item !== id));
   };
 
+  const handleStartInsightEdit = (item: StrategicInsight) => {
+    setEditingInsightId(item.id);
+    setEditInsightTitle(item.title);
+    setEditInsightDesc(item.desc);
+    setEditInsightStandpoint(item.standpoint);
+    setEditInsightMetric(item.metric);
+    setEditInsightChange(item.change);
+    setEditInsightType(item.type);
+  };
+
+  const handleSaveInsightEdit = async (id: string) => {
+    if (!editInsightTitle || !editInsightDesc) return;
+    await updateInsight(id, {
+      title: editInsightTitle,
+      desc: editInsightDesc,
+      standpoint: editInsightStandpoint,
+      metric: editInsightMetric,
+      change: editInsightChange,
+      type: editInsightType
+    });
+    setEditingInsightId(null);
+  };
+
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
     await bulkApproveInsights(selectedIds);
@@ -263,7 +299,8 @@ export const InsightsPage: React.FC = () => {
         body: JSON.stringify({
           tagline: activeBrand?.tagline || "Global Standards",
           voiceTone: activeBrand?.voiceTone || "Professional, Objective",
-          analyticsData: payload
+          analyticsData: payload.slice(0, 150),
+          count: generationCount
         })
       });
 
@@ -287,7 +324,7 @@ export const InsightsPage: React.FC = () => {
 
       addNotification(
         "AI Insights Ingested",
-        `Discovered ${generated.length} strategic insights from performance telemetry records. Check the board!`,
+        `Discovered ${generated.length} strategic insights from brand performance records. Check the board!`,
         "success"
       );
     } catch (err: any) {
@@ -311,11 +348,27 @@ export const InsightsPage: React.FC = () => {
             Strategic Insights Board
           </h2>
           <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Audited analytics highlights, operational recommendations, and alert telemetry for <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "active client brand"}</strong>.
+            Audited analytics highlights and operational recommendations for <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "active client brand"}</strong>.
           </p>
         </div>
 
-        <div className="flex items-center space-x-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex items-center space-x-1.5 border border-slate-800 bg-slate-950/40 px-2 py-1.5 rounded-lg">
+            <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold">Count</span>
+            <select
+              id="insights-generation-count-select"
+              value={generationCount}
+              onChange={(e) => setGenerationCount(Number(e.target.value))}
+              className={`text-xs px-1.5 py-0.5 rounded border focus:outline-none focus:ring-1 font-mono cursor-pointer ${
+                isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-700"
+              }`}
+            >
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                <option key={num} value={num}>{num}</option>
+              ))}
+            </select>
+          </div>
+
           <button
             id="insights-generate-loaded-btn"
             onClick={handleGenerateFromLoadedData}
@@ -595,7 +648,11 @@ export const InsightsPage: React.FC = () => {
             <div 
               key={item.id || idx} 
               id={`insight-item-${item.id}`}
-              onClick={() => handleToggleSelect(item.id)}
+              onClick={() => {
+                if (editingInsightId !== item.id) {
+                  handleToggleSelect(item.id);
+                }
+              }}
               className={`border rounded-xl p-6 shadow-md transition-all relative flex flex-col justify-between cursor-pointer group ${
                 isSelected 
                   ? "ring-1 ring-violet-500 border-violet-500/45 scale-[0.99] "
@@ -604,109 +661,230 @@ export const InsightsPage: React.FC = () => {
                     : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg"
               }`}
             >
-              <div className="space-y-3.5">
-                {/* Header indicators */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className={`p-1.5 rounded-lg border flex items-center justify-center ${getStandpointBadgeColor(item.standpoint)}`}>
-                      {getStandpointIcon(item.standpoint)}
-                    </span>
-                    <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 font-bold capitalize">
-                      {item.standpoint}
-                    </span>
+              {editingInsightId === item.id ? (
+                <div className="space-y-3.5 w-full text-left" onClick={e => e.stopPropagation()}>
+                  <div className="text-[10px] font-mono text-slate-400 border-b pb-1.5 uppercase font-bold tracking-wider">
+                    Edit Strategic Insight
                   </div>
-                  
-                  <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
-                    <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
-                      isPositive 
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" 
-                        : isWarning 
-                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20" 
-                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-                    }`}>
-                      {item.change}
-                    </span>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[9px] font-mono uppercase tracking-wide text-slate-400 mb-1">Insight Title</label>
+                      <input
+                        type="text"
+                        value={editInsightTitle}
+                        onChange={(e) => setEditInsightTitle(e.target.value)}
+                        className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      />
+                    </div>
 
-                    {/* Checkbox */}
-                    <div 
-                      onClick={() => handleToggleSelect(item.id)}
-                      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
-                        isSelected 
-                          ? "bg-violet-600 border-violet-600 text-white" 
-                          : "border-slate-700 bg-slate-950 hover:border-slate-500"
-                      }`}
-                    >
-                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    <div>
+                      <label className="block text-[9px] font-mono uppercase tracking-wide text-slate-400 mb-1">Description Narrative</label>
+                      <textarea
+                        rows={3}
+                        value={editInsightDesc}
+                        onChange={(e) => setEditInsightDesc(e.target.value)}
+                        className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans resize-none ${
+                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[9px] font-mono uppercase tracking-wide text-slate-400 mb-1">Standpoint</label>
+                        <select
+                          value={editInsightStandpoint}
+                          onChange={(e) => setEditInsightStandpoint(e.target.value as any)}
+                          className={`w-full text-xs px-2 py-1 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        >
+                          <option value="analytics">Analytics</option>
+                          <option value="observation">Observation</option>
+                          <option value="opportunity">Opportunity</option>
+                          <option value="pattern">Pattern</option>
+                          <option value="lesson">Lesson</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-mono uppercase tracking-wide text-slate-400 mb-1">Insight Type</label>
+                        <select
+                          value={editInsightType}
+                          onChange={(e) => setEditInsightType(e.target.value as any)}
+                          className={`w-full text-xs px-2 py-1 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        >
+                          <option value="positive">Positive</option>
+                          <option value="warning">Warning</option>
+                          <option value="neutral">Neutral</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[9px] font-mono uppercase tracking-wide text-slate-400 mb-1">Metric</label>
+                        <input
+                          type="text"
+                          value={editInsightMetric}
+                          onChange={(e) => setEditInsightMetric(e.target.value)}
+                          className={`w-full text-xs px-2.5 py-1 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-mono uppercase tracking-wide text-slate-400 mb-1">Change Delta</label>
+                        <input
+                          type="text"
+                          value={editInsightChange}
+                          onChange={(e) => setEditInsightChange(e.target.value)}
+                          className={`w-full text-xs px-2.5 py-1 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        />
+                      </div>
                     </div>
                   </div>
+
+                  <div className="flex justify-end space-x-2 pt-2">
+                    <button
+                      onClick={() => setEditingInsightId(null)}
+                      className="px-2.5 py-1.5 rounded text-[10px] font-mono bg-slate-700 hover:bg-slate-600 text-white font-bold cursor-pointer uppercase"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleSaveInsightEdit(item.id)}
+                      className="px-2.5 py-1.5 rounded text-[10px] font-mono bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer uppercase"
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div className="space-y-3.5">
+                    {/* Header indicators */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className={`p-1.5 rounded-lg border flex items-center justify-center ${getStandpointBadgeColor(item.standpoint)}`}>
+                          {getStandpointIcon(item.standpoint)}
+                        </span>
+                        <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 font-bold capitalize">
+                          {item.standpoint}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
+                        <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                          isPositive 
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" 
+                            : isWarning 
+                              ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20" 
+                              : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                        }`}>
+                          {item.change}
+                        </span>
 
-                {/* Body Content */}
-                <div className="space-y-1.5">
-                  <h4 className={`text-sm font-bold flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-                    {item.title}
-                  </h4>
-                  <p className={`text-xs leading-relaxed font-sans ${isDark ? "text-slate-400" : "text-slate-600"}`}>
-                    {item.desc}
-                  </p>
-                </div>
-              </div>
+                        {/* Checkbox */}
+                        <div 
+                          onClick={() => handleToggleSelect(item.id)}
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
+                            isSelected 
+                              ? "bg-violet-600 border-violet-600 text-white" 
+                              : "border-slate-700 bg-slate-950 hover:border-slate-500"
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </div>
+                    </div>
 
-              {/* Status and Actions Row */}
-              <div className="space-y-3 mt-4" onClick={e => e.stopPropagation()}>
-                {/* Status indicator line */}
-                <div className="flex items-center justify-between text-[10px] font-mono border-t border-slate-800/40 pt-3 text-slate-500">
-                  <span className="flex items-center">
-                    <Database className="w-3 h-3 mr-1" />
-                    Metric: {item.metric}
-                  </span>
-                  
-                  <span className={`px-2 py-0.5 rounded font-bold uppercase text-[9px] ${
-                    isApproved 
-                      ? "bg-emerald-500/10 text-emerald-500" 
-                      : isRejected 
-                        ? "bg-rose-500/10 text-rose-500" 
-                        : "bg-amber-500/10 text-amber-500"
-                  }`}>
-                    {item.status}
-                  </span>
-                </div>
-
-                {/* Active control action buttons */}
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <div className="flex space-x-1">
-                    {!isApproved && (
-                      <button
-                        id={`approve-btn-${item.id}`}
-                        onClick={() => handleApprove(item.id)}
-                        className="p-1.5 hover:bg-emerald-600/15 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 rounded transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Approve</span>
-                      </button>
-                    )}
-
-                    {!isRejected && (
-                      <button
-                        id={`reject-btn-${item.id}`}
-                        onClick={() => handleReject(item.id)}
-                        className="p-1.5 hover:bg-rose-600/15 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        <span>Reject</span>
-                      </button>
-                    )}
+                    {/* Body Content */}
+                    <div className="space-y-1.5">
+                      <h4 className={`text-sm font-bold flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+                        {item.title}
+                      </h4>
+                      <p className={`text-xs leading-relaxed font-sans ${isDark ? "text-slate-400" : "text-slate-600"}`}>
+                        {item.desc}
+                      </p>
+                    </div>
                   </div>
 
-                  <button
-                    id={`delete-btn-${item.id}`}
-                    onClick={() => handleDelete(item.id)}
-                    className="p-1.5 hover:bg-slate-800 text-slate-500 hover:text-slate-300 rounded transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
+                  {/* Status and Actions Row */}
+                  <div className="space-y-3 mt-4" onClick={e => e.stopPropagation()}>
+                    {/* Status indicator line */}
+                    <div className="flex items-center justify-between text-[10px] font-mono border-t border-slate-800/40 pt-3 text-slate-500">
+                      <span className="flex items-center">
+                        <Database className="w-3 h-3 mr-1" />
+                        Metric: {item.metric}
+                      </span>
+                      
+                      <span className={`px-2 py-0.5 rounded font-bold uppercase text-[9px] ${
+                        isApproved 
+                          ? "bg-emerald-500/10 text-emerald-500" 
+                          : isRejected 
+                            ? "bg-rose-500/10 text-rose-500" 
+                            : "bg-amber-500/10 text-amber-500"
+                      }`}>
+                        {item.status}
+                      </span>
+                    </div>
+
+                    {/* Active control action buttons */}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="flex space-x-1">
+                        {!isApproved && (
+                          <button
+                            id={`approve-btn-${item.id}`}
+                            onClick={() => handleApprove(item.id)}
+                            className="p-1.5 hover:bg-emerald-600/15 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 rounded transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Approve</span>
+                          </button>
+                        )}
+
+                        {!isRejected && (
+                          <button
+                            id={`reject-btn-${item.id}`}
+                            onClick={() => handleReject(item.id)}
+                            className="p-1.5 hover:bg-rose-600/15 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Reject</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-1">
+                        <button
+                          id={`edit-btn-${item.id}`}
+                          onClick={() => handleStartInsightEdit(item)}
+                          className="p-1.5 hover:bg-slate-800 text-slate-500 hover:text-slate-300 rounded transition-colors cursor-pointer"
+                          title="Edit Insight"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          id={`delete-btn-${item.id}`}
+                          onClick={() => handleDelete(item.id)}
+                          className="p-1.5 hover:bg-slate-800 text-slate-500 hover:text-slate-300 rounded transition-colors cursor-pointer"
+                          title="Delete Insight"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           );
         })}

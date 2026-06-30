@@ -9,7 +9,8 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Initialize Gemini client on the server
 const ai = new GoogleGenAI({
@@ -24,7 +25,7 @@ const ai = new GoogleGenAI({
 // API endpoint to generate strategic insights from real uploaded data
 app.post("/api/generate-insights", async (req, res) => {
   try {
-    const { tagline, voiceTone, analyticsData } = req.body;
+    const { tagline, voiceTone, analyticsData, count = 5 } = req.body;
 
     if (!analyticsData || !Array.isArray(analyticsData) || analyticsData.length === 0) {
       return res.status(400).send("No analytics data was provided. Please import some data first.");
@@ -35,7 +36,7 @@ app.post("/api/generate-insights", async (req, res) => {
 Analytics Data (real uploaded data rows):
 ${JSON.stringify(analyticsData.slice(0, 50), null, 2)}
 
-Based on this real data, discover exactly 3 or 4 highly valuable, custom strategic insights. Do not generate generic insights. They must directly reflect the metrics, trends, platforms, content formats, and engagement rates found in the provided data.
+Based on this real data, discover exactly ${count} highly valuable, custom strategic insights. Do not generate generic insights. They must directly reflect the metrics, trends, platforms, content formats, and engagement rates found in the provided data.
 
 For each insight, return:
 1. "title": A concise, action-oriented title.
@@ -151,6 +152,101 @@ Return JSON in this format:
   } catch (error: any) {
     console.error("Gemini Performance Intelligence Error:", error);
     res.status(500).send(error.message || "Failed to generate report.");
+  }
+});
+
+// API endpoint to generate brand content direction pillars from approved insights
+app.post("/api/generate-directions", async (req, res) => {
+  try {
+    const { tagline, voiceTone, approvedInsights, count = 5 } = req.body;
+
+    const dataPrompt = `You are a visionary brand architect and creative director. Use the brand tagline "${tagline || ""}" and voice tone "${voiceTone || ""}" along with these strategic insights:
+${JSON.stringify(approvedInsights, null, 2)}
+
+Synthesize exactly ${count} brand positioning content pillars/directions that translate these insights into actionable content themes.
+
+For each brand direction, provide:
+1. "pillar": A bold, inspiring name for this content theme (e.g. "Authority-Led Case Studies").
+2. "strategy": A detailed content marketing strategy explaining why and how to construct campaigns under this pillar.
+3. "focus": Channel or format focus areas (e.g., "LinkedIn deep-dive articles, partner newsletters").
+4. "checklist": An array of exactly 3 or 4 actionable checklist items for creators executing campaigns under this direction.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: dataPrompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              pillar: { type: Type.STRING },
+              strategy: { type: Type.STRING },
+              focus: { type: Type.STRING },
+              checklist: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["pillar", "strategy", "focus", "checklist"]
+          }
+        }
+      }
+    });
+
+    const text = response.text || "[]";
+    res.json(JSON.parse(text));
+  } catch (error: any) {
+    console.error("Gemini Directions Generation Error:", error);
+    res.status(500).send(error.message || "Failed to generate directions.");
+  }
+});
+
+// API endpoint to generate creative content briefs from brand directions
+app.post("/api/generate-briefs", async (req, res) => {
+  try {
+    const { tagline, voiceTone, approvedDirections, count = 5 } = req.body;
+
+    const dataPrompt = `You are an elite creative director and copywriter. Using the brand tagline "${tagline || ""}" and voice tone "${voiceTone || ""}", analyze the following positioning directions/pillars:
+${JSON.stringify(approvedDirections, null, 2)}
+
+Create exactly ${count} highly engaging creative content briefs for upcoming marketing campaigns that directly realize these pillars.
+
+For each campaign brief, provide:
+1. "title": A catchy, memorable campaign title.
+2. "objective": A precise, goal-oriented creative objective.
+3. "targetAudience": The specific target audience or reader segment.
+4. "keyMessage": The core marketing message or key takeaway of the campaign.
+5. "deliverables": Specific social assets or content assets to be created (e.g., "3x LinkedIn carousel graphics, 1x blog post series").`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: dataPrompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              objective: { type: Type.STRING },
+              targetAudience: { type: Type.STRING },
+              keyMessage: { type: Type.STRING },
+              deliverables: { type: Type.STRING }
+            },
+            required: ["title", "objective", "targetAudience", "keyMessage", "deliverables"]
+          }
+        }
+      }
+    });
+
+    const text = response.text || "[]";
+    res.json(JSON.parse(text));
+  } catch (error: any) {
+    console.error("Gemini Briefs Generation Error:", error);
+    res.status(500).send(error.message || "Failed to generate briefs.");
   }
 });
 

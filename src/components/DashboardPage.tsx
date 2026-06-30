@@ -108,7 +108,7 @@ export const DashboardPage: React.FC = () => {
             N.O.K Os Core Workspace
           </h2>
           <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Real-time live-synced telemetry and pipeline monitoring for brand: <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "Active Workspace"}</strong>.
+            Real-time live-synced performance metrics and analytic monitoring for brand: <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "Active Workspace"}</strong>.
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -231,7 +231,7 @@ export const DashboardPage: React.FC = () => {
               N.O.K Os Brand Workspace Registry
             </h3>
             <p className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-              Select a brand registry workspace to activate its live sync telemetry pipeline, or register a new client brand.
+              Select a brand registry workspace to activate its live sync brand performance data, or register a new client brand.
             </p>
           </div>
           <button
@@ -336,7 +336,7 @@ export const DashboardPage: React.FC = () => {
                   <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Brand Tagline</label>
                   <input
                     type="text"
-                    placeholder="e.g., Designing next-gen telemetry frameworks."
+                    placeholder="e.g., Crafting elegant lifestyle products."
                     value={tagline}
                     onChange={(e) => setTagline(e.target.value)}
                     className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans ${
@@ -435,7 +435,7 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Dynamic Telemetry Metric Cards Grid */}
+      {/* Dynamic Brand Metric Cards Grid */}
       <div id="metric-cards-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {renderedMetrics.map((metric) => {
           const isIncrease = metric.changeType === "increase";
@@ -464,7 +464,7 @@ export const DashboardPage: React.FC = () => {
 
               <div className="relative z-10 mt-3 flex items-baseline space-x-2">
                 <span className={`text-2xl font-bold tracking-tight font-sans ${isDark ? "text-slate-100" : "text-slate-900"}`}>{metric.value}</span>
-                <span className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">telemetry</span>
+                <span className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">KPI</span>
               </div>
 
               {/* Sparkline Custom SVG rendering */}

@@ -7,6 +7,7 @@ import {
   AnalyticsMetric,
   StrategicInsight,
   RawAnalyticsRow,
+  BrandDirection,
   subscribeToBrands,
   subscribeToCampaignQueues,
   subscribeToCalendarEvents,
@@ -14,9 +15,11 @@ import {
   subscribeToMetrics,
   subscribeToInsights,
   subscribeToRawAnalytics,
+  subscribeToDirections,
   seedDatabaseIfEmpty,
   ensureAuthenticated,
-  auth
+  auth,
+  signInWithGoogleGmail
 } from "../lib/firebase";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 
@@ -62,6 +65,7 @@ interface BrandContextType {
   setAccentColor: (color: "violet" | "emerald" | "amber" | "rose") => void;
   insights: StrategicInsight[];
   rawAnalytics: RawAnalyticsRow[];
+  directions: BrandDirection[];
   addInsight: (insight: Omit<StrategicInsight, "id" | "brandId">) => Promise<void>;
   updateInsight: (id: string, insight: Partial<StrategicInsight>) => Promise<void>;
   deleteInsight: (id: string) => Promise<void>;
@@ -69,6 +73,15 @@ interface BrandContextType {
   bulkDeleteInsights: (ids: string[]) => Promise<void>;
   saveRawAnalyticsRows: (rows: Omit<RawAnalyticsRow, "id" | "brandId">[]) => Promise<void>;
   clearRawAnalytics: () => Promise<void>;
+  addDirection: (direction: Omit<BrandDirection, "id" | "brandId">) => Promise<void>;
+  updateDirection: (id: string, direction: Partial<BrandDirection>) => Promise<void>;
+  deleteDirection: (id: string) => Promise<void>;
+  bulkApproveDirections: (ids: string[]) => Promise<void>;
+  bulkDeleteDirections: (ids: string[]) => Promise<void>;
+  gmailToken: string | null;
+  gmailUser: any | null;
+  connectGmail: () => Promise<void>;
+  disconnectGmail: () => void;
 }
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
@@ -86,8 +99,11 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [metrics, setMetrics] = useState<AnalyticsMetric[]>([]);
   const [insights, setInsights] = useState<StrategicInsight[]>([]);
   const [rawAnalytics, setRawAnalytics] = useState<RawAnalyticsRow[]>([]);
+  const [directions, setDirections] = useState<BrandDirection[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [gmailToken, setGmailToken] = useState<string | null>(null);
+  const [gmailUser, setGmailUser] = useState<any | null>(null);
 
   // NEW STATES: N.O.K Os Theme, Notifications & Accent Color
   const [theme, setThemeState] = useState<"dark" | "light">(() => {
@@ -113,7 +129,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {
         id: "notif-2",
         title: "Brand Database Connected",
-        message: "Successfully synchronized brand telemetry with Firestore database partitions.",
+        message: "Successfully synchronized brand data with Firestore database partitions.",
         timestamp: new Date(Date.now() - 1000 * 60 * 15).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         read: false,
         type: "info"
@@ -141,8 +157,9 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addNotification = (title: string, message: string, type: "info" | "success" | "warning" = "info") => {
+    const uniqueId = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const newNotif: AppNotification = {
-      id: "notif-" + Date.now(),
+      id: uniqueId,
       title,
       message,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -213,11 +230,41 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.removeItem("workspace_fallback_user");
       await signOut(auth);
       setUser(null);
+      setGmailToken(null);
+      setGmailUser(null);
     } catch (err) {
       console.error("Sign out failed:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const connectGmail = async () => {
+    try {
+      const result = await signInWithGoogleGmail();
+      if (result) {
+        setGmailToken(result.accessToken);
+        setGmailUser(result.user);
+        addNotification(
+          "Gmail Connected",
+          `Successfully authenticated Gmail account: ${result.user.email || ""}`,
+          "success"
+        );
+      }
+    } catch (err: any) {
+      console.error("Connect Gmail failed:", err);
+      addNotification(
+        "Gmail Connection Failed",
+        err.message || "Failed to authorize Gmail send permission.",
+        "warning"
+      );
+    }
+  };
+
+  const disconnectGmail = () => {
+    setGmailToken(null);
+    setGmailUser(null);
+    addNotification("Gmail Disconnected", "Your Gmail integration has been disconnected.", "info");
   };
 
   // Listen to Brands (Live)
@@ -300,6 +347,15 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!activeBrandId) return;
     const unsubscribe = subscribeToRawAnalytics(activeBrandId, (updated) => {
       setRawAnalytics(updated);
+    });
+    return () => unsubscribe();
+  }, [activeBrandId]);
+
+  // Listen to Brand Positioning Directions for active Brand
+  useEffect(() => {
+    if (!activeBrandId) return;
+    const unsubscribe = subscribeToDirections(activeBrandId, (updated) => {
+      setDirections(updated);
     });
     return () => unsubscribe();
   }, [activeBrandId]);
@@ -416,6 +472,54 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addNotification("Insight Removed", "Strategic insight was deleted from brand records.", "warning");
   };
 
+  const addDirection = async (direction: Omit<BrandDirection, "id" | "brandId">) => {
+    const { db } = await import("../lib/firebase");
+    const { collection, addDoc } = await import("firebase/firestore");
+    await addDoc(collection(db, "brandDirections"), {
+      ...direction,
+      status: direction.status || "Pending",
+      brandId: activeBrandId,
+      createdAt: new Date().toISOString()
+    });
+    addNotification("Positioning Direction Logged", `Direction pillar "${direction.pillar}" has been successfully added.`, "success");
+  };
+
+  const updateDirection = async (id: string, direction: Partial<BrandDirection>) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, updateDoc } = await import("firebase/firestore");
+    await updateDoc(doc(db, "brandDirections", id), direction);
+    addNotification("Direction Updated", "Brand positioning direction details were modified.", "info");
+  };
+
+  const deleteDirection = async (id: string) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(doc(db, "brandDirections", id));
+    addNotification("Direction Removed", "Brand positioning direction was deleted.", "warning");
+  };
+
+  const bulkApproveDirections = async (ids: string[]) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, writeBatch } = await import("firebase/firestore");
+    const batch = writeBatch(db);
+    ids.forEach(id => {
+      batch.update(doc(db, "brandDirections", id), { status: "Approved" });
+    });
+    await batch.commit();
+    addNotification("Directions Approved", `Successfully approved ${ids.length} positioning directions in bulk.`, "success");
+  };
+
+  const bulkDeleteDirections = async (ids: string[]) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, writeBatch } = await import("firebase/firestore");
+    const batch = writeBatch(db);
+    ids.forEach(id => {
+      batch.delete(doc(db, "brandDirections", id));
+    });
+    await batch.commit();
+    addNotification("Directions Removed", `Successfully deleted ${ids.length} directions in bulk.`, "warning");
+  };
+
   const bulkApproveInsights = async (ids: string[]) => {
     const { db } = await import("../lib/firebase");
     const { doc, writeBatch } = await import("firebase/firestore");
@@ -499,13 +603,23 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setAccentColor,
       insights,
       rawAnalytics,
+      directions,
       addInsight,
       updateInsight,
       deleteInsight,
       bulkApproveInsights,
       bulkDeleteInsights,
       saveRawAnalyticsRows,
-      clearRawAnalytics
+      clearRawAnalytics,
+      addDirection,
+      updateDirection,
+      deleteDirection,
+      bulkApproveDirections,
+      bulkDeleteDirections,
+      gmailToken,
+      gmailUser,
+      connectGmail,
+      disconnectGmail
     }}>
       {children}
     </BrandContext.Provider>

@@ -1,19 +1,33 @@
 import React, { useState } from "react";
 import { useBrand } from "../context/BrandContext";
-import { Plus, FileText, ClipboardList, AlertCircle, Sparkles, UserCheck, Milestone } from "lucide-react";
+import { Plus, FileText, ClipboardList, AlertCircle, Sparkles, UserCheck, Milestone, Loader2, Download, Mail, Send, LogOut, CheckCircle2 } from "lucide-react";
+import { generateBriefPDF } from "../utils/pdfGenerator";
+import { sendBriefEmail } from "../utils/gmailSender";
 
 export const BriefsPage: React.FC = () => {
   const { 
     activeBrand, 
     briefs, 
+    directions,
     addCreativeBrief, 
     updateCreativeBrief, 
     deleteCreativeBrief, 
+    addNotification,
     theme, 
-    accentColor 
+    accentColor,
+    gmailToken,
+    gmailUser,
+    connectGmail,
+    disconnectGmail,
+    addCampaign,
+    addCalendarEvent
   } = useBrand();
   const [showForm, setShowForm] = useState(false);
   
+  // Generation & loading states
+  const [generatingBriefs, setGeneratingBriefs] = useState(false);
+  const [generationCount, setGenerationCount] = useState<number>(5);
+
   // Form fields
   const [title, setTitle] = useState("");
   const [objective, setObjective] = useState("");
@@ -32,6 +46,144 @@ export const BriefsPage: React.FC = () => {
 
   const isDark = theme === "dark";
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
+  const approvedBriefs = briefs.filter(b => b.status === "Approved");
+
+  // PDF, Gmail & Pipeline states
+  const [selectedBriefIds, setSelectedBriefIds] = useState<string[]>([]);
+  const [briefsToEmail, setBriefsToEmail] = useState<any[]>([]);
+  const [recipientEmails, setRecipientEmails] = useState<string>("management@brand.com, designer@brand.com");
+  const [emailSubject, setEmailSubject] = useState<string>("");
+  const [emailBody, setEmailBody] = useState<string>("");
+  const [sendingEmail, setSendingEmail] = useState<boolean>(false);
+
+  const handleOpenEmailModal = (briefList: any[]) => {
+    setBriefsToEmail(briefList);
+    if (briefList.length === 1) {
+      const brief = briefList[0];
+      setEmailSubject(`[Approved Creative Brief] ${brief.title}`);
+      setEmailBody(
+        `Hi,\n\nPlease find attached the fully approved campaign creative brief for "${brief.title}" under the brand "${activeBrand?.name || "Global Standards"}".\n\nObjective:\n${brief.objective}\n\nTarget Audience:\n${brief.targetAudience}\n\nDeliverables:\n${brief.deliverables || "N/A"}\n\nBest regards,\nCreative Briefs Desk`
+      );
+    } else {
+      setEmailSubject(`[Bulk Approved Creative Briefs] ${briefList.length} Campaign Specifications`);
+      setEmailBody(
+        `Hi,\n\nPlease find attached the ${briefList.length} approved campaign creative briefs under the brand "${activeBrand?.name || "Global Standards"}".\n\nBriefs Included:\n${briefList.map((b, i) => `${i + 1}. ${b.title}`).join("\n")}\n\nBest regards,\nCreative Briefs Desk`
+      );
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!gmailToken) {
+      addNotification("Auth Required", "Please connect your Google account to send emails.", "warning");
+      return;
+    }
+    if (briefsToEmail.length === 0) return;
+    
+    const emails = recipientEmails
+      .split(",")
+      .map(e => e.trim())
+      .filter(e => e.length > 0 && e.includes("@"));
+
+    if (emails.length === 0) {
+      addNotification("Invalid Recipients", "Please enter at least one valid recipient email address.", "warning");
+      return;
+    }
+
+    setSendingEmail(true);
+    try {
+      const attachments = briefsToEmail.map(brief => {
+        const doc = generateBriefPDF(brief, activeBrand?.name);
+        const pdfBase64 = (doc as any).output("base64") as string;
+        const fileName = `Brief_${brief.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+        return { pdfBase64, fileName };
+      });
+
+      await sendBriefEmail(
+        gmailToken,
+        emails,
+        emailSubject,
+        emailBody,
+        attachments
+      );
+
+      addNotification(
+        "Email Transmitted",
+        `Successfully sent ${briefsToEmail.length} brief(s) as PDF attachments to ${emails.join(", ")}!`,
+        "success"
+      );
+      
+      setBriefsToEmail([]);
+      setSelectedBriefIds([]); // Clear selection upon successful send
+    } catch (err: any) {
+      console.error("Email send error:", err);
+      addNotification(
+        "Email Dispatch Failed",
+        err.message || "Failed to transmit email via Google API.",
+        "warning"
+      );
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleDownloadPDF = (brief: any) => {
+    try {
+      const doc = generateBriefPDF(brief, activeBrand?.name);
+      const fileName = `Brief_${brief.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+      doc.save(fileName);
+      addNotification(
+        "PDF Downloaded",
+        `"${brief.title}" PDF successfully downloaded to your local device.`,
+        "success"
+      );
+    } catch (err: any) {
+      console.error(err);
+      addNotification("Download Failed", "Could not generate local PDF asset.", "warning");
+    }
+  };
+
+  const sendBriefToQueueAndCalendar = async (brief: any) => {
+    try {
+      // 1. Create campaign queue item
+      const content = `Objective:\n${brief.objective}\n\nTarget Audience:\n${brief.targetAudience}\n\nDeliverables:\n${brief.deliverables || "N/A"}`;
+      
+      // Schedule it 3 days from now
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 3);
+      const dateString = futureDate.toISOString().split('T')[0];
+      const scheduledTime = `${dateString}T10:00`;
+
+      await addCampaign({
+        title: brief.title,
+        channel: "LinkedIn", // Default channel
+        status: "scheduled",
+        scheduledTime,
+        content,
+        metrics: {
+          estimatedReach: 20000,
+          engagementRate: 5.0
+        }
+      });
+
+      // 2. Create Content Calendar Event
+      await addCalendarEvent({
+        title: `[Campaign] ${brief.title}`,
+        date: dateString,
+        type: "Campaign",
+        status: "Planned",
+        notes: `Creative brief key message: ${brief.keyMessage}`
+      });
+
+      addNotification(
+        "Synced to Pipeline",
+        `"${brief.title}" has been successfully added to the Campaign Queue & Content Calendar!`,
+        "success"
+      );
+    } catch (err) {
+      console.error("Failed to sync brief to pipeline:", err);
+      addNotification("Sync Failed", `Could not place "${brief.title}" in the campaign pipeline.`, "warning");
+    }
+  };
 
   const getBrandTextColor = () => {
     if (activeColor === "emerald") return "text-emerald-500 dark:text-emerald-400";
@@ -70,6 +222,56 @@ export const BriefsPage: React.FC = () => {
     }
   };
 
+  const handleGenerateBriefsFromDirections = async () => {
+    setGeneratingBriefs(true);
+    try {
+      const approvedDirections = directions.filter(d => d.status === "Approved");
+      const sourceDirections = approvedDirections.length > 0 ? approvedDirections : directions;
+      if (sourceDirections.length === 0) {
+        throw new Error("No brand directions found. Please create or generate brand positioning directions first.");
+      }
+
+      const response = await fetch("/api/generate-briefs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tagline: activeBrand?.tagline || "Global Standards",
+          voiceTone: activeBrand?.voiceTone || "Professional, Authoritative",
+          approvedDirections: sourceDirections,
+          count: generationCount
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate creative briefs via Gemini service");
+      }
+
+      const generatedBriefs = await response.json();
+
+      for (const item of generatedBriefs) {
+        await addCreativeBrief({
+          title: item.title,
+          objective: item.objective,
+          targetAudience: item.targetAudience,
+          keyMessage: item.keyMessage,
+          deliverables: item.deliverables,
+          status: "Draft"
+        });
+      }
+
+      addNotification(
+        "Content Briefs Synthesized",
+        `Drafted ${generatedBriefs.length} creative briefs from approved brand directions!`,
+        "success"
+      );
+    } catch (err: any) {
+      console.error(err);
+      addNotification("Synthesis Interrupted", err.message || "Failed to communicate with AI generation pipeline.", "warning");
+    } finally {
+      setGeneratingBriefs(false);
+    }
+  };
+
   const getStatusBadge = (st: typeof status) => {
     switch (st) {
       case "Approved":
@@ -90,7 +292,7 @@ export const BriefsPage: React.FC = () => {
       className={`space-y-8 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
     >
       {/* Header section */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 gap-4">
         <div>
           <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-slate-100" : "text-slate-900"}`}>
             Creative Briefs Desk
@@ -99,17 +301,221 @@ export const BriefsPage: React.FC = () => {
             Author and manage active creative campaign requirements for <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "active brand"}</strong>.
           </p>
         </div>
-        <button
-          id="btn-trigger-add-brief"
-          onClick={() => setShowForm(!showForm)}
-          className={`flex items-center space-x-2 px-3.5 py-1.5 text-xs font-semibold rounded-md shadow-md transition-colors font-mono cursor-pointer self-start md:self-auto ${
-            showForm ? "bg-rose-600 hover:bg-rose-500 text-white" : getBrandBgButton()
+
+        <div className="flex flex-wrap items-center gap-3 shrink-0 self-start md:self-auto">
+          {/* Generation count selector */}
+          <div className="flex items-center space-x-1.5 border border-slate-800 bg-slate-950/40 px-2 py-1.5 rounded-lg">
+            <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold">Count</span>
+            <select
+              id="briefs-generation-count-select"
+              value={generationCount}
+              onChange={(e) => setGenerationCount(Number(e.target.value))}
+              className={`text-xs px-1.5 py-0.5 rounded border focus:outline-none focus:ring-1 font-mono cursor-pointer ${
+                isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-700"
+              }`}
+            >
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                <option key={num} value={num}>{num}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* AI Generator Button */}
+          <button
+            id="btn-generate-briefs-from-directions"
+            onClick={handleGenerateBriefsFromDirections}
+            disabled={generatingBriefs}
+            className={`px-4 py-2 border rounded-lg font-mono text-xs font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
+              generatingBriefs
+                ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
+                : isDark
+                  ? "bg-slate-900 border-slate-800 text-slate-200 hover:border-slate-700"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+            }`}
+          >
+            {generatingBriefs ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Generating briefs...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                <span>
+                  Generate Briefs from Directions 
+                  {directions.filter(d => d.status === "Approved").length > 0 
+                    ? ` (${directions.filter(d => d.status === "Approved").length} Approved)` 
+                    : " (All)"}
+                </span>
+              </>
+            )}
+          </button>
+
+          <button
+            id="btn-trigger-add-brief"
+            onClick={() => setShowForm(!showForm)}
+            className={`flex items-center space-x-2 px-3.5 py-1.5 text-xs font-semibold rounded-md shadow-md transition-colors font-mono cursor-pointer ${
+              showForm ? "bg-rose-600 hover:bg-rose-500 text-white" : getBrandBgButton()
+            }`}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>{showForm ? "Cancel Brief" : "Create Brief"}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Gmail Authorization Status Banner */}
+      <div 
+        id="gmail-connection-banner"
+        className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
+          isDark 
+            ? "bg-slate-900/40 border-slate-850" 
+            : "bg-slate-50 border-slate-200"
+        }`}
+      >
+        <div className="flex items-center space-x-3">
+          <div className={`p-2 rounded-lg ${gmailToken ? "bg-emerald-500/10 text-emerald-500" : "bg-violet-500/10 text-violet-500"}`}>
+            <Mail className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold font-mono tracking-wide uppercase">
+              Gmail Dispatch Integration
+            </h4>
+            <p className={`text-[11px] mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+              {gmailToken 
+                ? `Authorized as ${gmailUser?.email || "Google User"}. Approved briefs can be transmitted directly as PDFs.`
+                : "Authorize your Gmail account to enable sending approved briefs to your management and design team."}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          {gmailToken ? (
+            <button
+              id="btn-disconnect-gmail"
+              onClick={disconnectGmail}
+              className="flex items-center space-x-1.5 px-3 py-1.5 text-[10px] font-bold font-mono border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 rounded-lg cursor-pointer transition-all uppercase"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Disconnect Gmail</span>
+            </button>
+          ) : (
+            <button
+              id="btn-connect-gmail"
+              onClick={connectGmail}
+              className="flex items-center space-x-1.5 px-3 py-1.5 text-[10px] font-bold font-mono border border-violet-500 bg-violet-600 hover:bg-violet-500 text-white rounded-lg cursor-pointer transition-all shadow-sm uppercase"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>Authorize Gmail Send</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Bulk Operations Bar */}
+      {approvedBriefs.length > 0 && (
+        <div 
+          id="bulk-briefs-operations-bar"
+          className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-250 ${
+            selectedBriefIds.length > 0 
+              ? "bg-violet-600/10 border-violet-500/40 animate-in fade-in zoom-in-95" 
+              : isDark 
+                ? "bg-slate-900/40 border-slate-850" 
+                : "bg-slate-50 border-slate-200"
           }`}
         >
-          <Plus className="w-3.5 h-3.5" />
-          <span>{showForm ? "Cancel Brief" : "Create Brief"}</span>
-        </button>
-      </div>
+          <div className="flex items-center space-x-3">
+            <div className={`p-2.5 rounded-lg ${selectedBriefIds.length > 0 ? "bg-violet-600 text-white" : "bg-slate-500/10 text-slate-400"}`}>
+              <ClipboardList className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold font-mono tracking-wide uppercase flex items-center gap-2">
+                Approved Briefs Pipeline Operations
+                {selectedBriefIds.length > 0 && (
+                  <span className="bg-violet-600 text-white text-[9px] px-2 py-0.5 rounded-full font-mono">
+                    {selectedBriefIds.length} Selected
+                  </span>
+                )}
+              </h4>
+              <p className={`text-[11px] mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                {selectedBriefIds.length > 0 
+                  ? "Select bulk command to execute on chosen creative briefings below." 
+                  : "Check individual briefs below, or Select All to perform bulk operations."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              id="btn-select-all-approved-briefs"
+              onClick={() => {
+                if (selectedBriefIds.length === approvedBriefs.length) {
+                  setSelectedBriefIds([]);
+                } else {
+                  setSelectedBriefIds(approvedBriefs.map(b => b.id));
+                }
+              }}
+              className={`px-3 py-1.5 text-[10px] font-bold font-mono rounded-lg border transition-all cursor-pointer uppercase ${
+                selectedBriefIds.length === approvedBriefs.length
+                  ? "border-amber-500/30 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
+                  : isDark 
+                    ? "border-slate-800 bg-slate-950/40 text-slate-300 hover:text-white hover:bg-slate-900" 
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {selectedBriefIds.length === approvedBriefs.length ? "Deselect All" : "Select All Approved"}
+            </button>
+
+            {selectedBriefIds.length > 0 && (
+              <>
+                <button
+                  id="btn-bulk-download-pdf"
+                  onClick={() => {
+                    const selectedList = briefs.filter(b => selectedBriefIds.includes(b.id));
+                    selectedList.forEach(brief => handleDownloadPDF(brief));
+                    addNotification(
+                      "Bulk Download Issued",
+                      `Exported ${selectedList.length} Campaign PDFs sequentially.`,
+                      "success"
+                    );
+                  }}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 text-[10px] font-bold font-mono bg-violet-600 hover:bg-violet-500 text-white rounded-lg cursor-pointer transition-all shadow-sm uppercase"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Bulk Download ({selectedBriefIds.length})</span>
+                </button>
+
+                <button
+                  id="btn-bulk-email-pdf"
+                  onClick={() => {
+                    const selectedList = briefs.filter(b => selectedBriefIds.includes(b.id));
+                    handleOpenEmailModal(selectedList);
+                  }}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 text-[10px] font-bold font-mono bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg cursor-pointer transition-all shadow-sm uppercase"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Bulk Email ({selectedBriefIds.length})</span>
+                </button>
+
+                <button
+                  id="btn-bulk-sync-to-pipeline"
+                  onClick={async () => {
+                    const selectedList = briefs.filter(b => selectedBriefIds.includes(b.id));
+                    for (const brief of selectedList) {
+                      await sendBriefToQueueAndCalendar(brief);
+                    }
+                    setSelectedBriefIds([]);
+                  }}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 text-[10px] font-bold font-mono bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer transition-all shadow-sm uppercase"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Send to Queue ({selectedBriefIds.length})</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Brief creation form */}
       {showForm && (
@@ -163,7 +569,7 @@ export const BriefsPage: React.FC = () => {
                   id="brief-input-objective"
                   required
                   rows={2}
-                  placeholder="Define primary marketing, telemetry, or user acquisition goals..."
+                  placeholder="Define primary marketing, branding, or user acquisition goals..."
                   value={objective}
                   onChange={(e) => setObjective(e.target.value)}
                   className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans resize-none ${
@@ -207,7 +613,7 @@ export const BriefsPage: React.FC = () => {
                 <textarea
                   id="brief-input-deliverables"
                   rows={2}
-                  placeholder="e.g., 3x LinkedIn graphics, 1x telemetry analytics report..."
+                  placeholder="e.g., 3x LinkedIn graphics, 1x brand performance report..."
                   value={deliverables}
                   onChange={(e) => setDeliverables(e.target.value)}
                   className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans resize-none ${
@@ -267,6 +673,7 @@ export const BriefsPage: React.FC = () => {
           const handleApprove = async () => {
             try {
               await updateCreativeBrief(brief.id, { status: "Approved" });
+              await sendBriefToQueueAndCalendar(brief);
             } catch (err) {
               console.error("Failed to approve brief:", err);
             }
@@ -282,11 +689,17 @@ export const BriefsPage: React.FC = () => {
             }
           };
 
+          const isSelected = selectedBriefIds.includes(brief.id);
+
           return (
             <div
               key={brief.id}
               className={`border rounded-xl p-6 flex flex-col justify-between transition-all duration-200 shadow-md ${
-                isDark ? "bg-[#161616] border-slate-800/80 hover:border-slate-700" : "bg-white border-slate-200 hover:border-slate-300"
+                isSelected
+                  ? "border-violet-500 ring-1 ring-violet-500/20 bg-violet-500/[0.02]"
+                  : isDark 
+                    ? "bg-[#161616] border-slate-800/80 hover:border-slate-700" 
+                    : "bg-white border-slate-200 hover:border-slate-300"
               }`}
             >
               {isEditing ? (
@@ -377,6 +790,21 @@ export const BriefsPage: React.FC = () => {
                     {/* Header Row: Left badges, Right flat solid high-contrast buttons */}
                     <div className="flex justify-between items-center mb-4.5 gap-2">
                       <div className="flex items-center space-x-1.5 overflow-hidden">
+                        {brief.status === "Approved" && (
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedBriefIds(prev => [...prev, brief.id]);
+                              } else {
+                                setSelectedBriefIds(prev => prev.filter(id => id !== brief.id));
+                              }
+                            }}
+                            className="w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-850 text-violet-600 focus:ring-violet-500 cursor-pointer mr-1.5"
+                            title="Select brief for bulk actions"
+                          />
+                        )}
                         <span className={`text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded border bg-violet-500/10 text-violet-500 border-violet-500/20 truncate`}>
                           Brand Brief
                         </span>
@@ -442,11 +870,62 @@ export const BriefsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className={`mt-6 pt-3 border-t flex justify-between items-center text-[10px] font-mono ${
-                    isDark ? "border-slate-800/60 text-slate-500" : "border-slate-150 text-slate-400"
+                  {/* Campaign brief PDF / Email actions */}
+                  <div className={`mt-6 pt-3.5 border-t flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono ${
+                    isDark ? "border-slate-800/60" : "border-slate-150"
                   }`}>
-                    <span>Deliverables: {brief.deliverables}</span>
-                    <span>ID: {brief.id.substring(0, 8)}...</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        id={`btn-pdf-download-${brief.id}`}
+                        onClick={() => handleDownloadPDF(brief)}
+                        className={`flex items-center space-x-1 px-2 py-1 rounded border transition-all cursor-pointer ${
+                          isDark 
+                            ? "bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white" 
+                            : "bg-white border-slate-200 hover:bg-slate-50 text-slate-600 shadow-sm"
+                        }`}
+                        title="Download Creative Brief as PDF file"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Download PDF</span>
+                      </button>
+
+                      {brief.status === "Approved" && (
+                        <>
+                          <button
+                            id={`btn-pdf-email-${brief.id}`}
+                            onClick={() => handleOpenEmailModal([brief])}
+                            className={`flex items-center space-x-1 px-2 py-1 rounded border transition-all cursor-pointer ${
+                              gmailToken 
+                                ? "bg-violet-600/10 border-violet-500/20 text-violet-400 hover:bg-violet-600/20" 
+                                : "bg-slate-800/40 border-slate-700/30 text-slate-400 hover:bg-slate-800/60"
+                            }`}
+                            title="Send PDF copy via Gmail API"
+                          >
+                            <Mail className="w-3 h-3" />
+                            <span>Email via Gmail</span>
+                          </button>
+
+                          <button
+                            id={`btn-pipeline-sync-${brief.id}`}
+                            onClick={() => sendBriefToQueueAndCalendar(brief)}
+                            className={`flex items-center space-x-1 px-2 py-1 rounded border transition-all cursor-pointer ${
+                              isDark 
+                                ? "bg-emerald-600/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-600/20" 
+                                : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                            }`}
+                            title="Place in campaign queue & content calendar"
+                          >
+                            <Send className="w-3 h-3" />
+                            <span>Send to Queue</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="text-right flex flex-col items-end gap-0.5 text-slate-500 text-[9px]">
+                      <span>Deliverables: {brief.deliverables}</span>
+                      <span>ID: {brief.id.substring(0, 8)}...</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -460,6 +939,154 @@ export const BriefsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Gmail Email Modal */}
+      {briefsToEmail.length > 0 && (
+        <div 
+          id="gmail-email-modal"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+        >
+          <div 
+            id="gmail-email-modal-content"
+            className={`w-full max-w-lg border rounded-xl shadow-2xl p-6 ${
+              isDark ? "bg-[#111] border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+            }`}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex items-center space-x-2">
+                <Mail className="w-5 h-5 text-violet-500 animate-pulse" />
+                <div>
+                  <h3 className="text-sm font-bold font-mono uppercase tracking-wider">
+                    Dispatch Creative Brief via Gmail
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-mono">
+                    MIME Multi-part PDF Attachment Pack
+                  </p>
+                </div>
+              </div>
+              <button
+                id="btn-close-email-modal"
+                onClick={() => setBriefsToEmail([])}
+                className="text-slate-400 hover:text-slate-200 text-lg font-mono px-2 py-1 rounded hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {!gmailToken ? (
+              <div className="space-y-4 py-4 text-center">
+                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                  You are not currently authenticated with Google Gmail send scope. Please authorize your Google account first to enable secure email transmission.
+                </p>
+                <button
+                  id="btn-modal-connect-gmail"
+                  onClick={() => {
+                    connectGmail();
+                  }}
+                  className="flex items-center space-x-2 mx-auto px-4 py-2 text-xs font-bold font-mono bg-violet-600 hover:bg-violet-500 text-white rounded-lg cursor-pointer transition-all uppercase"
+                >
+                  <Mail className="w-4 h-4" />
+                  <span>Authorize Google Account</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">
+                    Recipients (Comma separated) *
+                  </label>
+                  <input
+                    id="email-input-recipients"
+                    type="text"
+                    className={`w-full px-3 py-2 rounded border focus:outline-none focus:ring-1 text-xs font-mono ${
+                      isDark 
+                        ? "bg-slate-950 border-slate-850 focus:ring-violet-500 text-slate-200" 
+                        : "bg-white border-slate-200 focus:ring-violet-500 text-slate-700"
+                    }`}
+                    placeholder="e.g., manager@brand.com, designer@brand.com"
+                    value={recipientEmails}
+                    onChange={(e) => setRecipientEmails(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">
+                    Email Subject Line *
+                  </label>
+                  <input
+                    id="email-input-subject"
+                    type="text"
+                    required
+                    className={`w-full px-3 py-2 rounded border focus:outline-none focus:ring-1 text-xs ${
+                      isDark 
+                        ? "bg-slate-950 border-slate-850 focus:ring-violet-500 text-slate-200" 
+                        : "bg-white border-slate-200 focus:ring-violet-500 text-slate-700"
+                    }`}
+                    placeholder="Brief Status update"
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">
+                    Email Body Copy
+                  </label>
+                  <textarea
+                    id="email-input-body"
+                    rows={6}
+                    className={`w-full px-3 py-2 rounded border focus:outline-none focus:ring-1 text-xs leading-relaxed ${
+                      isDark 
+                        ? "bg-slate-950 border-slate-850 focus:ring-violet-500 text-slate-200" 
+                        : "bg-white border-slate-200 focus:ring-violet-500 text-slate-700"
+                    }`}
+                    placeholder="Enter message body..."
+                    value={emailBody}
+                    onChange={(e) => setEmailBody(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 mt-4">
+                  <div className="flex items-center text-[10px] text-emerald-500 font-mono">
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                    <span>Attachment: {briefsToEmail.length} PDF brief(s) auto-packaged</span>
+                  </div>
+
+                  <div className="flex space-x-2">
+                    <button
+                      id="btn-cancel-send-email"
+                      onClick={() => setBriefsToEmail([])}
+                      className="px-3 py-1.5 rounded text-[10px] font-bold font-mono bg-slate-850 hover:bg-slate-800 text-slate-300 cursor-pointer uppercase transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      id="btn-confirm-send-email"
+                      disabled={sendingEmail}
+                      onClick={() => {
+                        handleSendEmail();
+                      }}
+                      className="flex items-center space-x-1.5 px-4 py-1.5 rounded text-[10px] font-bold font-mono bg-violet-600 hover:bg-violet-500 disabled:bg-violet-850 disabled:text-slate-400 text-white cursor-pointer uppercase transition-all shadow-sm"
+                    >
+                      {sendingEmail ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Transmitting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Transmit Email</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

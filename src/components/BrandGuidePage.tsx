@@ -168,7 +168,7 @@ export const BrandGuidePage: React.FC = () => {
                 <div className={`border p-4 rounded-lg ${
                   isDark ? "bg-slate-950 border-slate-855" : "bg-slate-50 border-slate-200"
                 }`}>
-                  <div className="text-[10px] font-mono uppercase text-slate-400 tracking-wide mb-2">Technical Telemetry & Lists</div>
+                  <div className="text-[10px] font-mono uppercase text-slate-400 tracking-wide mb-2">Technical Data & Lists</div>
                   <div className={`text-xs font-medium font-mono ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     JetBrains Mono Regular (12px)
                   </div>

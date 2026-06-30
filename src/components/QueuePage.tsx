@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useBrand } from "../context/BrandContext";
-import { ListOrdered, Plus, Filter, RefreshCw, Send, CheckCircle2, Clock, PlayCircle, Eye, AlertCircle } from "lucide-react";
+import { ListOrdered, Plus, Filter, RefreshCw, Send, CheckCircle2, Clock, PlayCircle, Eye, AlertCircle, Calendar, CalendarDays, Check } from "lucide-react";
 import { CampaignQueue } from "../lib/firebase";
 
 export const QueuePage: React.FC = () => {
@@ -11,7 +11,12 @@ export const QueuePage: React.FC = () => {
     updateCampaign, 
     deleteCampaign, 
     theme, 
-    accentColor 
+    accentColor,
+    briefs,
+    calendarEvents,
+    addCalendarEvent,
+    updateCalendarEvent,
+    addNotification
   } = useBrand();
   const [showAddModal, setShowAddModal] = useState(false);
   const [title, setTitle] = useState("");
@@ -30,8 +35,112 @@ export const QueuePage: React.FC = () => {
   const [editScheduledTime, setEditScheduledTime] = useState("");
   const [editStatus, setEditStatus] = useState<CampaignQueue["status"]>("scheduled");
 
+  // Brief mapping / Scheduling state variables
+  const [selectedDateForBrief, setSelectedDateForBrief] = useState<Record<string, string>>({});
+  const [selectedChannelForBrief, setSelectedChannelForBrief] = useState<Record<string, CampaignQueue["channel"]>>({});
+  const [quickScheduleDates, setQuickScheduleDates] = useState<Record<string, string>>({});
+
   const isDark = theme === "dark";
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
+
+  // Filter approved briefs that are NOT already scheduled (to keep layout tidy)
+  const unscheduledApprovedBriefs = (briefs || []).filter(
+    b => b.status === "Approved" && !queues.some(q => q.title.toLowerCase() === b.title.toLowerCase())
+  );
+
+  const handleScheduleBriefToDate = async (brief: any, date: string, briefChannel: CampaignQueue["channel"]) => {
+    if (!date) {
+      addNotification("Date Required", "Please select a specific date on the calendar.", "warning");
+      return;
+    }
+    try {
+      const content = `Objective:\n${brief.objective}\n\nTarget Audience:\n${brief.targetAudience}\n\nDeliverables:\n${brief.deliverables || "N/A"}`;
+      const scheduledTime = `${date}T10:00`;
+
+      // 1. Add Campaign to Firestore
+      await addCampaign({
+        title: brief.title,
+        channel: briefChannel || "LinkedIn",
+        status: "scheduled",
+        scheduledTime,
+        content,
+        metrics: {
+          estimatedReach: 20000,
+          engagementRate: 5.0
+        }
+      });
+
+      // 2. Add Calendar Event to Firestore
+      await addCalendarEvent({
+        title: `[Campaign] ${brief.title}`,
+        date,
+        type: "Campaign",
+        status: "Planned",
+        notes: `Creative brief key message: ${brief.keyMessage}`
+      });
+
+      addNotification(
+        "Mapped to Calendar",
+        `"${brief.title}" has been successfully added to the campaign queue & scheduled for ${date} in the Content Calendar!`,
+        "success"
+      );
+
+      // Clean up local inputs
+      setSelectedDateForBrief(prev => {
+        const copy = { ...prev };
+        delete copy[brief.id];
+        return copy;
+      });
+    } catch (err) {
+      console.error("Failed to map brief to calendar:", err);
+      addNotification("Mapping Failed", "Unable to schedule brief on the selected date.", "warning");
+    }
+  };
+
+  const handleSyncCampaignToDate = async (campaign: CampaignQueue, date: string) => {
+    if (!date) {
+      addNotification("Date Required", "Please select a specific date on the calendar.", "warning");
+      return;
+    }
+    try {
+      const scheduledTime = `${date}T10:00`;
+
+      // 1. Update Campaign Queue Item's scheduledTime
+      await updateCampaign(campaign.id, {
+        scheduledTime
+      });
+
+      // 2. Find if there's an existing Calendar Event
+      const existingEvent = (calendarEvents || []).find(
+        e => e.title === `[Campaign] ${campaign.title}` || e.title === campaign.title
+      );
+
+      if (existingEvent) {
+        // Update existing calendar event
+        await updateCalendarEvent(existingEvent.id, {
+          date
+        });
+      } else {
+        // Create a new calendar event
+        await addCalendarEvent({
+          title: `[Campaign] ${campaign.title}`,
+          date,
+          type: "Campaign",
+          status: "Planned",
+          notes: `Campaign scheduled from operations pipeline. Distribution: ${campaign.channel}`
+        });
+      }
+
+      addNotification(
+        "Sync Complete",
+        `Campaign "${campaign.title}" successfully synced to ${date} in the Content Calendar!`,
+        "success"
+      );
+    } catch (err) {
+      console.error("Failed to sync campaign to calendar:", err);
+      addNotification("Sync Failed", "Unable to sync campaign schedule to the calendar.", "warning");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,6 +377,118 @@ export const QueuePage: React.FC = () => {
         </div>
       )}
 
+      {/* Approved Briefs Awaiting Calendar Scheduling Workspace */}
+      <div 
+        id="approved-briefs-scheduler-panel"
+        className={`border rounded-xl p-6 shadow-lg ${
+          isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200"
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5 border-b border-slate-800/40 pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-lg bg-violet-600/10 text-violet-500">
+              <CalendarDays className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className={`text-sm font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+                Approved Briefs Awaiting Calendar Scheduling
+              </h3>
+              <p className={`text-[11px] mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                These creative briefs are approved but not yet mapped to a specific calendar date or campaign queue slot.
+              </p>
+            </div>
+          </div>
+          <span className="bg-emerald-600/15 text-emerald-500 border border-emerald-500/20 text-[10px] font-mono px-2.5 py-1 rounded-full self-start sm:self-auto font-bold uppercase shrink-0">
+            {unscheduledApprovedBriefs.length} Ready to Schedule
+          </span>
+        </div>
+
+        {unscheduledApprovedBriefs.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {unscheduledApprovedBriefs.map((brief) => {
+              const briefDate = selectedDateForBrief[brief.id] || "";
+              const briefChannel = selectedChannelForBrief[brief.id] || "LinkedIn";
+
+              return (
+                <div 
+                  key={brief.id}
+                  id={`brief-schedule-card-${brief.id}`}
+                  className={`p-4 rounded-xl border flex flex-col justify-between space-y-4 ${
+                    isDark ? "bg-slate-950/40 border-slate-850 hover:border-slate-800" : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                  } transition-all duration-200`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded border bg-violet-500/10 text-violet-400 border-violet-500/20">
+                        Approved Creative Brief
+                      </span>
+                    </div>
+                    <h4 className={`text-xs font-bold truncate ${isDark ? "text-slate-200" : "text-slate-800"}`} title={brief.title}>
+                      {brief.title}
+                    </h4>
+                    <p className={`text-[11px] line-clamp-2 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                      <strong className={`${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}>Message:</strong> {brief.keyMessage}
+                    </p>
+                    <p className={`text-[11px] line-clamp-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                      <strong className={`${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}>Audience:</strong> {brief.targetAudience}
+                    </p>
+                  </div>
+
+                  {/* Scheduling Controls */}
+                  <div className="space-y-3 pt-2.5 border-t border-slate-800/45">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[9px] font-mono uppercase tracking-wider text-slate-400 mb-1">Target Date</label>
+                        <input
+                          type="date"
+                          value={briefDate}
+                          onChange={(e) => setSelectedDateForBrief(prev => ({ ...prev, [brief.id]: e.target.value }))}
+                          className={`w-full text-[11px] px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                            isDark ? "bg-slate-950 border-slate-850 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-mono uppercase tracking-wider text-slate-400 mb-1">Channel</label>
+                        <select
+                          value={briefChannel}
+                          onChange={(e) => setSelectedChannelForBrief(prev => ({ ...prev, [brief.id]: e.target.value as CampaignQueue["channel"] }))}
+                          className={`w-full text-[11px] px-2 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                            isDark ? "bg-slate-950 border-slate-850 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        >
+                          <option value="LinkedIn">LinkedIn</option>
+                          <option value="Twitter/X">Twitter/X</option>
+                          <option value="Instagram">Instagram</option>
+                          <option value="Newsletter">Newsletter</option>
+                          <option value="YouTube">YouTube</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      id={`btn-schedule-brief-to-calendar-${brief.id}`}
+                      onClick={() => handleScheduleBriefToDate(brief, briefDate, briefChannel)}
+                      className="w-full flex items-center justify-center space-x-1.5 py-2 px-3 text-[10px] font-bold font-mono bg-violet-600 hover:bg-violet-500 text-white rounded-lg cursor-pointer transition-colors shadow-sm uppercase"
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>Schedule to Calendar & Queue</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-6 text-slate-400 text-xs font-mono border border-dashed border-slate-800/40 rounded-xl bg-slate-950/20">
+            <Check className="w-5 h-5 text-emerald-500 mx-auto mb-1.5" />
+            <div>All approved briefs are successfully scheduled!</div>
+            <p className="text-[10px] text-slate-500 mt-0.5">Approved briefs from the Briefs page are listed here for quick planning.</p>
+          </div>
+        )}
+      </div>
+
       {/* Queue items pipeline tracking list */}
       <div className={`border rounded-xl overflow-hidden shadow-lg ${
         isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200"
@@ -489,10 +710,34 @@ export const QueuePage: React.FC = () => {
                         {item.content}
                       </p>
 
-                      {/* Sched target */}
-                      <div className="flex items-center space-x-2.5 text-[10px] font-mono text-slate-400">
-                        <span className="font-semibold text-slate-400">Scheduled for:</span>
-                        <span className={`${isDark ? "text-slate-300" : "text-slate-700"}`}>{item.scheduledTime}</span>
+                      {/* Sched target & Calendar Sync date-picker */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/25 mt-1">
+                        <div className="flex items-center space-x-2.5 text-[10px] font-mono text-slate-400">
+                          <span className="font-semibold text-slate-400">Scheduled:</span>
+                          <span className={`${isDark ? "text-slate-300" : "text-slate-700"} bg-slate-900/40 px-2 py-0.5 rounded border border-slate-800/40`}>{item.scheduledTime}</span>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <span className="text-[9px] font-mono uppercase text-slate-500 font-bold">Sync to Calendar Date:</span>
+                          <input
+                            type="date"
+                            value={quickScheduleDates[item.id] || (item.scheduledTime || "").split(/[ T]/)[0] || ""}
+                            onChange={(e) => setQuickScheduleDates(prev => ({ ...prev, [item.id]: e.target.value }))}
+                            className={`text-[10px] px-2 py-1 border rounded focus:outline-none focus:border-violet-500 font-sans max-w-[125px] ${
+                              isDark ? "bg-slate-950 border-slate-850 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            id={`btn-sync-date-to-calendar-${item.id}`}
+                            onClick={() => handleSyncCampaignToDate(item, quickScheduleDates[item.id] || (item.scheduledTime || "").split(/[ T]/)[0])}
+                            className="flex items-center space-x-1 bg-violet-600 hover:bg-violet-500 text-white text-[9px] font-mono font-bold px-2 py-1 rounded cursor-pointer uppercase transition-colors shrink-0"
+                            title="Apply date change to both Queue and Content Calendar"
+                          >
+                            <Calendar className="w-3 h-3" />
+                            <span>Sync Date</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 

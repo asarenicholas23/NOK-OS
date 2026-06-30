@@ -164,9 +164,12 @@ export const PerformanceIntelligencePage: React.FC = () => {
   // Generate deterministic posts or map from real uploaded rawAnalytics
   const allPosts = useMemo(() => {
     const hasUploaded = rawAnalytics && rawAnalytics.length > 0;
-    const useUploaded = selectedDataSource === "uploaded" || (selectedDataSource === "auto" && hasUploaded);
 
-    if (useUploaded && hasUploaded) {
+    if (selectedDataSource === "demo") {
+      return generateDeterministicPosts(activeBrand?.id || "acme-corp");
+    }
+
+    if (hasUploaded) {
       return rawAnalytics.map((row) => ({
         id: row.id,
         platform: normalizePlatform(row.platform),
@@ -178,7 +181,8 @@ export const PerformanceIntelligencePage: React.FC = () => {
         date: row.createdAt ? row.createdAt.split("T")[0] : new Date().toISOString().split("T")[0]
       }));
     }
-    return generateDeterministicPosts(activeBrand?.id || "acme-corp");
+
+    return [];
   }, [activeBrand?.id, rawAnalytics, selectedDataSource]);
 
   // Apply filters
@@ -359,7 +363,7 @@ export const PerformanceIntelligencePage: React.FC = () => {
             Performance Intelligence Console
           </h2>
           <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Deep analytical insights, platform telemetry, and serverless AI recommendation blocks for <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "active brand"}</strong>.
+            Deep analytical insights, performance statistics, and serverless AI recommendation blocks for <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "active brand"}</strong>.
           </p>
         </div>
         
@@ -406,7 +410,7 @@ export const PerformanceIntelligencePage: React.FC = () => {
           </div>
           <div>
             <h4 className={`text-xs font-bold font-mono uppercase tracking-wider ${isDark ? "text-slate-300" : "text-slate-700"}`}>
-              Telemetry Console Data Source
+              Brand Analytics Data Source
             </h4>
             <p className="text-[11px] text-slate-500 mt-0.5">
               Choose the dataset source used to build the metric cards, graphs, and AI insights below.
@@ -470,7 +474,7 @@ export const PerformanceIntelligencePage: React.FC = () => {
               onClick={async () => {
                 if (window.confirm("Are you sure you want to delete all uploaded raw analytics records for this brand? This action is irreversible.")) {
                   await clearRawAnalytics();
-                  setSelectedDataSource("demo"); // Revert back to demo
+                  setSelectedDataSource("auto"); // Revert back to auto (which is empty)
                 }
               }}
               className="px-3 py-1.5 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 text-rose-400 rounded-lg text-xs font-mono font-medium flex items-center space-x-1.5 transition-all cursor-pointer"
@@ -674,8 +678,19 @@ export const PerformanceIntelligencePage: React.FC = () => {
 
             {/* Sub-Tab content */}
             <div className="animate-in fade-in duration-200">
-              
-              {subTab === "platform" && (
+              {filteredPosts.length === 0 ? (
+                <div className={`border rounded-xl p-12 text-center flex flex-col items-center justify-center ${
+                  isDark ? "bg-[#161616]/60 border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                }`}>
+                  <SlidersHorizontal className="w-8 h-8 text-slate-400 mb-3 animate-pulse" />
+                  <h4 className={`text-sm font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>No Brand Performance Analytics Found</h4>
+                  <p className="text-xs text-slate-500 mt-2 max-w-md">
+                    The active brand performance dashboard is currently empty. Switch the data source above to <strong className="text-violet-400">Demo Baseline</strong> to see mock graphs, or upload a client spreadsheet on the <strong className="text-emerald-400">Analytics Import</strong> tab.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {subTab === "platform" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   
                   {/* Impressions chart box */}
@@ -834,7 +849,7 @@ export const PerformanceIntelligencePage: React.FC = () => {
               {subTab === "metrics" && (
                 <div className={`border rounded-xl p-6 ${isDark ? "bg-[#161616] border-slate-800/80" : "bg-white border-slate-200"}`}>
                   <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold mb-5">
-                    Secondary Platform Engagement & Telemetry Distribution
+                    Secondary Platform Engagement & Performance Distribution
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {["Facebook", "Instagram", "Linkedin", "Tiktok"].map(platform => {
@@ -923,6 +938,8 @@ export const PerformanceIntelligencePage: React.FC = () => {
                     </table>
                   </div>
                 </div>
+              )}
+                </>
               )}
             </div>
           </div>

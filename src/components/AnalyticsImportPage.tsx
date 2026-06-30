@@ -67,7 +67,7 @@ export const AnalyticsImportPage: React.FC = () => {
         body: JSON.stringify({
           tagline: activeBrand.tagline,
           voiceTone: activeBrand.voiceTone,
-          analyticsData: parsedRows
+          analyticsData: parsedRows.slice(0, 150)
         })
       });
 
@@ -243,7 +243,7 @@ export const AnalyticsImportPage: React.FC = () => {
           Analytics Import Console
         </h2>
         <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-          Import standard client performance spreadsheets or JSON files into the Firestore telemetry store.
+          Import standard client performance spreadsheets or JSON files into the brand database.
         </p>
       </div>
 

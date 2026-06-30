@@ -13,7 +13,7 @@ import {
   serverTimestamp,
   orderBy
 } from "firebase/firestore";
-import { getAuth, signInAnonymously } from "firebase/auth";
+import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
 // Config parsed from firebase-applet-config.json
@@ -31,6 +31,24 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
+
+// Google Auth Provider configured for Gmail Send
+const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope("https://www.googleapis.com/auth/gmail.send");
+
+export const signInWithGoogleGmail = async (): Promise<{ user: User; accessToken: string }> => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (!credential?.accessToken) {
+      throw new Error("Failed to retrieve Google OAuth Access Token.");
+    }
+    return { user: result.user, accessToken: credential.accessToken };
+  } catch (err) {
+    console.error("Google Gmail Sign-In Error:", err);
+    throw err;
+  }
+};
 
 // Initialize Firestore. 
 // Note: We use the specific custom database ID provisioned for this applet
@@ -147,6 +165,7 @@ export interface BrandDirection {
   strategy: string;
   focus: string;
   checklist: string[];
+  status?: "Pending" | "Approved" | "Rejected";
   createdAt?: string;
 }
 
@@ -205,7 +224,7 @@ export const FALLBACK_QUEUES: CampaignQueue[] = [
     channel: "LinkedIn",
     status: "active",
     scheduledTime: "2026-06-30 09:00 AM",
-    content: "We are thrilled to announce Acme Platform V2! Real-time telemetry, automated healing pipelines, and modular workflow adapters are now generally available. Read our launch brief.",
+    content: "We are thrilled to announce Acme Platform V2! Real-time performance analytics, automated scaling pipelines, and modular workflow adapters are now generally available. Read our launch brief.",
     metrics: { estimatedReach: 45000, engagementRate: 4.8 }
   },
   {
@@ -389,11 +408,7 @@ export const subscribeToCampaignQueues = (brandId: string, onUpdate: (queues: Ca
     snapshot.forEach((doc) => {
       list.push({ id: doc.id, ...doc.data() } as CampaignQueue);
     });
-    if (list.length === 0) {
-      onUpdate(FALLBACK_QUEUES.filter(c => c.brandId === brandId));
-    } else {
-      onUpdate(list);
-    }
+    onUpdate(list);
   }, (err) => {
     console.warn("Firestore subscription error, using fallback queues:", err);
     onUpdate(FALLBACK_QUEUES.filter(c => c.brandId === brandId));
@@ -412,11 +427,7 @@ export const subscribeToCalendarEvents = (brandId: string, onUpdate: (events: Ca
     snapshot.forEach((doc) => {
       list.push({ id: doc.id, ...doc.data() } as CalendarEvent);
     });
-    if (list.length === 0) {
-      onUpdate(FALLBACK_CALENDAR.filter(e => e.brandId === brandId));
-    } else {
-      onUpdate(list);
-    }
+    onUpdate(list);
   }, (err) => {
     console.warn("Firestore subscription error, using fallback calendar:", err);
     onUpdate(FALLBACK_CALENDAR.filter(e => e.brandId === brandId));
@@ -431,11 +442,7 @@ export const subscribeToBriefs = (brandId: string, onUpdate: (briefs: CreativeBr
     snapshot.forEach((doc) => {
       list.push({ id: doc.id, ...doc.data() } as CreativeBrief);
     });
-    if (list.length === 0) {
-      onUpdate(FALLBACK_BRIEFS.filter(b => b.brandId === brandId));
-    } else {
-      onUpdate(list);
-    }
+    onUpdate(list);
   }, (err) => {
     console.warn("Firestore subscription error, using fallback briefs:", err);
     onUpdate(FALLBACK_BRIEFS.filter(b => b.brandId === brandId));
@@ -450,11 +457,7 @@ export const subscribeToMetrics = (brandId: string, onUpdate: (metrics: Analytic
     snapshot.forEach((doc) => {
       list.push({ id: doc.id, ...doc.data() } as AnalyticsMetric);
     });
-    if (list.length === 0) {
-      onUpdate(FALLBACK_METRICS[brandId] || FALLBACK_METRICS["acme-corp"]);
-    } else {
-      onUpdate(list);
-    }
+    onUpdate(list);
   }, (err) => {
     console.warn("Firestore subscription error, using fallback metrics:", err);
     onUpdate(FALLBACK_METRICS[brandId] || FALLBACK_METRICS["acme-corp"]);
