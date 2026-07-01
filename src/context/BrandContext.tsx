@@ -19,7 +19,8 @@ import {
   seedDatabaseIfEmpty,
   ensureAuthenticated,
   auth,
-  signInWithGoogleGmail
+  signInWithGoogleGmail,
+  signInWithGoogleCalendar
 } from "../lib/firebase";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 
@@ -55,6 +56,7 @@ interface BrandContextType {
   updateCreativeBrief: (id: string, brief: Partial<CreativeBrief>) => Promise<void>;
   deleteCreativeBrief: (id: string) => Promise<void>;
   addBrand: (brand: Omit<Brand, "id">) => Promise<void>;
+  updateBrand: (id: string, brand: Partial<Brand>) => Promise<void>;
   theme: "dark" | "light";
   setTheme: (theme: "dark" | "light") => void;
   notifications: AppNotification[];
@@ -82,6 +84,10 @@ interface BrandContextType {
   gmailUser: any | null;
   connectGmail: () => Promise<void>;
   disconnectGmail: () => void;
+  googleCalendarToken: string | null;
+  googleCalendarUser: any | null;
+  connectGoogleCalendar: () => Promise<void>;
+  disconnectGoogleCalendar: () => void;
 }
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
@@ -104,6 +110,8 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [user, setUser] = useState<any>(null);
   const [gmailToken, setGmailToken] = useState<string | null>(null);
   const [gmailUser, setGmailUser] = useState<any | null>(null);
+  const [googleCalendarToken, setGoogleCalendarToken] = useState<string | null>(null);
+  const [googleCalendarUser, setGoogleCalendarUser] = useState<any | null>(null);
 
   // NEW STATES: N.O.K Os Theme, Notifications & Accent Color
   const [theme, setThemeState] = useState<"dark" | "light">(() => {
@@ -232,6 +240,8 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUser(null);
       setGmailToken(null);
       setGmailUser(null);
+      setGoogleCalendarToken(null);
+      setGoogleCalendarUser(null);
     } catch (err) {
       console.error("Sign out failed:", err);
     } finally {
@@ -265,6 +275,34 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setGmailToken(null);
     setGmailUser(null);
     addNotification("Gmail Disconnected", "Your Gmail integration has been disconnected.", "info");
+  };
+
+  const connectGoogleCalendar = async () => {
+    try {
+      const result = await signInWithGoogleCalendar();
+      if (result) {
+        setGoogleCalendarToken(result.accessToken);
+        setGoogleCalendarUser(result.user);
+        addNotification(
+          "Calendar Connected",
+          `Successfully authenticated Google Calendar: ${result.user.email || ""}`,
+          "success"
+        );
+      }
+    } catch (err: any) {
+      console.error("Connect Google Calendar failed:", err);
+      addNotification(
+        "Calendar Connection Failed",
+        err.message || "Failed to authorize Google Calendar permissions.",
+        "warning"
+      );
+    }
+  };
+
+  const disconnectGoogleCalendar = () => {
+    setGoogleCalendarToken(null);
+    setGoogleCalendarUser(null);
+    addNotification("Calendar Disconnected", "Your Google Calendar integration has been disconnected.", "info");
   };
 
   // Listen to Brands (Live)
@@ -447,6 +485,23 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addNotification("New Brand Provisioned", `Brand workspace for "${brand.name}" is now online!`, "success");
   };
 
+  const updateBrand = async (id: string, brand: Partial<Brand>) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, updateDoc } = await import("firebase/firestore");
+    await updateDoc(doc(db, "brands", id), brand);
+    
+    // update activeBrand local state if it is active brand
+    if (activeBrandId === id && activeBrand) {
+      setActiveBrand({
+        ...activeBrand,
+        ...brand
+      });
+    }
+    // and update local brands array if present to ensure sync across elements
+    setBrands(prev => prev.map(b => b.id === id ? { ...b, ...brand } : b));
+    addNotification("Brand Guide Updated", "The style and guidelines have been saved successfully.", "success");
+  };
+
   const addInsight = async (insight: Omit<StrategicInsight, "id" | "brandId">) => {
     const { db } = await import("../lib/firebase");
     const { collection, addDoc } = await import("firebase/firestore");
@@ -593,6 +648,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateCreativeBrief,
       deleteCreativeBrief,
       addBrand,
+      updateBrand,
       theme,
       setTheme,
       notifications,
@@ -619,7 +675,11 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       gmailToken,
       gmailUser,
       connectGmail,
-      disconnectGmail
+      disconnectGmail,
+      googleCalendarToken,
+      googleCalendarUser,
+      connectGoogleCalendar,
+      disconnectGoogleCalendar
     }}>
       {children}
     </BrandContext.Provider>

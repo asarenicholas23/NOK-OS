@@ -141,6 +141,12 @@ export const DirectionsPage: React.FC = () => {
         body: JSON.stringify({
           tagline: activeBrand?.tagline || "Global Standards",
           voiceTone: activeBrand?.voiceTone || "Professional, Authoritative",
+          brandGuide: {
+            contentPillars: activeBrand?.contentPillars || "",
+            audiencePersonas: activeBrand?.audiencePersonas || "",
+            competitorContext: activeBrand?.competitorContext || "",
+            platformNotes: activeBrand?.platformNotes || ""
+          },
           approvedInsights: sourceInsights,
           count: generationCount
         })
@@ -192,6 +198,12 @@ export const DirectionsPage: React.FC = () => {
         body: JSON.stringify({
           tagline: activeBrand?.tagline || "Global Standards",
           voiceTone: activeBrand?.voiceTone || "Professional, Authoritative",
+          brandGuide: {
+            contentPillars: activeBrand?.contentPillars || "",
+            audiencePersonas: activeBrand?.audiencePersonas || "",
+            competitorContext: activeBrand?.competitorContext || "",
+            platformNotes: activeBrand?.platformNotes || ""
+          },
           approvedDirections: sourceDirections,
           count: generationCount
         })

@@ -180,6 +180,12 @@ export const QueuePage: React.FC = () => {
         return "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20";
       case "completed":
         return "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 border-slate-300 dark:border-slate-700";
+      case "posted":
+        return "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold";
+      case "waiting posting":
+        return "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-semibold";
+      case "wasn't posted":
+        return "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 font-semibold";
     }
   };
 
@@ -193,6 +199,12 @@ export const QueuePage: React.FC = () => {
         return <Clock className="w-3.5 h-3.5 mr-1" />;
       case "completed":
         return <CheckCircle2 className="w-3.5 h-3.5 mr-1" />;
+      case "posted":
+        return <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-500" />;
+      case "waiting posting":
+        return <Clock className="w-3.5 h-3.5 mr-1 text-amber-500 animate-pulse" />;
+      case "wasn't posted":
+        return <AlertCircle className="w-3.5 h-3.5 mr-1 text-rose-500" />;
     }
   };
 
@@ -306,8 +318,12 @@ export const QueuePage: React.FC = () => {
                   }`}
                 >
                   <option value="scheduled">Scheduled</option>
+                  <option value="waiting posting">Waiting Posting</option>
+                  <option value="posted">Posted</option>
+                  <option value="wasn't posted">Wasn't Posted</option>
                   <option value="active">Active (Processing Immediate)</option>
                   <option value="processing">Processing</option>
+                  <option value="completed">Completed</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -621,6 +637,9 @@ export const QueuePage: React.FC = () => {
                           }`}
                         >
                           <option value="scheduled">Scheduled</option>
+                          <option value="waiting posting">Waiting Posting</option>
+                          <option value="posted">Posted</option>
+                          <option value="wasn't posted">Wasn't Posted</option>
                           <option value="active">Active</option>
                           <option value="processing">Processing</option>
                           <option value="completed">Completed</option>

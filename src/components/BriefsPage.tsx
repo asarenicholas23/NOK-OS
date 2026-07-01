@@ -35,6 +35,16 @@ export const BriefsPage: React.FC = () => {
   const [keyMessage, setKeyMessage] = useState("");
   const [deliverables, setDeliverables] = useState("");
   const [status, setStatus] = useState<"Draft" | "Approved" | "In Progress">("Draft");
+  const [campaignId, setCampaignId] = useState("");
+  const [date, setDate] = useState("");
+  const [sequencePosition, setSequencePosition] = useState("");
+  const [proofPoint, setProofPoint] = useState("");
+  const [formatSpec, setFormatSpec] = useState("");
+  const [contentOutline, setContentOutline] = useState("");
+  const [cta, setCta] = useState("");
+  const [toneVisualRef, setToneVisualRef] = useState("");
+  const [successMetric, setSuccessMetric] = useState("");
+  const [approver, setApprover] = useState("");
 
   // Inline editing states
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -43,6 +53,16 @@ export const BriefsPage: React.FC = () => {
   const [editTargetAudience, setEditTargetAudience] = useState("");
   const [editKeyMessage, setEditKeyMessage] = useState("");
   const [editDeliverables, setEditDeliverables] = useState("");
+  const [editCampaignId, setEditCampaignId] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editSequencePosition, setEditSequencePosition] = useState("");
+  const [editProofPoint, setEditProofPoint] = useState("");
+  const [editFormatSpec, setEditFormatSpec] = useState("");
+  const [editContentOutline, setEditContentOutline] = useState("");
+  const [editCta, setEditCta] = useState("");
+  const [editToneVisualRef, setEditToneVisualRef] = useState("");
+  const [editSuccessMetric, setEditSuccessMetric] = useState("");
+  const [editApprover, setEditApprover] = useState("");
 
   const isDark = theme === "dark";
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
@@ -209,13 +229,33 @@ export const BriefsPage: React.FC = () => {
         targetAudience,
         keyMessage,
         deliverables: deliverables || "N/A",
-        status
+        status,
+        campaignId: campaignId || `MKT-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+        date: date || new Date().toLocaleDateString(),
+        sequencePosition: sequencePosition || "Campaign 1 of 1",
+        proofPoint: proofPoint || "PLACEHOLDER — needs real data before publishing",
+        formatSpec: formatSpec || "Platform: LinkedIn | Format: Native document post (carousel) | Dimensions: 1080 x 1350 px, portrait (4:5) | Slide Count: 7 slides",
+        contentOutline: contentOutline || "1. Cover hook intro | 2. Present core action framework | 3. Closing/CTA slide",
+        cta: cta || "Comment 'STRATEGY' below to get the template",
+        toneVisualRef: toneVisualRef || "Tone: direct, confident. Visual: solid brand color background with display typography.",
+        successMetric: successMetric || ">= 2.5% engagement rate",
+        approver: approver || "Osei"
       });
       setTitle("");
       setObjective("");
       setTargetAudience("");
       setKeyMessage("");
       setDeliverables("");
+      setCampaignId("");
+      setDate("");
+      setSequencePosition("");
+      setProofPoint("");
+      setFormatSpec("");
+      setContentOutline("");
+      setCta("");
+      setToneVisualRef("");
+      setSuccessMetric("");
+      setApprover("");
       setShowForm(false);
     } catch (err) {
       console.error("Error creating creative brief:", err);
@@ -237,6 +277,12 @@ export const BriefsPage: React.FC = () => {
         body: JSON.stringify({
           tagline: activeBrand?.tagline || "Global Standards",
           voiceTone: activeBrand?.voiceTone || "Professional, Authoritative",
+          brandGuide: {
+            contentPillars: activeBrand?.contentPillars || "",
+            audiencePersonas: activeBrand?.audiencePersonas || "",
+            competitorContext: activeBrand?.competitorContext || "",
+            platformNotes: activeBrand?.platformNotes || ""
+          },
           approvedDirections: sourceDirections,
           count: generationCount
         })
@@ -255,7 +301,17 @@ export const BriefsPage: React.FC = () => {
           targetAudience: item.targetAudience,
           keyMessage: item.keyMessage,
           deliverables: item.deliverables,
-          status: "Draft"
+          status: "Draft",
+          campaignId: item.campaignId,
+          date: item.date,
+          sequencePosition: item.sequencePosition,
+          proofPoint: item.proofPoint,
+          formatSpec: item.formatSpec,
+          contentOutline: item.contentOutline,
+          cta: item.cta,
+          toneVisualRef: item.toneVisualRef,
+          successMetric: item.successMetric,
+          approver: item.approver
         });
       }
 
@@ -623,6 +679,141 @@ export const BriefsPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Campaign ID</label>
+                <input
+                  type="text"
+                  placeholder="e.g., KNTENEVA-R1"
+                  value={campaignId}
+                  onChange={(e) => setCampaignId(e.target.value)}
+                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 ${
+                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Campaign Date</label>
+                <input
+                  type="text"
+                  placeholder="e.g., 7/1/2026"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 ${
+                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Sequence Position</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Campaign 2 of 5"
+                  value={sequencePosition}
+                  onChange={(e) => setSequencePosition(e.target.value)}
+                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 ${
+                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Proof Point / Data Source</label>
+                <textarea
+                  rows={2}
+                  placeholder="Provide research case or check 'PLACEHOLDER — needs real data before publishing' if unsure..."
+                  value={proofPoint}
+                  onChange={(e) => setProofPoint(e.target.value)}
+                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans resize-none ${
+                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Format & Technical Spec</label>
+                <textarea
+                  rows={2}
+                  placeholder="Platform, file aspect ratio, slide count limits, duration limits..."
+                  value={formatSpec}
+                  onChange={(e) => setFormatSpec(e.target.value)}
+                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans resize-none ${
+                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Content Outline (Beat-by-Beat)</label>
+                <textarea
+                  rows={2}
+                  placeholder="slide 1: ... | slide 2: ... | slide 3: ... (one line per slide/beat)"
+                  value={contentOutline}
+                  onChange={(e) => setContentOutline(e.target.value)}
+                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans resize-none ${
+                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Call to Action (CTA)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Comment 'STRATEGY' below to get template link..."
+                  value={cta}
+                  onChange={(e) => setCta(e.target.value)}
+                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans resize-none ${
+                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Tone & Visual Reference</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Bold, direct, contrarian. 1080x1350px slate background"
+                  value={toneVisualRef}
+                  onChange={(e) => setToneVisualRef(e.target.value)}
+                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 ${
+                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Success Metric / Target</label>
+                <input
+                  type="text"
+                  placeholder="e.g., >= 2.5% engagement rate"
+                  value={successMetric}
+                  onChange={(e) => setSuccessMetric(e.target.value)}
+                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 ${
+                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Approver Sign-Off</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Osei"
+                  value={approver}
+                  onChange={(e) => setApprover(e.target.value)}
+                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 ${
+                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                />
+              </div>
+            </div>
+
             <div className="flex justify-end pt-2">
               <button
                 id="brief-submit-action"
@@ -648,6 +839,16 @@ export const BriefsPage: React.FC = () => {
             setEditTargetAudience(brief.targetAudience);
             setEditKeyMessage(brief.keyMessage);
             setEditDeliverables(brief.deliverables);
+            setEditCampaignId(brief.campaignId || "");
+            setEditDate(brief.date || "");
+            setEditSequencePosition(brief.sequencePosition || "");
+            setEditProofPoint(brief.proofPoint || "");
+            setEditFormatSpec(brief.formatSpec || "");
+            setEditContentOutline(brief.contentOutline || "");
+            setEditCta(brief.cta || "");
+            setEditToneVisualRef(brief.toneVisualRef || "");
+            setEditSuccessMetric(brief.successMetric || "");
+            setEditApprover(brief.approver || "");
           };
 
           const cancelEditing = () => {
@@ -662,7 +863,17 @@ export const BriefsPage: React.FC = () => {
                 objective: editObjective,
                 targetAudience: editTargetAudience,
                 keyMessage: editKeyMessage,
-                deliverables: editDeliverables
+                deliverables: editDeliverables,
+                campaignId: editCampaignId,
+                date: editDate,
+                sequencePosition: editSequencePosition,
+                proofPoint: editProofPoint,
+                formatSpec: editFormatSpec,
+                contentOutline: editContentOutline,
+                cta: editCta,
+                toneVisualRef: editToneVisualRef,
+                successMetric: editSuccessMetric,
+                approver: editApprover
               });
               setEditingId(null);
             } catch (err) {
@@ -767,6 +978,128 @@ export const BriefsPage: React.FC = () => {
                         }`}
                       />
                     </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Campaign ID</label>
+                        <input
+                          type="text"
+                          value={editCampaignId}
+                          onChange={(e) => setEditCampaignId(e.target.value)}
+                          className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Date</label>
+                        <input
+                          type="text"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Sequence Position</label>
+                        <input
+                          type="text"
+                          value={editSequencePosition}
+                          onChange={(e) => setEditSequencePosition(e.target.value)}
+                          className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Approver</label>
+                        <input
+                          type="text"
+                          value={editApprover}
+                          onChange={(e) => setEditApprover(e.target.value)}
+                          className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Proof Point / Data Source</label>
+                      <textarea
+                        rows={1}
+                        value={editProofPoint}
+                        onChange={(e) => setEditProofPoint(e.target.value)}
+                        className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans resize-none ${
+                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Format & Tech Spec</label>
+                      <input
+                        type="text"
+                        value={editFormatSpec}
+                        onChange={(e) => setEditFormatSpec(e.target.value)}
+                        className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Content Outline</label>
+                      <textarea
+                        rows={2}
+                        value={editContentOutline}
+                        onChange={(e) => setEditContentOutline(e.target.value)}
+                        className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans resize-none ${
+                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Call to Action</label>
+                      <input
+                        type="text"
+                        value={editCta}
+                        onChange={(e) => setEditCta(e.target.value)}
+                        className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Tone & Visual Reference</label>
+                      <input
+                        type="text"
+                        value={editToneVisualRef}
+                        onChange={(e) => setEditToneVisualRef(e.target.value)}
+                        className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Success Metric</label>
+                      <input
+                        type="text"
+                        value={editSuccessMetric}
+                        onChange={(e) => setEditSuccessMetric(e.target.value)}
+                        className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
+                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      />
+                    </div>
                   </div>
 
                   <div className="flex justify-end space-x-2 pt-2">
@@ -844,28 +1177,96 @@ export const BriefsPage: React.FC = () => {
                       </div>
                     </div>
 
+                    <div className="flex flex-wrap gap-1.5 mt-1.5 mb-3.5 text-[10px] font-mono text-slate-400">
+                      <span className="bg-slate-850 px-2 py-0.5 rounded border border-slate-800">
+                        Campaign ID: {brief.campaignId || "N/A"}
+                      </span>
+                      <span className="bg-slate-850 px-2 py-0.5 rounded border border-slate-800">
+                        Date: {brief.date || "N/A"}
+                      </span>
+                      <span className="bg-slate-850 px-2 py-0.5 rounded border border-slate-800">
+                        Seq: {brief.sequencePosition || "Campaign 1 of 1"}
+                      </span>
+                    </div>
+
                     <h4 className={`text-base font-bold ${isDark ? "text-slate-100" : "text-slate-900"}`}>{brief.title}</h4>
                     
-                    <div className="space-y-4.5 mt-4">
+                    <div className="space-y-4 mt-4 text-xs">
                       <div className="space-y-1">
                         <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide flex items-center">
-                          <Milestone className="w-3 h-3 mr-1" /> Campaign Objective
+                          <Milestone className="w-3 h-3 mr-1 text-violet-500" /> Campaign Objective
                         </span>
-                        <p className={`text-xs leading-relaxed ${isDark ? "text-slate-300" : "text-slate-600"}`}>{brief.objective}</p>
+                        <p className={`leading-relaxed ${isDark ? "text-slate-300" : "text-slate-600"}`}>{brief.objective}</p>
                       </div>
                       
                       <div className="space-y-1">
                         <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide flex items-center">
-                          <UserCheck className="w-3 h-3 mr-1" /> Target Audience
+                          <UserCheck className="w-3 h-3 mr-1 text-violet-500" /> Target Audience
                         </span>
-                        <p className={`text-xs leading-relaxed ${isDark ? "text-slate-300" : "text-slate-600"}`}>{brief.targetAudience}</p>
+                        <p className={`leading-relaxed ${isDark ? "text-slate-300" : "text-slate-600"}`}>{brief.targetAudience}</p>
                       </div>
 
                       <div className="space-y-1">
                         <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide flex items-center">
-                          <ClipboardList className="w-3 h-3 mr-1" /> Core Positioning Copy
+                          <ClipboardList className="w-3 h-3 mr-1 text-violet-500" /> Core Positioning Copy / Key Message
                         </span>
-                        <p className={`text-xs leading-relaxed italic ${isDark ? "text-slate-300" : "text-slate-600"}`}>"{brief.keyMessage}"</p>
+                        <p className={`leading-relaxed italic ${isDark ? "text-slate-300" : "text-slate-600"} font-medium`}>"{brief.keyMessage}"</p>
+                      </div>
+
+                      {brief.proofPoint && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide flex items-center">
+                            ⚖️ Proof Point / Data Source
+                          </span>
+                          <p className={`leading-relaxed ${isDark ? "text-slate-300" : "text-slate-600"}`}>{brief.proofPoint}</p>
+                        </div>
+                      )}
+
+                      {brief.formatSpec && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide flex items-center">
+                            📐 Format & Technical Spec
+                          </span>
+                          <p className={`leading-relaxed font-mono text-[11px] ${isDark ? "text-slate-300" : "text-slate-600"}`}>{brief.formatSpec}</p>
+                        </div>
+                      )}
+
+                      {brief.contentOutline && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide flex items-center">
+                            📝 Content Outline (Beat-by-Beat)
+                          </span>
+                          <p className={`leading-relaxed whitespace-pre-line ${isDark ? "text-slate-300" : "text-slate-600"}`}>{brief.contentOutline}</p>
+                        </div>
+                      )}
+
+                      {brief.cta && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide flex items-center">
+                            📣 Call to Action (CTA)
+                          </span>
+                          <p className={`leading-relaxed font-semibold text-emerald-500`}>{brief.cta}</p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-3 pt-1.5 border-t border-dashed border-slate-800/50">
+                        <div>
+                          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide block">
+                            🎨 Tone & Visual Reference
+                          </span>
+                          <p className={`text-[11px] ${isDark ? "text-slate-300" : "text-slate-600"}`}>{brief.toneVisualRef || "N/A"}</p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide block">
+                            📈 Success Metric / KPI
+                          </span>
+                          <p className={`text-[11px] font-mono font-semibold text-violet-400`}>{brief.successMetric || "N/A"}</p>
+                        </div>
+                      </div>
+
+                      <div className="pt-1 text-[10px] font-mono text-slate-400 flex justify-between items-center bg-slate-900/40 p-2 rounded border border-slate-800/40">
+                        <span>Approver: <strong className="text-slate-200">{brief.approver || "Osei"}</strong></span>
+                        <span className="text-emerald-500 font-bold">✓ Ready for Execution</span>
                       </div>
                     </div>
                   </div>

@@ -50,6 +50,24 @@ export const signInWithGoogleGmail = async (): Promise<{ user: User; accessToken
   }
 };
 
+// Google Auth Provider configured for Google Calendar
+const googleCalendarProvider = new GoogleAuthProvider();
+googleCalendarProvider.addScope("https://www.googleapis.com/auth/calendar");
+
+export const signInWithGoogleCalendar = async (): Promise<{ user: User; accessToken: string }> => {
+  try {
+    const result = await signInWithPopup(auth, googleCalendarProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (!credential?.accessToken) {
+      throw new Error("Failed to retrieve Google OAuth Access Token.");
+    }
+    return { user: result.user, accessToken: credential.accessToken };
+  } catch (err) {
+    console.error("Google Calendar Sign-In Error:", err);
+    throw err;
+  }
+};
+
 // Initialize Firestore. 
 // Note: We use the specific custom database ID provisioned for this applet
 export const db = getFirestore(app, "ai-studio-e3932094-ce6a-4b33-8e66-55c4292dcc93");
@@ -84,6 +102,12 @@ export interface Brand {
   voiceTone: string;
   tagline: string;
   createdAt?: any;
+  contentPillars?: string;
+  audiencePersonas?: string;
+  competitorContext?: string;
+  platformNotes?: string;
+  brandDescription?: string;
+  campaignObjective?: string;
 }
 
 export interface CampaignQueue {
@@ -91,7 +115,7 @@ export interface CampaignQueue {
   brandId: string;
   title: string;
   channel: "Twitter/X" | "LinkedIn" | "Instagram" | "Newsletter" | "YouTube";
-  status: "active" | "processing" | "scheduled" | "completed";
+  status: "active" | "processing" | "scheduled" | "completed" | "posted" | "waiting posting" | "wasn't posted";
   scheduledTime: string;
   content: string;
   metrics?: {
@@ -120,6 +144,16 @@ export interface CreativeBrief {
   keyMessage: string;
   deliverables: string;
   status: "Draft" | "Approved" | "In Progress";
+  campaignId?: string;
+  date?: string;
+  sequencePosition?: string;
+  proofPoint?: string;
+  formatSpec?: string;
+  contentOutline?: string;
+  cta?: string;
+  toneVisualRef?: string;
+  successMetric?: string;
+  approver?: string;
 }
 
 export interface AnalyticsMetric {

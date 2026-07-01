@@ -284,14 +284,17 @@ export const InsightsPage: React.FC = () => {
     setShowAddForm(false);
   };
 
-  const handleGenerateFromLoadedData = async () => {
+  const handleGenerateInsights = async (sourceType: "data" | "guides") => {
     setGenerating(true);
     try {
-      const payload = rawAnalytics.length > 0 ? rawAnalytics : [
-        { title: "LinkedIn Standard Benchmark", platform: "LinkedIn", type: "Text", impressions: 3200, engagement: 180, engagementRate: 5.6 },
-        { title: "Twitter Deployment Thread", platform: "Twitter/X", type: "Text", impressions: 8900, engagement: 560, engagementRate: 6.2 },
-        { title: "ESG Keynote Video", platform: "YouTube", type: "Video", impressions: 15400, engagement: 1100, engagementRate: 7.1 }
-      ];
+      let payload = [];
+      if (sourceType === "data") {
+        payload = rawAnalytics.length > 0 ? rawAnalytics : [
+          { title: "LinkedIn Standard Benchmark", platform: "LinkedIn", type: "Text", impressions: 3200, engagement: 180, engagementRate: 5.6 },
+          { title: "Twitter Deployment Thread", platform: "Twitter/X", type: "Text", impressions: 8900, engagement: 560, engagementRate: 6.2 },
+          { title: "ESG Keynote Video", platform: "YouTube", type: "Video", impressions: 15400, engagement: 1100, engagementRate: 7.1 }
+        ];
+      }
 
       const response = await fetch("/api/generate-insights", {
         method: "POST",
@@ -299,13 +302,23 @@ export const InsightsPage: React.FC = () => {
         body: JSON.stringify({
           tagline: activeBrand?.tagline || "Global Standards",
           voiceTone: activeBrand?.voiceTone || "Professional, Objective",
-          analyticsData: payload.slice(0, 150),
-          count: generationCount
+          brandGuide: {
+            brandDescription: activeBrand?.brandDescription || "",
+            campaignObjective: activeBrand?.campaignObjective || "awareness",
+            contentPillars: activeBrand?.contentPillars || "",
+            audiencePersonas: activeBrand?.audiencePersonas || "",
+            competitorContext: activeBrand?.competitorContext || "",
+            platformNotes: activeBrand?.platformNotes || ""
+          },
+          analyticsData: sourceType === "data" ? payload.slice(0, 150) : undefined,
+          count: generationCount,
+          sourceType
         })
       });
 
       if (!response.ok) {
-        throw new Error("Failed to generate strategic insights from Gemini service");
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to generate strategic insights from ${sourceType === "data" ? "data" : "guides"} source.`);
       }
 
       const generated = await response.json();
@@ -314,17 +327,17 @@ export const InsightsPage: React.FC = () => {
         await addInsight({
           title: item.title,
           desc: item.desc,
-          standpoint: item.standpoint,
+          standpoint: item.standpoint === "analytics" || item.standpoint === "observation" || item.standpoint === "opportunity" || item.standpoint === "pattern" || item.standpoint === "lesson" ? item.standpoint : "opportunity",
           status: "Pending",
           metric: item.metric,
           change: item.change,
-          type: item.type
+          type: item.type === "positive" || item.type === "warning" || item.type === "neutral" ? item.type : "positive"
         });
       }
 
       addNotification(
         "AI Insights Ingested",
-        `Discovered ${generated.length} strategic insights from brand performance records. Check the board!`,
+        `Discovered ${generated.length} strategic insights from ${sourceType === "data" ? "performance analytics data" : "brand style guidelines"}. Check the board!`,
         "success"
       );
     } catch (err: any) {
@@ -370,10 +383,35 @@ export const InsightsPage: React.FC = () => {
           </div>
 
           <button
-            id="insights-generate-loaded-btn"
-            onClick={handleGenerateFromLoadedData}
+            id="insights-generate-data-btn"
+            onClick={() => handleGenerateInsights("data")}
             disabled={generating}
-            className={`px-4 py-2 border rounded-lg font-mono text-xs font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
+            className={`px-3 py-2 border rounded-lg font-mono text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
+              generating
+                ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
+                : isDark
+                  ? "bg-slate-900 border-slate-800 text-slate-200 hover:border-slate-700"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+            }`}
+          >
+            {generating ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                <span>Generating...</span>
+              </>
+            ) : (
+              <>
+                <Database className={`w-3.5 h-3.5 ${getBrandTextColor()}`} />
+                <span>Generate from Data</span>
+              </>
+            )}
+          </button>
+
+          <button
+            id="insights-generate-guides-btn"
+            onClick={() => handleGenerateInsights("guides")}
+            disabled={generating}
+            className={`px-3 py-2 border rounded-lg font-mono text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
               generating
                 ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
                 : isDark
@@ -389,7 +427,7 @@ export const InsightsPage: React.FC = () => {
             ) : (
               <>
                 <Sparkles className={`w-3.5 h-3.5 ${getBrandTextColor()}`} />
-                <span>Generate from Loaded Data</span>
+                <span>Generate from Guides</span>
               </>
             )}
           </button>

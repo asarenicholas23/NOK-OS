@@ -67,6 +67,12 @@ export const AnalyticsImportPage: React.FC = () => {
         body: JSON.stringify({
           tagline: activeBrand.tagline,
           voiceTone: activeBrand.voiceTone,
+          brandGuide: {
+            contentPillars: activeBrand.contentPillars || "",
+            audiencePersonas: activeBrand.audiencePersonas || "",
+            competitorContext: activeBrand.competitorContext || "",
+            platformNotes: activeBrand.platformNotes || ""
+          },
           analyticsData: parsedRows.slice(0, 150)
         })
       });
