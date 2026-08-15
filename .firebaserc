@@ -7,6 +7,9 @@
       "hosting": {
         "main": [
           "nok-os"
+        ],
+        "old": [
+          "nok-os-prod"
         ]
       }
     }
