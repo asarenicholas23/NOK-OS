@@ -304,7 +304,39 @@ Always populate the following sections for each brief:
 5. CORE POSITIONING COPY / KEY MESSAGE: The single core message the audience should remember, in brand voice.
 6. PROOF POINT / DATA SOURCE: Specific stat, dataset, case study, or real example. If no real internal data exists yet, flag explicitly as "PLACEHOLDER — needs real data before publishing" (never invent fictitious metrics).
 7. FORMAT & TECHNICAL SPEC: Platform (e.g. "LinkedIn"), exact format (e.g. "Native document post (carousel)"), dimensions/aspect ratio (e.g. "1080 x 1350 px, portrait (4:5)"), slide/post count (e.g. "7 slides"), companion assets if any. Default carousel length to 7 slides unless content requires otherwise (range 5-10, hard cap 15).
-8. CONTENT OUTLINE: A beat-by-beat or slide-by-slide breakdown of what each individual asset/slide/tweet/scene says.
+8. CONTENT OUTLINE: A beat-by-beat, slide-by-slide, or section-by-section breakdown of what each individual asset/slide/tweet/scene says. You MUST format this strictly according to the format being built, using these markdown structures:
+   - For Carousels (slides/cards/pages): Generate a slide-by-slide sequence. Each slide must use this format exactly:
+     ## Slide [Number] — [Slide Title]
+     **Copy:**
+     > "Exact copy text inside quotes"
+     **Design:** Full description of visual layout, background styles, color guidelines, typography weighting, and negative space boundaries.
+     If there are channel specific swaps (like slide 4 having different assets on Instagram vs LinkedIn), add them precisely:
+     **Instagram version:** [Describe native motion video assets]
+     **LinkedIn version (static swap):** [Describe clean screenshots with annotation arrows]
+   
+   - For Videos/Reels/TikToks: Generate a scene-by-scene script storyboard. Each scene must use this format exactly:
+     ## Scene [Number] — [Scene Focus / Timecode]
+     **Copy:**
+     > "Exact narrator audio or voiceover copy inside quotes"
+     **Design:** Full director directions of camera movement, lighting, visual scenes, and on-screen overlays.
+     
+   - For Fliers/Posters/Prints: Generate a blueprint layout structure. Each section must use this format exactly:
+     ## Section [Number] — [Layout Component Name]
+     **Copy:**
+     > "Exact printed copy inside quotes"
+     **Design:** Precise blueprint instructions for grid alignment, border accents, and visual focus anchors.
+     
+   - For Email Campaigns/Newsletters: Generate a modular newsletter template block. Each block must use this format exactly:
+     ## Section [Number] — [Block Title]
+     For Section 1, always specify subject line metadata:
+     **Subject Line:**
+     > "Newsletter subject line in quotes"
+     **Preview Text:**
+     > "Interesting inbox preview snippet in quotes"
+     For other sections:
+     **Copy:**
+     > "Exact newsletter content block in quotes"
+     **Design:** Editorial margins, signature styles, highlighted card backgrounds, and custom colored call-to-action buttons.
 9. CALL TO ACTION: The specific action the viewer should take (comment, save, DM, click link, book a call).
 10. TONE & VISUAL REFERENCE: 2-3 adjectives for tone, brand guide reference (colors, fonts, logo placement), and style inspiration references if available.
 11. SUCCESS METRIC / KPI TARGET: The specific metric target (e.g., ">= 2.5% engagement rate", "15 saves", "3 inbound DMs") so performance can be reviewed against a target.
@@ -408,6 +440,298 @@ Return a single JSON object containing these 4 suggested fields. Maintain a high
   } catch (error: any) {
     console.error("Error generating brand guide suggestions:", error);
     res.status(500).send(error.message || "Failed to generate suggestions.");
+  }
+});
+
+// API endpoint to generate creative sandbox ideas (dump/sandbox of copy drafts, concepts, hashtags)
+app.post("/api/generate-sandbox-ideas", async (req, res) => {
+  try {
+    const { brandContext, topic } = req.body;
+
+    if (!topic) {
+      return res.status(400).send("Topic is required.");
+    }
+
+    const brandName = brandContext?.name || "Active Brand";
+    const tagline = brandContext?.tagline || "";
+    const voiceTone = brandContext?.voiceTone || "Professional, Objective";
+    const description = brandContext?.brandDescription || "A scaling modern business";
+    const pillars = brandContext?.contentPillars || "Not specified yet";
+    const audience = brandContext?.audiencePersonas || "Not specified yet";
+
+    const prompt = `You are an elite creative copywriter and content strategist.
+Active Brand: "${brandName}"
+Tagline: "${tagline}"
+Voice & Tone: "${voiceTone}"
+Brand Description: "${description}"
+Content Pillars: "${pillars}"
+Target Audience: "${audience}"
+
+Your task is to generate exactly 3 creative ideas or copy snippets related to the user's requested topic: "${topic}".
+Each of the 3 items should fall into one of these distinct categories:
+1. "caption" - A social media caption draft (e.g. LinkedIn, Twitter, Instagram copy with hooks).
+2. "concept" - A strategic creative visual layout concept, scene brief, or storyboard idea.
+3. "hashtag" - A highly targeted, hand-curated hashtag block or category combination.
+
+Ensure the copy drafts and concepts are extremely specific, of the highest visual/copy standard, aligned perfectly with the brand's voice and tone.
+
+Return a JSON object with this exact schema:
+{
+  "ideas": [
+    {
+      "title": "Concise headline describing this sandbox element",
+      "category": "caption" | "concept" | "hashtag",
+      "content": "The actual text body (exact copy with quotes for captions; detailed description for concept; space-separated hashtags for hashtag category)",
+      "tags": ["ShortTag1", "ShortTag2"]
+    }
+  ]
+}
+Make sure all JSON keys are correct, and return exactly 3 ideas.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            ideas: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  content: { type: Type.STRING },
+                  tags: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                  }
+                },
+                required: ["title", "category", "content", "tags"]
+              }
+            }
+          },
+          required: ["ideas"]
+        }
+      }
+    });
+
+    res.json(JSON.parse(response.text || "{}"));
+  } catch (error: any) {
+    console.error("Error generating sandbox ideas:", error);
+    res.status(500).send(error.message || "Failed to generate sandbox ideas.");
+  }
+});
+
+// API endpoint for conversational AI Chatbot with Brand and Performance Context
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { messages, brandContext, performanceContext } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).send("Messages array is required.");
+    }
+
+    const tagline = brandContext?.tagline || "";
+    const voiceTone = brandContext?.voiceTone || "Professional, Objective";
+    const brandName = brandContext?.name || "Active Client Brand";
+    const description = brandContext?.brandDescription || "A scaling modern business";
+    const objectives = brandContext?.campaignObjective || "General Brand Growth";
+    const pillars = brandContext?.contentPillars || "Not specified yet";
+    const targetPersonas = brandContext?.audiencePersonas || "Not specified yet";
+    const competitors = brandContext?.competitorContext || "Not specified yet";
+    const platformNotes = brandContext?.platformNotes || "Not specified yet";
+
+    const systemPrompt = `You are a world-class CMO (Chief Marketing Officer) and Creative Director for the active brand.
+Your name is "N.O.K AI Partner".
+You have deep expertise in content strategy, campaign orchestration, copywriting, and analytics auditing.
+
+Your personality is highly collaborative, strategic, articulate, and sharp. Avoid corporate fluff; focus on high-impact, actionable brand actions.
+
+Active Brand Profile:
+- Name: "${brandName}"
+- Tagline: "${tagline}"
+- Voice & Tone: "${voiceTone}"
+- Description: "${description}"
+- Campaign Objectives: "${objectives}"
+- Content Pillars: "${pillars}"
+- Target Audience Personas: "${targetPersonas}"
+- Competitor Context: "${competitors}"
+- Platform Distribution Notes: "${platformNotes}"
+
+Active Strategic Insights & Performance Context:
+${JSON.stringify(performanceContext || [], null, 2)}
+
+You are talking to the workspace manager. You can help them:
+1. Brainstorm creative ideas, content pillars, or slide outlines.
+2. Refine existing campaign copy (LinkedIn posts, carousels, videos).
+3. Draft structured Creative Briefs. If the user asks you to write, draft, or generate a "Creative Brief", you must format it beautifully. When generating a complete creative brief, you should also include a special structured JSON block at the very end of your response, enclosed in \`\`\`json_brief ... \`\`\` markers, so the client can parse it and let the user save it to their Briefs Registry with a single click.
+
+The contentOutline inside the JSON MUST be highly detailed and structured based on the target campaign format, conforming to these precise standards:
+- For Carousels (slides/pages): Write a slide-by-slide sequence. Format each slide as:
+  ## Slide [Number] — [Slide Title]
+  **Copy:**
+  > "Exact copy text inside quotes"
+  **Design:** Visual instructions for designers (color contrast, typography, margins, backgrounds, negative space). Include optional "Instagram version:" or "LinkedIn version (static swap):" variants if appropriate.
+  
+- For Videos/Reels/TikToks: Write a scene-by-scene script. Format each scene as:
+  ## Scene [Number] — [Scene Focus / Timecode]
+  **Copy:** (or **Audio:**)
+  > "Exact narrator audio/voiceover copy inside quotes"
+  **Design:** (or **Visual Direction:**) Detailed visual scenes, on-screen caption overlays, camera framing, lighting, and pacing.
+  
+- For Fliers/Posters/Prints: Write a layout blueprint. Format each section as:
+  ## Section [Number] — [Section Name]
+  **Copy:**
+  > "Exact copy inside quotes"
+  **Design:** Specific layout guidelines, grid sizing, QR code frame references, and main visual focus anchors.
+  
+- For Email Newsletters: Write a template block sequence. Format each block as:
+  ## Section [Number] — [Block Theme]
+  For Section 1, specify Subject Line and Preview Text:
+  **Subject Line:**
+  > "Catchy subject line"
+  **Preview Text:**
+  > "Inbox preview snippet"
+  For other sections:
+  **Copy:**
+  > "Exact newsletter copy in quotes"
+  **Design:** Spacing, borders, logo alignment, and highlighted action buttons.
+
+The JSON inside \`\`\`json_brief ... \`\`\` must conform exactly to this structure:
+{
+  "title": "Creative brief title",
+  "objective": "Campaign objective sentence",
+  "targetAudience": "Target role/persona + pain point",
+  "keyMessage": "Core key message",
+  "deliverables": "Deliverables and formats list",
+  "status": "Draft",
+  "campaignId": "Brief reference id (e.g. NOK-CAR-1)",
+  "date": "Today's date or release date (e.g. 7/1/2026)",
+  "sequencePosition": "Campaign sequence position",
+  "proofPoint": "Supporting stat, study or example",
+  "formatSpec": "Platform + formats spec (e.g. LinkedIn 7-slide carousel)",
+  "contentOutline": "Slide-by-slide or section-by-section breakdown details complying with the formatting rules above",
+  "cta": "Call to action message",
+  "toneVisualRef": "Tone and visual style descriptions",
+  "successMetric": "Success metric or KPI target",
+  "approver": "Creative sign-off authority"
+}
+Ensure all JSON fields are populated. If some fields are not mentioned, infer realistic details aligned with the active brand. Keep the JSON perfectly valid.`;
+
+    // Convert messages to Gemini format (role must be 'user' or 'model')
+    const formattedMessages = messages.map(msg => ({
+      role: msg.role === "assistant" ? "model" : "user",
+      parts: Array.isArray(msg.parts) ? msg.parts : [{ text: msg.text || msg.content }]
+    }));
+
+    const response = await generateContentWithFallback(
+      formattedMessages[formattedMessages.length - 1]?.parts?.[0]?.text || "Hello",
+      {
+        systemInstruction: systemPrompt,
+        contents: formattedMessages.slice(0, -1)
+      }
+    );
+
+    res.json({
+      text: response.text || "I was unable to process your request.",
+      role: "model"
+    });
+  } catch (error: any) {
+    console.error("Error in AI Chat API:", error);
+    res.status(500).json({ error: error.message || "Failed to generate chat response." });
+  }
+});
+
+// API endpoint to scrape and parse full Substack, Blogger, or medium blog posts into clean Markdown
+app.post("/api/import-blog-post", async (req, res) => {
+  try {
+    const { url, rawText } = req.body;
+
+    if (!url && !rawText) {
+      return res.status(400).send("Please provide a URL or article text to import.");
+    }
+
+    let scrapedHtml = "";
+    let sourceUrl = url || "";
+
+    if (url) {
+      try {
+        console.log(`[Blog Import] Fetching article from URL: ${url}`);
+        const response = await fetch(url, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+          }
+        });
+        if (response.ok) {
+          scrapedHtml = await response.text();
+          if (scrapedHtml.length > 80000) {
+            scrapedHtml = scrapedHtml.slice(0, 80000);
+          }
+        }
+      } catch (fetchErr) {
+        console.warn("[Blog Import] Server fetch failed, falling back to prompt parsing", fetchErr);
+      }
+    }
+
+    const contentToParse = scrapedHtml || rawText || url;
+
+    const prompt = `You are an expert digital publisher and article migration specialist.
+Analyze the following article source (HTML or text) from Substack, Blogger, or a web post (${sourceUrl || "Pasted text"}):
+
+${contentToParse.slice(0, 50000)}
+
+Your goal is to extract the ENTIRE full article and convert it into rich, beautifully structured Markdown format.
+
+Instructions:
+1. "title": Extract the exact article title.
+2. "category": Identify the post category or platform (e.g. "Substack Series", "Blogger Archive", "Growth Strategy").
+3. "readTime": Estimate reading time e.g. "5 min read".
+4. "coverImage": Extract the main header/featured image URL if present in the HTML/meta tags, or return an appropriate high quality Unsplash image URL related to the topic if none found.
+5. "authorName": Author name (default to "Osei Kofi" if not specified).
+6. "authorRole": Author role (default to "Lead Strategist, NOK Social").
+7. "excerpt": A compelling 1-2 sentence summary hook (150-200 characters).
+8. "contentMarkdown": The COMPLETE article body text, formatted cleanly in Markdown. Include all section headings (## Heading), subheadings (### Subheading), key callout boxes (> Callout quote), bulleted lists (- Item), bold text (**bold**), and any image URLs (![Alt](url)) present in the article. DO NOT summarize or truncate the article body — extract all paragraphs from beginning to end.
+
+Return JSON in this exact structure:
+{
+  "title": "Article Title",
+  "category": "Substack Series",
+  "readTime": "5 min read",
+  "coverImage": "https://...",
+  "authorName": "Osei Kofi",
+  "authorRole": "Lead Strategist, NOK Social",
+  "excerpt": "Compelling summary...",
+  "contentMarkdown": "## Section Title\\n\\nFull paragraph text..."
+}`;
+
+    const aiResponse = await generateContentWithFallback(prompt, {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          category: { type: Type.STRING },
+          readTime: { type: Type.STRING },
+          coverImage: { type: Type.STRING },
+          authorName: { type: Type.STRING },
+          authorRole: { type: Type.STRING },
+          excerpt: { type: Type.STRING },
+          contentMarkdown: { type: Type.STRING }
+        },
+        required: ["title", "category", "readTime", "coverImage", "authorName", "authorRole", "excerpt", "contentMarkdown"]
+      }
+    });
+
+    const parsed = JSON.parse(aiResponse.text || "{}");
+    res.json(parsed);
+  } catch (error: any) {
+    console.error("Error importing blog post:", error);
+    res.status(500).send(error.message || "Failed to import article.");
   }
 });
 

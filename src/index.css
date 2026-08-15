@@ -1,1 +1,292 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Sora", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  --color-neu-base: #15151A;
+  --color-neu-surface: #1C1C22;
+  --color-neu-surface-hover: #22222A;
+  --color-neu-gold: #B08D57;
+  --color-neu-gold-hover: #C5A065;
+  --color-neu-text: #F2F0EB;
+  --color-neu-muted: #8A8A93;
+
+  /* Color aliases mapped to neumorphism */
+  --color-bg: #15151A;
+  --color-sidebar: #15151A;
+  --color-card: #1C1C22;
+  --color-card-inner: #15151A;
+  --color-border: #23232C;
+  --color-text: #F2F0EB;
+  --color-muted: #8A8A93;
+  --color-accent: #B08D57;
+  --color-cyanotype: #B08D57;
+  --color-paper: #1C1C22;
+  --color-slate: #8A8A93;
+  --color-amber: #B08D57;
+  --color-graphite: #F2F0EB;
+  --color-line: #23232C;
+  --color-ink: #15151A;
+}
+
+/* ==========================================================================
+   DARK MODE (NIGHT) NEUMORPHISM TACTILE SURFACE SHADOWS
+   ========================================================================== */
+.neu-raised {
+  background-color: #1C1C22;
+  box-shadow: 6px 6px 14px rgba(0, 0, 0, 0.55), -4px -4px 10px rgba(255, 255, 255, 0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neu-raised:hover {
+  box-shadow: 8px 8px 18px rgba(0, 0, 0, 0.6), -5px -5px 12px rgba(255, 255, 255, 0.05);
+}
+
+.neu-raised:active,
+.neu-button:active {
+  box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.65), inset -3px -3px 6px rgba(255, 255, 255, 0.03);
+  transform: translateY(1px);
+}
+
+.neu-raised-sm {
+  background-color: #1C1C22;
+  box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.5), -2px -2px 6px rgba(255, 255, 255, 0.035);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neu-raised-sm:hover {
+  box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.55), -3px -3px 7px rgba(255, 255, 255, 0.045);
+}
+
+.neu-raised-sm:active {
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.6), inset -2px -2px 4px rgba(255, 255, 255, 0.03);
+}
+
+.neu-raised-lg {
+  background-color: #1C1C22;
+  box-shadow: 10px 10px 24px rgba(0, 0, 0, 0.65), -6px -6px 16px rgba(255, 255, 255, 0.04);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neu-pressed {
+  background-color: #15151A;
+  box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.65), inset -3px -3px 6px rgba(255, 255, 255, 0.03);
+}
+
+.neu-pressed-deep {
+  background-color: #121216;
+  box-shadow: inset 5px 5px 12px rgba(0, 0, 0, 0.7), inset -3px -3px 8px rgba(255, 255, 255, 0.025);
+}
+
+.neu-gold-btn {
+  background-color: #1C1C22;
+  color: #B08D57;
+  border: 1px solid rgba(176, 141, 87, 0.25);
+  box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.5), -3px -3px 8px rgba(255, 255, 255, 0.035), 0 0 12px rgba(176, 141, 87, 0.15);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neu-gold-btn:hover {
+  background-color: #22222A;
+  color: #F2F0EB;
+  border-color: rgba(176, 141, 87, 0.45);
+  box-shadow: 6px 6px 14px rgba(0, 0, 0, 0.6), -4px -4px 10px rgba(255, 255, 255, 0.045), 0 0 18px rgba(176, 141, 87, 0.25);
+}
+
+.neu-gold-btn:active {
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.7), inset -2px -2px 4px rgba(255, 255, 255, 0.03);
+  transform: translateY(1px);
+}
+
+.neu-gold-filled {
+  background: linear-gradient(135deg, #C5A065 0%, #B08D57 100%);
+  color: #15151A;
+  font-weight: 600;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.5), -2px -2px 8px rgba(255, 255, 255, 0.08);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neu-gold-filled:hover {
+  background: linear-gradient(135deg, #D4AF74 0%, #C5A065 100%);
+  box-shadow: 6px 6px 16px rgba(0, 0, 0, 0.6), -3px -3px 10px rgba(255, 255, 255, 0.1);
+}
+
+.neu-gold-filled:active {
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.5), inset -2px -2px 4px rgba(255, 255, 255, 0.2);
+  transform: translateY(1px);
+}
+
+/* Background grid overlay in dark mode */
+.blueprint-grid-bg {
+  background-image: 
+    linear-gradient(rgba(176, 141, 87, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(176, 141, 87, 0.03) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ==========================================================================
+   DAY MODE (LIGHT CREAM) OVERRIDES & SOFT-PRESSED TACTILE PHYSICS
+   Light Cream base: #F7F5EE | Card Surface: #ECE7DC | Inset: #E2DDD0
+   Deep Inset: #D6CFBF | Primary Text: #18181B | Secondary: #575761
+   Rich Gold: #8C6428 / #9E7432
+   ========================================================================== */
+html.light body,
+html.light #root,
+html.light {
+  background-color: #F7F5EE !important;
+  color: #18181B !important;
+}
+
+/* Day Mode Neumorphism Raised */
+html.light .neu-raised {
+  background-color: #ECE7DC !important;
+  box-shadow: 5px 5px 12px rgba(185, 172, 150, 0.45), -4px -4px 10px rgba(255, 255, 255, 0.9) !important;
+}
+
+html.light .neu-raised:hover {
+  box-shadow: 7px 7px 16px rgba(185, 172, 150, 0.55), -5px -5px 12px rgba(255, 255, 255, 1) !important;
+}
+
+html.light .neu-raised:active,
+html.light .neu-button:active {
+  box-shadow: inset 3px 3px 6px rgba(185, 172, 150, 0.5), inset -2px -2px 5px rgba(255, 255, 255, 0.85) !important;
+}
+
+html.light .neu-raised-sm {
+  background-color: #ECE7DC !important;
+  box-shadow: 3px 3px 7px rgba(185, 172, 150, 0.4), -2px -2px 6px rgba(255, 255, 255, 0.9) !important;
+}
+
+html.light .neu-raised-sm:hover {
+  box-shadow: 4px 4px 9px rgba(185, 172, 150, 0.48), -3px -3px 8px rgba(255, 255, 255, 1) !important;
+}
+
+html.light .neu-raised-sm:active {
+  box-shadow: inset 2px 2px 4px rgba(185, 172, 150, 0.45), inset -1px -1px 3px rgba(255, 255, 255, 0.85) !important;
+}
+
+html.light .neu-raised-lg {
+  background-color: #ECE7DC !important;
+  box-shadow: 8px 8px 20px rgba(185, 172, 150, 0.5), -6px -6px 16px rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Day Mode Neumorphism Pressed (Inset) */
+html.light .neu-pressed {
+  background-color: #E2DDD0 !important;
+  box-shadow: inset 3px 3px 7px rgba(185, 172, 150, 0.45), inset -2px -2px 5px rgba(255, 255, 255, 0.85) !important;
+}
+
+html.light .neu-pressed-deep {
+  background-color: #D6CFBF !important;
+  box-shadow: inset 4px 4px 9px rgba(170, 156, 134, 0.55), inset -2px -2px 5px rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Day Mode Buttons */
+html.light .neu-gold-btn {
+  background-color: #ECE7DC !important;
+  color: #8C6428 !important;
+  border: 1px solid rgba(140, 100, 40, 0.3) !important;
+  box-shadow: 3px 3px 8px rgba(185, 172, 150, 0.4), -2px -2px 6px rgba(255, 255, 255, 0.9) !important;
+}
+
+html.light .neu-gold-btn:hover {
+  background-color: #E2DDD0 !important;
+  color: #18181B !important;
+  border-color: rgba(140, 100, 40, 0.55) !important;
+  box-shadow: 5px 5px 12px rgba(185, 172, 150, 0.5), -3px -3px 8px rgba(255, 255, 255, 1) !important;
+}
+
+html.light .neu-gold-filled {
+  background: linear-gradient(135deg, #B08D57 0%, #8C6428 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 3px 3px 10px rgba(140, 100, 40, 0.35), -2px -2px 6px rgba(255, 255, 255, 0.7) !important;
+}
+
+html.light .neu-gold-filled:hover {
+  background: linear-gradient(135deg, #C5A065 0%, #9E7432 100%) !important;
+  box-shadow: 5px 5px 14px rgba(140, 100, 40, 0.45), -3px -3px 8px rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Day Mode Backgrounds & Surfaces */
+html.light .bg-\[\#15151A\],
+html.light .bg-\[\#15151A\]\/90,
+html.light .bg-\[\#15151A\]\/80 {
+  background-color: #F7F5EE !important;
+}
+
+html.light .bg-\[\#1C1C22\] {
+  background-color: #ECE7DC !important;
+}
+
+html.light .bg-\[\#121216\],
+html.light .bg-\[\#111115\] {
+  background-color: #E2DDD0 !important;
+}
+
+/* Day Mode Typography */
+html.light .text-\[\#F2F0EB\],
+html.light .text-\[\#F2F0EB\]\/90,
+html.light .text-\[\#F2F0EB\]\/80 {
+  color: #18181B !important;
+}
+
+html.light .text-zinc-200,
+html.light .text-zinc-300,
+html.light .text-zinc-400,
+html.light .text-\[\#8A8A93\],
+html.light .text-\[\#C5C3B8\],
+html.light .text-\[\#8A8A93\]\/70 {
+  color: #575761 !important;
+}
+
+html.light .text-\[\#B08D57\],
+html.light .text-\[\#C5A065\] {
+  color: #8C6428 !important;
+}
+
+/* Day Mode Borders & Lines */
+html.light .border-\[\#1C1C22\],
+html.light .border-\[\#23232C\],
+html.light .border-white\/5,
+html.light .border-white\/10 {
+  border-color: rgba(185, 172, 150, 0.35) !important;
+}
+
+/* Day Mode Form Inputs */
+html.light input,
+html.light textarea,
+html.light select {
+  color: #18181B !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #8A8894 !important;
+}
+
+html.light select option {
+  background-color: #ECE7DC !important;
+  color: #18181B !important;
+}
+
+/* Day Mode Blueprint Grid */
+html.light .blueprint-grid-bg {
+  background-image: 
+    linear-gradient(rgba(140, 100, 40, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140, 100, 40, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+

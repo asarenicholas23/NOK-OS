@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useBrand } from "../context/BrandContext";
+import { cleanAndNormalizeData } from "../utils/dataCleaner";
 import { 
   UploadCloud, 
   CheckCircle2, 
@@ -9,7 +10,9 @@ import {
   FileCode, 
   Check, 
   Loader2, 
-  Sparkles 
+  Sparkles,
+  FileText,
+  Table
 } from "lucide-react";
 
 export const AnalyticsImportPage: React.FC = () => {
@@ -18,6 +21,8 @@ export const AnalyticsImportPage: React.FC = () => {
     theme, 
     accentColor, 
     saveRawAnalyticsRows, 
+    clearRawAnalytics,
+    rawAnalytics,
     addInsight, 
     addNotification 
   } = useBrand();
@@ -27,6 +32,10 @@ export const AnalyticsImportPage: React.FC = () => {
   const [uploadState, setUploadState] = useState<"idle" | "parsing" | "saving" | "complete">("idle");
   const [parsedRows, setParsedRows] = useState<any[]>([]);
   const [generatingInsights, setGeneratingInsights] = useState(false);
+  const [targetDatasetType, setTargetDatasetType] = useState<"baseline" | "comparison">("baseline");
+  const [clearing, setClearing] = useState<boolean>(false);
+  const [rawFileContent, setRawFileContent] = useState<string>("");
+  const [activePreviewTab, setActivePreviewTab] = useState<"raw" | "cleaned">("raw");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isDark = theme === "dark";
@@ -54,7 +63,7 @@ export const AnalyticsImportPage: React.FC = () => {
       if (activeColor === "amber") return "border-amber-500 bg-amber-500/5";
       return "border-violet-500 bg-violet-550/5";
     }
-    return isDark ? "border-slate-800 hover:border-slate-700 hover:bg-slate-950/20" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/50";
+    return isDark ? "border-border hover:border-slate-700 hover:bg-slate-950/20" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/50";
   };
 
   const handleGenerateInsights = async () => {
@@ -112,55 +121,8 @@ export const AnalyticsImportPage: React.FC = () => {
   // Real CSV and JSON File parser
   const parseFileContent = (content: string, filename: string) => {
     try {
-      let rows: any[] = [];
-      const lowerName = filename.toLowerCase();
-
-      if (lowerName.endsWith(".json")) {
-        const parsed = JSON.parse(content);
-        rows = Array.isArray(parsed) ? parsed : [parsed];
-      } else {
-        // Assume CSV
-        const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0);
-        if (lines.length < 2) {
-          throw new Error("CSV file lacks minimum lines (header + data).");
-        }
-
-        const headers = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ""));
-        
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(",").map(v => v.trim().replace(/^["']|["']$/g, ""));
-          const rowObj: any = {};
-          headers.forEach((h, idx) => {
-            rowObj[h] = values[idx] || "";
-          });
-          rows.push(rowObj);
-        }
-      }
-
-      // Normalize Rows to standard RawAnalyticsRow
-      const normalized = rows.map((r, idx) => {
-        const platformKey = Object.keys(r).find(k => /platform|channel|source/i.test(k)) || "platform";
-        const typeKey = Object.keys(r).find(k => /type|format|category/i.test(k)) || "type";
-        const impressionsKey = Object.keys(r).find(k => /impression|views|reach/i.test(k)) || "impressions";
-        const engagementKey = Object.keys(r).find(k => /engagement|clicks|likes|interact/i.test(k)) || "engagement";
-        const titleKey = Object.keys(r).find(k => /title|headline|post|subject/i.test(k)) || "title";
-        const dayKey = Object.keys(r).find(k => /day|weekday/i.test(k)) || "dayOfWeek";
-
-        const impressions = parseInt(r[impressionsKey]) || Math.floor(200 + Math.random() * 800);
-        const engagement = parseInt(r[engagementKey]) || Math.floor(10 + Math.random() * 60);
-        const engagementRate = impressions > 0 ? (engagement / impressions) * 100 : 0.0;
-
-        return {
-          id: `raw-${idx}-${Date.now()}`,
-          title: r[titleKey] || `SaaS Performance Log #${idx + 1}`,
-          platform: r[platformKey] || "LinkedIn",
-          type: r[typeKey] || "Text",
-          impressions,
-          engagement,
-          engagementRate,
-          dayOfWeek: r[dayKey] || "Wednesday"
-        };
-      });
+      // Replicate Python cleaning logic via cleanAndNormalizeData
+      const normalized = cleanAndNormalizeData(content, filename, activeBrand?.id || "acme-corp");
 
       if (normalized.length === 0) {
         throw new Error("No readable performance records detected in payload.");
@@ -172,8 +134,9 @@ export const AnalyticsImportPage: React.FC = () => {
       // Save to Firebase Context
       setTimeout(async () => {
         try {
-          await saveRawAnalyticsRows(normalized);
+          await saveRawAnalyticsRows(normalized, targetDatasetType);
           setUploadState("complete");
+          setActivePreviewTab("cleaned"); // Auto-focus the cleaned metrics view!
           addNotification(
             "Spreadsheet Digested",
             `Successfully processed and synced ${normalized.length} raw performance rows to active client store.`,
@@ -225,6 +188,8 @@ export const AnalyticsImportPage: React.FC = () => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
+      setRawFileContent(content);
+      setActivePreviewTab("raw"); // focus on the raw CSV view first as requested
       parseFileContent(content, selectedFile.name);
     };
     reader.onerror = () => {
@@ -238,19 +203,173 @@ export const AnalyticsImportPage: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  const baselineCount = rawAnalytics.filter(r => r.datasetType === "baseline" || !r.datasetType).length;
+  const comparisonCount = rawAnalytics.filter(r => r.datasetType === "comparison").length;
+
+  const handleClearData = async (type: "baseline" | "comparison" | "all") => {
+    setClearing(true);
+    try {
+      await clearRawAnalytics(type);
+      if (type === "all") {
+        setRawFileContent("");
+        setFile(null);
+        setUploadState("idle");
+        setParsedRows([]);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const getActiveTabStyle = (tab: "baseline" | "comparison") => {
+    if (targetDatasetType === tab) {
+      if (activeColor === "emerald") return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+      if (activeColor === "rose") return "bg-rose-500/10 text-rose-500 border-rose-500/20";
+      if (activeColor === "amber") return "bg-amber-500/10 text-amber-500 border-amber-500/20";
+      return "bg-violet-500/10 text-violet-500 border-violet-500/20";
+    }
+    return isDark ? "bg-slate-950 text-slate-400 border-slate-900 hover:text-slate-200" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100";
+  };
+
   return (
     <div 
       id="analytics-import-view" 
       className={`space-y-8 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
     >
       {/* Welcome Title */}
-      <div>
-        <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-slate-100" : "text-slate-900"}`}>
-          Analytics Import Console
-        </h2>
-        <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-          Import standard client performance spreadsheets or JSON files into the brand database.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-slate-100" : "text-slate-900"}`}>
+            Analytics Import Console
+          </h2>
+          <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+            Import standard client performance spreadsheets or JSON files into the brand database.
+          </p>
+        </div>
+      </div>
+
+      {/* Active Database Overview */}
+      <div className={`border p-5 rounded-xl ${isDark ? "bg-card/90 border-border" : "bg-white border-slate-200 shadow-sm"} space-y-4`}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold flex items-center">
+            <Database className="w-4 h-4 mr-1.5 text-slate-400" />
+            Active Database Overview
+          </h3>
+          {(baselineCount > 0 || comparisonCount > 0) && (
+            <button
+              onClick={() => handleClearData("all")}
+              disabled={clearing}
+              className={`px-3 py-1 text-[10px] font-semibold uppercase tracking-wider rounded border font-mono transition-all ${
+                isDark 
+                  ? "bg-rose-950/20 border-rose-500/30 text-rose-400 hover:bg-rose-950/40" 
+                  : "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
+              }`}
+            >
+              {clearing ? "Clearing..." : "Clear All Custom Data"}
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Baseline Dataset Card */}
+          <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+            isDark ? "bg-slate-950 border-slate-900" : "bg-slate-50 border-slate-150"
+          }`}>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold">Baseline Dataset</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                  baselineCount > 0 
+                    ? "bg-emerald-500/10 text-emerald-500" 
+                    : "bg-slate-500/10 text-slate-400"
+                }`}>
+                  {baselineCount > 0 ? "CUSTOM ACTIVE" : "SIMULATED FALLBACK"}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Standard baseline engagement, reach, and performance logs.
+              </p>
+              <div className="text-lg font-bold font-mono mt-3">
+                {baselineCount > 0 ? `${baselineCount} raw rows` : "30 simulated rows"}
+              </div>
+            </div>
+            {baselineCount > 0 && (
+              <button
+                onClick={() => handleClearData("baseline")}
+                disabled={clearing}
+                className="mt-3 text-left text-[10px] font-semibold text-rose-500 hover:underline"
+              >
+                Clear Baseline Dataset
+              </button>
+            )}
+          </div>
+
+          {/* Comparison Dataset Card */}
+          <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+            isDark ? "bg-slate-950 border-slate-900" : "bg-slate-50 border-slate-150"
+          }`}>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold">Comparison Dataset</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                  comparisonCount > 0 
+                    ? "bg-amber-500/10 text-amber-500" 
+                    : "bg-slate-500/10 text-slate-400"
+                }`}>
+                  {comparisonCount > 0 ? "CUSTOM ACTIVE" : "SIMULATED FALLBACK"}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Post-campaign feedback analytics used for comparisons.
+              </p>
+              <div className="text-lg font-bold font-mono mt-3">
+                {comparisonCount > 0 ? `${comparisonCount} raw rows` : "24 simulated rows"}
+              </div>
+            </div>
+            {comparisonCount > 0 && (
+              <button
+                onClick={() => handleClearData("comparison")}
+                disabled={clearing}
+                className="mt-3 text-left text-[10px] font-semibold text-rose-500 hover:underline"
+              >
+                Clear Comparison Dataset
+              </button>
+            )}
+          </div>
+        </div>
+
+        {baselineCount === 0 && comparisonCount === 0 && (
+          <div className={`p-3 rounded-lg border text-[11px] leading-relaxed ${
+            isDark ? "bg-amber-500/5 border-amber-500/10 text-amber-400" : "bg-amber-50 border-amber-200 text-amber-700"
+          }`}>
+            ⚠️ <strong>Simulation Sandbox is Active</strong>: No custom data uploaded yet. You are currently viewing high-fidelity default brand campaigns. Uploading your own spreadsheet will automatically disable simulated records and load your files!
+          </div>
+        )}
+      </div>
+
+      {/* Target Dataset Selection */}
+      <div className="space-y-2">
+        <label className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold block">
+          Target Dataset Destination for Ingestion
+        </label>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => setTargetDatasetType("baseline")}
+            className={`flex-1 p-3 border rounded-xl text-left transition-all ${getActiveTabStyle("baseline")}`}
+          >
+            <div className="font-semibold text-xs">Baseline Performance Ingest</div>
+            <div className="text-[10px] opacity-70 mt-0.5">Upload initial/general campaign stats.</div>
+          </button>
+          <button
+            onClick={() => setTargetDatasetType("comparison")}
+            className={`flex-1 p-3 border rounded-xl text-left transition-all ${getActiveTabStyle("comparison")}`}
+          >
+            <div className="font-semibold text-xs">Feedback / Comparison Ingest</div>
+            <div className="text-[10px] opacity-70 mt-0.5">Upload comparison data (e.g., specific post-campaign stats).</div>
+          </button>
+        </div>
       </div>
 
       {/* Upload Zone */}
@@ -273,17 +392,17 @@ export const AnalyticsImportPage: React.FC = () => {
             />
             
             <div className={`w-12 h-12 rounded-full border flex items-center justify-center mb-4 ${
-              isDark ? "bg-slate-950 border-slate-800" : "bg-slate-50 border-slate-200"
+              isDark ? "bg-slate-950 border-border" : "bg-slate-50 border-slate-200"
             }`}>
               <UploadCloud className={`w-6 h-6 ${
                 activeColor === "emerald" ? "text-emerald-500" : activeColor === "rose" ? "text-rose-500" : activeColor === "amber" ? "text-amber-500" : "text-violet-500"
               }`} />
             </div>
-
+            
             <div>
               <h4 className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-800"}`}>Drag & drop files here to parse</h4>
               <p className={`text-xs max-w-sm mt-1.5 leading-relaxed ${isDark ? "text-slate-500" : "text-slate-500"}`}>
-                Supports CSV, Excel spreadsheets, or standard JSON data payloads configured for brand reporting.
+                Uploading as <strong className="uppercase">{targetDatasetType}</strong>. Supports CSV, Excel spreadsheets, or standard JSON data payloads.
               </p>
             </div>
 
@@ -292,7 +411,7 @@ export const AnalyticsImportPage: React.FC = () => {
               onClick={triggerSelect}
               className={`mt-6 px-4 py-2 border text-xs font-semibold font-mono rounded-md shadow-md transition-colors cursor-pointer ${
                 isDark 
-                  ? "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700" 
+                  ? "bg-slate-950 border-border text-slate-300 hover:border-slate-700" 
                   : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
               }`}
             >
@@ -301,7 +420,7 @@ export const AnalyticsImportPage: React.FC = () => {
           </div>
 
           {/* Secure pipeline description */}
-          <div className={`border rounded-xl p-5 space-y-3 ${isDark ? "bg-slate-900/40 border-slate-850" : "bg-white border-slate-200 shadow-sm"}`}>
+          <div className={`border rounded-xl p-5 space-y-3 ${isDark ? "bg-slate-900/40 border-border" : "bg-white border-slate-200 shadow-sm"}`}>
             <h4 className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold flex items-center">
               <Database className={`w-3.5 h-3.5 mr-1.5 ${
                 activeColor === "emerald" ? "text-emerald-500" : activeColor === "rose" ? "text-rose-500" : activeColor === "amber" ? "text-amber-500" : "text-violet-500"
@@ -318,7 +437,7 @@ export const AnalyticsImportPage: React.FC = () => {
         <div 
           id="analytics-results-card" 
           className={`border rounded-xl p-6 shadow-lg flex flex-col justify-between min-h-[400px] lg:col-span-5 ${
-            isDark ? "bg-[#161616] border-slate-800/80" : "bg-white border-slate-200"
+            isDark ? "bg-card border-border/80" : "bg-white border-slate-200"
           }`}
         >
           <div>
@@ -334,7 +453,7 @@ export const AnalyticsImportPage: React.FC = () => {
             {uploadState !== "idle" && file && (
               <div className="space-y-5 animate-in fade-in duration-200">
                 <div className={`border p-4 rounded-lg flex items-center justify-between font-mono text-[10px] ${
-                  isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200"
+                  isDark ? "bg-slate-950 border-border" : "bg-slate-50 border-slate-200"
                 }`}>
                   <div className="flex items-center space-x-3">
                     <FileCode className={`w-6 h-6 ${
@@ -361,7 +480,7 @@ export const AnalyticsImportPage: React.FC = () => {
                         <div 
                           key={idx} 
                           className={`border p-3 rounded-md flex justify-between items-center text-xs ${
-                            isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50/50 border-slate-200"
+                            isDark ? "bg-slate-950 border-border" : "bg-slate-50/50 border-slate-200"
                           }`}
                         >
                           <div className="min-w-0 flex-1 mr-2">
@@ -432,6 +551,155 @@ export const AnalyticsImportPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Dynamic Data Preview Section */}
+      {file && rawFileContent && (
+        <div className={`border rounded-xl p-6 ${isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"} space-y-4 animate-in fade-in duration-300`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 gap-4 border-slate-200 dark:border-border">
+            <div>
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-slate-400" />
+                <span>Payload Verification & Analytics Inspect</span>
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
+                Inspect raw incoming data structures versus standardized client-side calculated metrics.
+              </p>
+            </div>
+            
+            {/* Tab Toggles */}
+            <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-border text-xs font-mono">
+              <button
+                onClick={() => setActivePreviewTab("raw")}
+                className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all cursor-pointer ${
+                  activePreviewTab === "raw"
+                    ? "bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 shadow"
+                    : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>1. Raw CSV Content</span>
+              </button>
+              <button
+                onClick={() => setActivePreviewTab("cleaned")}
+                className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all cursor-pointer ${
+                  activePreviewTab === "cleaned"
+                    ? "bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 shadow"
+                    : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
+                }`}
+              >
+                <Table className="w-3.5 h-3.5" />
+                <span>2. Cleaned Metrics Preview</span>
+              </button>
+            </div>
+          </div>
+
+          {activePreviewTab === "raw" ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span>Displaying first few lines of raw file text payload:</span>
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-semibold">
+                  Source Raw Encoding
+                </span>
+              </div>
+              <div className={`p-4 rounded-lg font-mono text-xs overflow-x-auto max-h-[300px] border ${
+                isDark ? "bg-slate-950 border-border text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"
+              }`}>
+                {rawFileContent ? (
+                  rawFileContent
+                    .split(/\r?\n/)
+                    .slice(0, 8)
+                    .map((line, idx) => (
+                      <div key={idx} className="flex gap-4 py-0.5 hover:bg-slate-900/40 px-1 rounded">
+                        <span className="text-slate-500 select-none text-right w-6 inline-block">{idx + 1}</span>
+                        <span className="whitespace-pre">{line || " "}</span>
+                      </div>
+                    ))
+                ) : (
+                  <span className="text-slate-500">No raw contents available.</span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-500 font-mono leading-relaxed">
+                * Real-time file streaming preserves your double quote boundaries, escaped commas, and Unix/Windows carriage line breaks before parsing begins.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span>Standardized, casted, and data-aligned target outputs ({parsedRows.length} total rows cleaned):</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold">
+                  Python-Equivalent Compliant
+                </span>
+              </div>
+
+              {parsedRows.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 text-xs font-mono">
+                  No cleaned rows available. Clean validation pending.
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-x-auto border-slate-200 dark:border-border">
+                  <table className="w-full text-left text-xs border-collapse font-mono">
+                    <thead>
+                      <tr className={`${isDark ? "bg-slate-950 text-slate-400 border-b border-border" : "bg-slate-50 text-slate-600 border-b border-slate-200"} text-[10px] uppercase font-bold`}>
+                        <th className="py-2.5 px-3">Post Title / Description</th>
+                        <th className="py-2.5 px-3">Platform</th>
+                        <th className="py-2.5 px-3">Format</th>
+                        <th className="py-2.5 px-3 text-right">Impressions</th>
+                        <th className="py-2.5 px-3 text-right">Engagement</th>
+                        <th className="py-2.5 px-3 text-right">Eng. Rate</th>
+                        <th className="py-2.5 px-3 text-right">Day</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-850">
+                      {parsedRows.slice(0, 6).map((row, idx) => (
+                        <tr 
+                          key={idx} 
+                          className={`hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors ${
+                            isDark ? "text-slate-300" : "text-slate-700"
+                          }`}
+                        >
+                          <td className="py-2.5 px-3 font-semibold max-w-[200px] truncate" title={row.title}>
+                            {row.title}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-[10px] font-bold">
+                              {row.platform}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-400">{row.type}</td>
+                          <td className="py-2.5 px-3 text-right font-bold">{(row.impressions || 0).toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-right">{(row.engagement || 0).toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-right text-emerald-500 font-bold">{(row.engagementRate || 0).toFixed(2)}%</td>
+                          <td className="py-2.5 px-3 text-right text-slate-400">{row.dayOfWeek || "N/A"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {parsedRows.length > 6 && (
+                    <div className={`p-2.5 text-center text-[10px] font-mono border-t border-slate-200 dark:border-border text-slate-400 ${
+                      isDark ? "bg-slate-950" : "bg-slate-50"
+                    }`}>
+                      + {parsedRows.length - 6} additional rows successfully converted to standard relational schema
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Cleansing rules callout */}
+              <div className={`p-4 rounded-lg text-xs leading-relaxed ${
+                isDark ? "bg-emerald-500/5 border border-emerald-500/10 text-emerald-400" : "bg-emerald-50 border border-emerald-100 text-emerald-800"
+              }`}>
+                <strong>⚡ Algorithmic Cleansing Rules Applied</strong>:
+                <ul className="list-disc pl-5 mt-1.5 space-y-1 text-[11px]">
+                  <li>Headers normalized (e.g. stripped, lowercase, spaces replaced with underscores).</li>
+                  <li>Metrics validated (computed as: <code>likes + comments + shares + saves</code>).</li>
+                  <li>Defective metrics aligned: verified <code>impressions &ge; engagement</code> (automatic lower-bound safety clip).</li>
+                  <li>Engagement rate computed safely: <code>(total_engagement / impressions) * 100</code> percentage representation.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

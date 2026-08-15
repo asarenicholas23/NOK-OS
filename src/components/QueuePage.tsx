@@ -254,7 +254,7 @@ export const QueuePage: React.FC = () => {
         <div 
           id="add-campaign-card" 
           className={`border rounded-xl p-6 shadow-xl animate-in slide-in-from-top-3 duration-200 ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200"
           }`}
         >
           <h3 className="text-xs font-mono uppercase tracking-wider text-slate-400 mb-4">
@@ -376,7 +376,7 @@ export const QueuePage: React.FC = () => {
                 type="button"
                 onClick={() => setShowAddModal(false)}
                 className={`px-4 py-2 border text-xs rounded-md font-mono cursor-pointer ${
-                  isDark ? "border-slate-800 text-slate-400 hover:text-slate-200" : "border-slate-200 text-slate-500 hover:text-slate-800"
+                  isDark ? "border-border text-slate-400 hover:text-slate-200" : "border-slate-200 text-slate-500 hover:text-slate-800"
                 }`}
               >
                 Cancel Transaction
@@ -397,10 +397,10 @@ export const QueuePage: React.FC = () => {
       <div 
         id="approved-briefs-scheduler-panel"
         className={`border rounded-xl p-6 shadow-lg ${
-          isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200"
+          isDark ? "bg-card border-border" : "bg-white border-slate-200"
         }`}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5 border-b border-slate-800/40 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5 border-b border-border/40 pb-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 rounded-lg bg-violet-600/10 text-violet-500">
               <CalendarDays className="w-5 h-5" />
@@ -430,7 +430,7 @@ export const QueuePage: React.FC = () => {
                   key={brief.id}
                   id={`brief-schedule-card-${brief.id}`}
                   className={`p-4 rounded-xl border flex flex-col justify-between space-y-4 ${
-                    isDark ? "bg-slate-950/40 border-slate-850 hover:border-slate-800" : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                    isDark ? "bg-slate-950/40 border-border hover:border-border" : "bg-slate-50 border-slate-200 hover:border-slate-300"
                   } transition-all duration-200`}
                 >
                   <div className="space-y-1.5">
@@ -451,7 +451,7 @@ export const QueuePage: React.FC = () => {
                   </div>
 
                   {/* Scheduling Controls */}
-                  <div className="space-y-3 pt-2.5 border-t border-slate-800/45">
+                  <div className="space-y-3 pt-2.5 border-t border-border/45">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[9px] font-mono uppercase tracking-wider text-slate-400 mb-1">Target Date</label>
@@ -460,7 +460,7 @@ export const QueuePage: React.FC = () => {
                           value={briefDate}
                           onChange={(e) => setSelectedDateForBrief(prev => ({ ...prev, [brief.id]: e.target.value }))}
                           className={`w-full text-[11px] px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-850 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         />
                       </div>
@@ -470,7 +470,7 @@ export const QueuePage: React.FC = () => {
                           value={briefChannel}
                           onChange={(e) => setSelectedChannelForBrief(prev => ({ ...prev, [brief.id]: e.target.value as CampaignQueue["channel"] }))}
                           className={`w-full text-[11px] px-2 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-850 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         >
                           <option value="LinkedIn">LinkedIn</option>
@@ -497,7 +497,7 @@ export const QueuePage: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="text-center py-6 text-slate-400 text-xs font-mono border border-dashed border-slate-800/40 rounded-xl bg-slate-950/20">
+          <div className="text-center py-6 text-slate-400 text-xs font-mono border border-dashed border-border/40 rounded-xl bg-slate-950/20">
             <Check className="w-5 h-5 text-emerald-500 mx-auto mb-1.5" />
             <div>All approved briefs are successfully scheduled!</div>
             <p className="text-[10px] text-slate-500 mt-0.5">Approved briefs from the Briefs page are listed here for quick planning.</p>
@@ -507,10 +507,10 @@ export const QueuePage: React.FC = () => {
 
       {/* Queue items pipeline tracking list */}
       <div className={`border rounded-xl overflow-hidden shadow-lg ${
-        isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200"
+        isDark ? "bg-card border-border" : "bg-white border-slate-200"
       }`}>
         <div className={`px-6 py-4 border-b flex items-center justify-between ${
-          isDark ? "border-slate-800/60 bg-slate-900/20" : "border-slate-150 bg-slate-50/50"
+          isDark ? "border-border/60 bg-slate-900/20" : "border-slate-150 bg-slate-50/50"
         }`}>
           <div className="flex items-center space-x-2">
             <ListOrdered className="w-4 h-4 text-slate-400" />
@@ -594,7 +594,7 @@ export const QueuePage: React.FC = () => {
                           value={editTitle}
                           onChange={(e) => setEditTitle(e.target.value)}
                           className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         />
                       </div>
@@ -604,7 +604,7 @@ export const QueuePage: React.FC = () => {
                           value={editChannel}
                           onChange={(e) => setEditChannel(e.target.value as CampaignQueue["channel"])}
                           className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         >
                           <option value="Twitter/X">Twitter/X</option>
@@ -622,7 +622,7 @@ export const QueuePage: React.FC = () => {
                           value={editScheduledTime}
                           onChange={(e) => setEditScheduledTime(e.target.value)}
                           className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         />
                       </div>
@@ -633,7 +633,7 @@ export const QueuePage: React.FC = () => {
                           value={editStatus}
                           onChange={(e) => setEditStatus(e.target.value as CampaignQueue["status"])}
                           className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         >
                           <option value="scheduled">Scheduled</option>
@@ -654,7 +654,7 @@ export const QueuePage: React.FC = () => {
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
                         className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans resize-none ${
-                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                         }`}
                       />
                     </div>
@@ -681,7 +681,7 @@ export const QueuePage: React.FC = () => {
                       <div className="flex items-center justify-between gap-4 flex-wrap">
                         <div className="flex items-center space-x-2">
                           <span className={`text-[10px] font-mono px-2 py-0.5 rounded border font-bold uppercase tracking-wide ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-600"
+                            isDark ? "bg-slate-950 border-border text-slate-400" : "bg-slate-100 border-slate-200 text-slate-600"
                           }`}>
                             {item.channel}
                           </span>
@@ -724,16 +724,16 @@ export const QueuePage: React.FC = () => {
 
                       <h4 className={`text-sm font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>{item.title}</h4>
                       <p className={`text-xs leading-relaxed max-w-3xl whitespace-pre-line border rounded-lg p-3 font-normal font-sans ${
-                        isDark ? "bg-slate-950/40 border-slate-800/40 text-slate-300" : "bg-slate-50 border-slate-200/60 text-slate-600"
+                        isDark ? "bg-slate-950/40 border-border/40 text-slate-300" : "bg-slate-50 border-slate-200/60 text-slate-600"
                       }`}>
                         {item.content}
                       </p>
 
                       {/* Sched target & Calendar Sync date-picker */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/25 mt-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/25 mt-1">
                         <div className="flex items-center space-x-2.5 text-[10px] font-mono text-slate-400">
                           <span className="font-semibold text-slate-400">Scheduled:</span>
-                          <span className={`${isDark ? "text-slate-300" : "text-slate-700"} bg-slate-900/40 px-2 py-0.5 rounded border border-slate-800/40`}>{item.scheduledTime}</span>
+                          <span className={`${isDark ? "text-slate-300" : "text-slate-700"} bg-slate-900/40 px-2 py-0.5 rounded border border-border/40`}>{item.scheduledTime}</span>
                         </div>
 
                         <div className="flex items-center space-x-2">
@@ -743,7 +743,7 @@ export const QueuePage: React.FC = () => {
                             value={quickScheduleDates[item.id] || (item.scheduledTime || "").split(/[ T]/)[0] || ""}
                             onChange={(e) => setQuickScheduleDates(prev => ({ ...prev, [item.id]: e.target.value }))}
                             className={`text-[10px] px-2 py-1 border rounded focus:outline-none focus:border-violet-500 font-sans max-w-[125px] ${
-                              isDark ? "bg-slate-950 border-slate-850 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                              isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                             }`}
                           />
                           <button
@@ -763,9 +763,9 @@ export const QueuePage: React.FC = () => {
                     {/* Metrics projections block */}
                     {item.metrics && (
                       <div className={`border rounded-lg p-4 min-w-[200px] flex flex-col justify-between font-mono ${
-                        isDark ? "bg-slate-950 border-slate-850/60" : "bg-slate-50 border-slate-200"
+                        isDark ? "bg-slate-950 border-border/60" : "bg-slate-50 border-slate-200"
                       }`}>
-                        <div className="text-[9px] uppercase tracking-wide text-slate-400 font-bold border-b pb-1.5 mb-2.5 border-slate-200 dark:border-slate-800">
+                        <div className="text-[9px] uppercase tracking-wide text-slate-400 font-bold border-b pb-1.5 mb-2.5 border-slate-200 dark:border-border">
                           Operations Estimate
                         </div>
                         <div className="space-y-2">

@@ -337,14 +337,14 @@ export const DirectionsPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <div className="flex items-center space-x-1.5 border border-slate-800 bg-slate-950/40 px-2 py-1.5 rounded-lg">
+          <div className="flex items-center space-x-1.5 border border-border bg-slate-950/40 px-2 py-1.5 rounded-lg">
             <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold">Count</span>
             <select
               id="directions-generation-count-select"
               value={generationCount}
               onChange={(e) => setGenerationCount(Number(e.target.value))}
               className={`text-xs px-1.5 py-0.5 rounded border focus:outline-none focus:ring-1 font-mono cursor-pointer ${
-                isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-700"
+                isDark ? "bg-slate-950 border-border text-slate-200" : "bg-white border-slate-200 text-slate-700"
               }`}
             >
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
@@ -362,7 +362,7 @@ export const DirectionsPage: React.FC = () => {
               generatingDirections
                 ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
                 : isDark
-                  ? "bg-slate-900 border-slate-800 text-slate-200 hover:border-slate-700"
+                  ? "bg-slate-900 border-border text-slate-200 hover:border-slate-700"
                   : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
             }`}
           >
@@ -387,7 +387,7 @@ export const DirectionsPage: React.FC = () => {
               generatingBriefs || directions.length === 0
                 ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
                 : isDark
-                  ? "bg-slate-900 border-slate-800 text-slate-200 hover:border-slate-700 animate-pulse"
+                  ? "bg-slate-900 border-border text-slate-200 hover:border-slate-700 animate-pulse"
                   : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
             }`}
           >
@@ -424,10 +424,10 @@ export const DirectionsPage: React.FC = () => {
         <form 
           onSubmit={handleManualAdd}
           className={`border rounded-xl p-6 space-y-4 animate-in slide-in-from-top-4 duration-200 ${
-            isDark ? "bg-[#111] border-slate-800" : "bg-white border-slate-200 shadow-lg"
+            isDark ? "bg-sidebar border-border" : "bg-white border-slate-200 shadow-lg"
           }`}
         >
-          <div className="flex items-center justify-between border-b border-dashed pb-3 border-slate-800/50">
+          <div className="flex items-center justify-between border-b border-dashed pb-3 border-border/50">
             <h3 className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Inscribe Custom Positioning Pillar</h3>
             <span className="text-[10px] font-mono text-slate-500">Will feed content brief builders</span>
           </div>
@@ -442,7 +442,7 @@ export const DirectionsPage: React.FC = () => {
                 value={newPillar}
                 onChange={e => setNewPillar(e.target.value)}
                 className={`w-full text-xs p-2.5 rounded border focus:outline-none focus:ring-1 ${
-                  isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                  isDark ? "bg-slate-950 border-border text-slate-200" : "bg-slate-50 border-slate-200"
                 }`}
               />
             </div>
@@ -456,7 +456,7 @@ export const DirectionsPage: React.FC = () => {
                 value={newFocus}
                 onChange={e => setNewFocus(e.target.value)}
                 className={`w-full text-xs p-2.5 rounded border focus:outline-none focus:ring-1 ${
-                  isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                  isDark ? "bg-slate-950 border-border text-slate-200" : "bg-slate-50 border-slate-200"
                 }`}
               />
             </div>
@@ -471,7 +471,7 @@ export const DirectionsPage: React.FC = () => {
               value={newStrategy}
               onChange={e => setNewStrategy(e.target.value)}
               className={`w-full text-xs p-2.5 rounded border focus:outline-none focus:ring-1 ${
-                isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                isDark ? "bg-slate-950 border-border text-slate-200" : "bg-slate-50 border-slate-200"
               }`}
             />
           </div>
@@ -484,7 +484,7 @@ export const DirectionsPage: React.FC = () => {
               value={newChecklistStr}
               onChange={e => setNewChecklistStr(e.target.value)}
               className={`w-full text-xs p-2.5 rounded border focus:outline-none focus:ring-1 ${
-                isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                isDark ? "bg-slate-950 border-border text-slate-200" : "bg-slate-50 border-slate-200"
               }`}
             />
           </div>
@@ -502,10 +502,10 @@ export const DirectionsPage: React.FC = () => {
       )}
 
       {/* Filters and Selection Control Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-850 pb-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-4">
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-slate-850" : "bg-slate-100 border-slate-200"}`}>
+          <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-border" : "bg-slate-100 border-slate-200"}`}>
             {(["All", "Pending", "Approved", "Rejected"] as const).map(status => {
               const count = status === "All" 
                 ? directions.length 
@@ -533,7 +533,7 @@ export const DirectionsPage: React.FC = () => {
             onClick={() => handleToggleSelectAllDirections(filteredDirections.map(d => d.id))}
             className={`px-3 py-1.5 rounded border text-[10px] font-mono font-bold flex items-center space-x-1.5 transition-colors cursor-pointer ${
               isDark 
-                ? "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700" 
+                ? "bg-slate-950 border-border text-slate-300 hover:border-slate-700" 
                 : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
             }`}
           >
@@ -553,7 +553,7 @@ export const DirectionsPage: React.FC = () => {
 
         {/* Bulk Action Panel */}
         {selectedIds.length > 0 && (
-          <div className="flex items-center space-x-3 p-1.5 bg-slate-950 border border-slate-800 rounded-lg animate-in zoom-in-95 duration-150">
+          <div className="flex items-center space-x-3 p-1.5 bg-slate-950 border border-border rounded-lg animate-in zoom-in-95 duration-150">
             <span className="text-[10px] font-mono font-bold px-2 text-slate-400">
               {selectedIds.length} SELECTED
             </span>
@@ -601,7 +601,7 @@ export const DirectionsPage: React.FC = () => {
                   isSelected 
                     ? "ring-1 ring-violet-500 border-violet-500/45 scale-[0.99]"
                     : isDark 
-                      ? "bg-[#161616] border-slate-800" 
+                      ? "bg-card border-border" 
                       : "bg-white border-slate-200 hover:shadow-lg"
                 }`}
               >
@@ -619,7 +619,7 @@ export const DirectionsPage: React.FC = () => {
                           value={editDirectionPillar}
                           onChange={(e) => setEditDirectionPillar(e.target.value)}
                           className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         />
                       </div>
@@ -631,7 +631,7 @@ export const DirectionsPage: React.FC = () => {
                           value={editDirectionStrategy}
                           onChange={(e) => setEditDirectionStrategy(e.target.value)}
                           className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans resize-none ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         />
                       </div>
@@ -643,7 +643,7 @@ export const DirectionsPage: React.FC = () => {
                           value={editDirectionFocus}
                           onChange={(e) => setEditDirectionFocus(e.target.value)}
                           className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         />
                       </div>
@@ -655,7 +655,7 @@ export const DirectionsPage: React.FC = () => {
                           value={editDirectionChecklistStr}
                           onChange={(e) => setEditDirectionChecklistStr(e.target.value)}
                           className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         />
                       </div>
@@ -741,7 +741,7 @@ export const DirectionsPage: React.FC = () => {
                               <div 
                                 key={cidx} 
                                 className={`border p-3 rounded text-xs flex items-center space-x-2.5 ${
-                                  isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200"
+                                  isDark ? "bg-slate-950 border-border" : "bg-slate-50 border-slate-200"
                                 }`}
                               >
                                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${getBrandDotBg()}`} />
@@ -753,7 +753,7 @@ export const DirectionsPage: React.FC = () => {
                       )}
 
                       {/* Controls and buttons line */}
-                      <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-800/40" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-between gap-2 pt-3 border-t border-border/40" onClick={e => e.stopPropagation()}>
                         <div className="flex space-x-1.5">
                           {!isApproved && (
                             <button
@@ -806,7 +806,7 @@ export const DirectionsPage: React.FC = () => {
           })}
 
           {filteredDirections.length === 0 && (
-            <div className="text-center py-16 border border-dashed border-slate-800/60 rounded-xl">
+            <div className="text-center py-16 border border-dashed border-border/60 rounded-xl">
               <Waypoints className="w-10 h-10 text-slate-500 mx-auto mb-3" />
               <h4 className="text-sm font-semibold text-slate-400">No brand directions found</h4>
               <p className="text-xs text-slate-500 mt-1">Adjust your filters or select "Generate Directions" above to transform approved insights into campaign pillars.</p>
@@ -816,7 +816,7 @@ export const DirectionsPage: React.FC = () => {
 
         {/* Brand Compass Sidebar */}
         <div className={`border rounded-xl p-6 shadow-lg flex flex-col justify-between lg:col-span-4 ${
-          isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+          isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
         }`}>
           <div className="space-y-6">
             <div className="flex items-center space-x-2.5">
@@ -829,7 +829,7 @@ export const DirectionsPage: React.FC = () => {
             </p>
 
             <div className="space-y-3 pt-2">
-              <div className={`border p-4 rounded-lg space-y-1 ${isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200"}`}>
+              <div className={`border p-4 rounded-lg space-y-1 ${isDark ? "bg-slate-950 border-border" : "bg-slate-50 border-slate-200"}`}>
                 <div className="text-[10px] font-mono uppercase tracking-wide text-slate-400 font-semibold flex items-center">
                   <Flag className="w-3.5 h-3.5 mr-1.5 text-emerald-500" />
                   Primary Brand Objective
@@ -839,7 +839,7 @@ export const DirectionsPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className={`border p-4 rounded-lg space-y-1 ${isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200"}`}>
+              <div className={`border p-4 rounded-lg space-y-1 ${isDark ? "bg-slate-950 border-border" : "bg-slate-50 border-slate-200"}`}>
                 <div className="text-[10px] font-mono uppercase tracking-wide text-slate-400 font-semibold flex items-center">
                   <Landmark className="w-3.5 h-3.5 mr-1.5 text-rose-500" />
                   Voice & Tone Standard
@@ -851,7 +851,7 @@ export const DirectionsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="text-[9px] font-mono text-slate-400 border-t border-slate-250 dark:border-slate-800 pt-4 mt-4">
+          <div className="text-[9px] font-mono text-slate-400 border-t border-slate-250 dark:border-border pt-4 mt-4">
             Authorized for serverless sync by admin.
           </div>
         </div>

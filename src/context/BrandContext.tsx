@@ -8,6 +8,7 @@ import {
   StrategicInsight,
   RawAnalyticsRow,
   BrandDirection,
+  CreativeIdea,
   subscribeToBrands,
   subscribeToCampaignQueues,
   subscribeToCalendarEvents,
@@ -16,12 +17,15 @@ import {
   subscribeToInsights,
   subscribeToRawAnalytics,
   subscribeToDirections,
+  subscribeToIdeas,
   seedDatabaseIfEmpty,
   ensureAuthenticated,
   auth,
   signInWithGoogleGmail,
   signInWithGoogleCalendar
 } from "../lib/firebase";
+
+export type { Brand };
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 
 export interface AppNotification {
@@ -55,8 +59,10 @@ interface BrandContextType {
   addCreativeBrief: (brief: Omit<CreativeBrief, "id" | "brandId">) => Promise<void>;
   updateCreativeBrief: (id: string, brief: Partial<CreativeBrief>) => Promise<void>;
   deleteCreativeBrief: (id: string) => Promise<void>;
+  bulkApproveBriefs: (ids: string[]) => Promise<void>;
   addBrand: (brand: Omit<Brand, "id">) => Promise<void>;
   updateBrand: (id: string, brand: Partial<Brand>) => Promise<void>;
+  deleteBrand: (id: string) => Promise<void>;
   theme: "dark" | "light";
   setTheme: (theme: "dark" | "light") => void;
   notifications: AppNotification[];
@@ -68,13 +74,17 @@ interface BrandContextType {
   insights: StrategicInsight[];
   rawAnalytics: RawAnalyticsRow[];
   directions: BrandDirection[];
+  ideas: CreativeIdea[];
   addInsight: (insight: Omit<StrategicInsight, "id" | "brandId">) => Promise<void>;
   updateInsight: (id: string, insight: Partial<StrategicInsight>) => Promise<void>;
   deleteInsight: (id: string) => Promise<void>;
+  addCreativeIdea: (idea: Omit<CreativeIdea, "id" | "brandId">) => Promise<void>;
+  updateCreativeIdea: (id: string, idea: Partial<CreativeIdea>) => Promise<void>;
+  deleteCreativeIdea: (id: string) => Promise<void>;
   bulkApproveInsights: (ids: string[]) => Promise<void>;
   bulkDeleteInsights: (ids: string[]) => Promise<void>;
-  saveRawAnalyticsRows: (rows: Omit<RawAnalyticsRow, "id" | "brandId">[]) => Promise<void>;
-  clearRawAnalytics: () => Promise<void>;
+  saveRawAnalyticsRows: (rows: Omit<RawAnalyticsRow, "id" | "brandId">[], datasetType?: "baseline" | "comparison") => Promise<void>;
+  clearRawAnalytics: (datasetType?: "baseline" | "comparison" | "all") => Promise<void>;
   addDirection: (direction: Omit<BrandDirection, "id" | "brandId">) => Promise<void>;
   updateDirection: (id: string, direction: Partial<BrandDirection>) => Promise<void>;
   deleteDirection: (id: string) => Promise<void>;
@@ -88,6 +98,7 @@ interface BrandContextType {
   googleCalendarUser: any | null;
   connectGoogleCalendar: () => Promise<void>;
   disconnectGoogleCalendar: () => void;
+  resetBrandData: (brandId: string) => Promise<void>;
 }
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
@@ -106,6 +117,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [insights, setInsights] = useState<StrategicInsight[]>([]);
   const [rawAnalytics, setRawAnalytics] = useState<RawAnalyticsRow[]>([]);
   const [directions, setDirections] = useState<BrandDirection[]>([]);
+  const [ideas, setIdeas] = useState<CreativeIdea[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [gmailToken, setGmailToken] = useState<string | null>(null);
@@ -263,9 +275,18 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err: any) {
       console.error("Connect Gmail failed:", err);
+      const isPopupError = err?.code === "auth/popup-closed-by-user" || 
+                           err?.message?.includes("popup-closed-by-user") ||
+                           err?.message?.includes("popup-closed") ||
+                           err?.message?.includes("cancelled-by-user");
+      
+      const friendlyMessage = isPopupError
+        ? "Google authentication popup was closed or blocked. Because browser security restricts login popups inside preview iframes, please click the 'Open in New Tab' icon in the upper-right corner of the preview pane and try again from there."
+        : (err.message || "Failed to authorize Gmail send permission.");
+
       addNotification(
         "Gmail Connection Failed",
-        err.message || "Failed to authorize Gmail send permission.",
+        friendlyMessage,
         "warning"
       );
     }
@@ -291,9 +312,18 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err: any) {
       console.error("Connect Google Calendar failed:", err);
+      const isPopupError = err?.code === "auth/popup-closed-by-user" || 
+                           err?.message?.includes("popup-closed-by-user") ||
+                           err?.message?.includes("popup-closed") ||
+                           err?.message?.includes("cancelled-by-user");
+      
+      const friendlyMessage = isPopupError
+        ? "Google authentication popup was closed or blocked. Because browser security restricts login popups inside preview iframes, please click the 'Open in New Tab' icon in the upper-right corner of the preview pane and try again from there."
+        : (err.message || "Failed to authorize Google Calendar permissions.");
+
       addNotification(
         "Calendar Connection Failed",
-        err.message || "Failed to authorize Google Calendar permissions.",
+        friendlyMessage,
         "warning"
       );
     }
@@ -389,11 +419,52 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => unsubscribe();
   }, [activeBrandId]);
 
+  // Auto-correct "LinkedIn" platform to "Instagram" for Peculiar Foods uploaded data
+  useEffect(() => {
+    if (!activeBrand || !rawAnalytics || rawAnalytics.length === 0) return;
+    
+    const isPeculiarFoods = activeBrand.name.toLowerCase().includes("peculiar");
+    if (!isPeculiarFoods) return;
+
+    const incorrectRows = rawAnalytics.filter(row => row.platform === "LinkedIn" && !row.id.startsWith("raw-"));
+    if (incorrectRows.length === 0) return;
+
+    const correctRows = async () => {
+      try {
+        const { db } = await import("../lib/firebase");
+        const { doc, writeBatch } = await import("firebase/firestore");
+        const batch = writeBatch(db);
+        incorrectRows.forEach(row => {
+          batch.update(doc(db, "rawAnalytics", row.id), { platform: "Instagram" });
+        });
+        await batch.commit();
+        addNotification(
+          "Platform Alignment",
+          `Automatically aligned ${incorrectRows.length} Peculiar Foods records from LinkedIn to Instagram.`,
+          "success"
+        );
+      } catch (err) {
+        console.error("Failed to correct Peculiar Foods records:", err);
+      }
+    };
+
+    correctRows();
+  }, [activeBrand, rawAnalytics]);
+
   // Listen to Brand Positioning Directions for active Brand
   useEffect(() => {
     if (!activeBrandId) return;
     const unsubscribe = subscribeToDirections(activeBrandId, (updated) => {
       setDirections(updated);
+    });
+    return () => unsubscribe();
+  }, [activeBrandId]);
+
+  // Listen to Creative Ideas (sandbox) for active Brand
+  useEffect(() => {
+    if (!activeBrandId) return;
+    const unsubscribe = subscribeToIdeas(activeBrandId, (updated) => {
+      setIdeas(updated);
     });
     return () => unsubscribe();
   }, [activeBrandId]);
@@ -460,9 +531,88 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateCreativeBrief = async (id: string, brief: Partial<CreativeBrief>) => {
     const { db } = await import("../lib/firebase");
-    const { doc, updateDoc } = await import("firebase/firestore");
+    const { doc, updateDoc, collection, addDoc } = await import("firebase/firestore");
     await updateDoc(doc(db, "briefs", id), brief);
-    addNotification("Brief Approved", "Creative brief status has been updated successfully.", "success");
+    
+    // If status is changed to Approved, ensure it is available in Posting Queue
+    if (brief.status === "Approved") {
+      const existingBrief = briefs.find(b => b.id === id);
+      const briefTitle = brief.title || existingBrief?.title || "Approved Campaign";
+      const briefChannel = (brief.platform?.split(",")[0]?.trim() || existingBrief?.platform?.split(",")[0]?.trim() || "Instagram") as CampaignQueue["channel"];
+      const briefContent = brief.copywritingCaption || existingBrief?.copywritingCaption || brief.keyMessage || existingBrief?.keyMessage || briefTitle;
+      const briefDate = brief.date || existingBrief?.date || new Date().toISOString().split("T")[0];
+      
+      // Check if already in queue
+      const inQueue = queues.some(q => q.title.toLowerCase() === briefTitle.toLowerCase());
+      if (!inQueue) {
+        await addDoc(collection(db, "campaignQueues"), {
+          brandId: activeBrandId,
+          title: briefTitle,
+          channel: briefChannel,
+          status: "scheduled",
+          scheduledTime: `${briefDate} 10:00 AM`,
+          content: briefContent,
+          metrics: {
+            estimatedReach: 35000,
+            engagementRate: 5.2
+          },
+          createdAt: new Date().toISOString()
+        });
+      }
+      addNotification("Brief Approved", `"${briefTitle}" is approved and queued in the Posting Queue.`, "success");
+    } else if (brief.status === "Changes Requested") {
+      addNotification("Changes Requested", "Feedback and revision notes logged for designer review.", "warning");
+    } else {
+      addNotification("Brief Updated", "Creative brief attributes modified successfully.", "info");
+    }
+  };
+
+  const bulkApproveBriefs = async (ids: string[]) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, writeBatch, collection, addDoc } = await import("firebase/firestore");
+    
+    // Only approve briefs that are currently in "Proposed" state (never override Changes Requested silently)
+    const proposedBriefsToApprove = briefs.filter(b => ids.includes(b.id) && b.status === "Proposed");
+    
+    if (proposedBriefsToApprove.length === 0) {
+      addNotification("No Proposed Items", "Selected days have already been approved or have pending changes requested.", "info");
+      return;
+    }
+
+    const batch = writeBatch(db);
+    for (const b of proposedBriefsToApprove) {
+      batch.update(doc(db, "briefs", b.id), { status: "Approved" });
+      
+      // Auto-sync into Posting Queue
+      const briefTitle = b.title;
+      const inQueue = queues.some(q => q.title.toLowerCase() === briefTitle.toLowerCase());
+      if (!inQueue) {
+        const briefChannel = (b.platform?.split(",")[0]?.trim() || "Instagram") as CampaignQueue["channel"];
+        const briefContent = b.copywritingCaption || b.keyMessage || b.title;
+        const briefDate = b.date || new Date().toISOString().split("T")[0];
+        
+        await addDoc(collection(db, "campaignQueues"), {
+          brandId: activeBrandId,
+          title: briefTitle,
+          channel: briefChannel,
+          status: "scheduled",
+          scheduledTime: `${briefDate} 10:00 AM`,
+          content: briefContent,
+          metrics: {
+            estimatedReach: 40000,
+            engagementRate: 5.5
+          },
+          createdAt: new Date().toISOString()
+        });
+      }
+    }
+    
+    await batch.commit();
+    addNotification(
+      "Week Approved", 
+      `Approved ${proposedBriefsToApprove.length} proposed briefs. These are now live in the Posting Queue.`, 
+      "success"
+    );
   };
 
   const deleteCreativeBrief = async (id: string) => {
@@ -500,6 +650,50 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // and update local brands array if present to ensure sync across elements
     setBrands(prev => prev.map(b => b.id === id ? { ...b, ...brand } : b));
     addNotification("Brand Guide Updated", "The style and guidelines have been saved successfully.", "success");
+  };
+
+  const deleteBrand = async (id: string) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(doc(db, "brands", id));
+    
+    if (activeBrandId === id) {
+      const remaining = brands.filter(b => b.id !== id);
+      if (remaining.length > 0) {
+        setActiveBrandId(remaining[0].id);
+        setActiveBrand(remaining[0]);
+      } else {
+        setActiveBrandId("");
+        setActiveBrand(null);
+      }
+    }
+    setBrands(prev => prev.filter(b => b.id !== id));
+    addNotification("Brand Workspace Deleted", "The brand configuration has been permanently removed.", "warning");
+  };
+
+  const addCreativeIdea = async (idea: Omit<CreativeIdea, "id" | "brandId">) => {
+    const { db } = await import("../lib/firebase");
+    const { collection, addDoc } = await import("firebase/firestore");
+    await addDoc(collection(db, "creativeIdeas"), {
+      ...idea,
+      brandId: activeBrandId,
+      createdAt: new Date().toISOString()
+    });
+    addNotification("Idea Saved", `"${idea.title}" saved to your Creative Sandbox.`, "success");
+  };
+
+  const updateCreativeIdea = async (id: string, idea: Partial<CreativeIdea>) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, updateDoc } = await import("firebase/firestore");
+    await updateDoc(doc(db, "creativeIdeas", id), idea);
+    addNotification("Idea Updated", "Creative Sandbox item modified.", "info");
+  };
+
+  const deleteCreativeIdea = async (id: string) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(doc(db, "creativeIdeas", id));
+    addNotification("Idea Deleted", "Idea removed from Creative Sandbox.", "warning");
   };
 
   const addInsight = async (insight: Omit<StrategicInsight, "id" | "brandId">) => {
@@ -597,7 +791,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addNotification("Insights Removed", `Successfully deleted ${ids.length} insights in bulk.`, "warning");
   };
 
-  const saveRawAnalyticsRows = async (rows: Omit<RawAnalyticsRow, "id" | "brandId">[]) => {
+  const saveRawAnalyticsRows = async (rows: Omit<RawAnalyticsRow, "id" | "brandId">[], datasetType: "baseline" | "comparison" = "baseline") => {
     const { db } = await import("../lib/firebase");
     const { collection, writeBatch, doc } = await import("firebase/firestore");
     const batch = writeBatch(db);
@@ -605,6 +799,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const newDocRef = doc(collection(db, "rawAnalytics"));
       batch.set(newDocRef, {
         ...row,
+        datasetType,
         brandId: activeBrandId,
         createdAt: new Date().toISOString()
       });
@@ -612,17 +807,84 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await batch.commit();
   };
 
-  const clearRawAnalytics = async () => {
+  const clearRawAnalytics = async (datasetType: "baseline" | "comparison" | "all" = "all") => {
     const { db } = await import("../lib/firebase");
     const { doc, writeBatch } = await import("firebase/firestore");
     if (!rawAnalytics || rawAnalytics.length === 0) return;
     const batch = writeBatch(db);
+    let count = 0;
     rawAnalytics.forEach(row => {
-      batch.delete(doc(db, "rawAnalytics", row.id));
+      const rowType = row.datasetType || "baseline";
+      if (datasetType === "all" || rowType === datasetType) {
+        batch.delete(doc(db, "rawAnalytics", row.id));
+        count++;
+      }
     });
-    await batch.commit();
-    addNotification("Data Cleared", "Successfully cleared uploaded raw analytics data.", "info");
+    if (count > 0) {
+      await batch.commit();
+      addNotification("Data Cleared", `Successfully cleared ${count} ${datasetType} raw analytics records.`, "info");
+    } else {
+      addNotification("No Data Found", `No raw analytics records found for '${datasetType}' type.`, "info");
+    }
   };
+
+  const resetBrandData = async (brandId: string) => {
+    const { db } = await import("../lib/firebase");
+    const { collection, getDocs, query, where, writeBatch, doc } = await import("firebase/firestore");
+    
+    addNotification("Reset Initiating", `Clearing brand partitions...`, "info");
+    
+    const collectionsToClear = [
+      "campaignQueues",
+      "calendarEvents",
+      "briefs",
+      "strategicInsights",
+      "brandDirections",
+      "rawAnalytics",
+      "metrics",
+      "creativeIdeas"
+    ];
+    
+    let totalCleared = 0;
+    
+    try {
+      for (const colName of collectionsToClear) {
+        const q = query(collection(db, colName), where("brandId", "==", brandId));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const batch = writeBatch(db);
+          snapshot.forEach(docSnap => {
+            batch.delete(doc(db, colName, docSnap.id));
+            totalCleared++;
+          });
+          await batch.commit();
+        }
+      }
+      addNotification(
+        "Workspace Reset Complete", 
+        `Successfully cleared ${totalCleared} generated insights, events, campaigns, briefs, and analytics. Brand style guide has been kept.`, 
+        "success"
+      );
+    } catch (err) {
+      console.error("Error resetting brand data:", err);
+      addNotification("Reset Failed", "Failed to clear all brand partitions.", "warning");
+    }
+  };
+
+  // Auto-clear "tnyou fitness" brand once on mount/load if requested by user
+  useEffect(() => {
+    if (!brands || brands.length === 0) return;
+    const tnyouBrand = brands.find(b => b.id.includes("tnyou") || b.name.toLowerCase().includes("tnyou"));
+    if (tnyouBrand) {
+      const hasAutoCleared = localStorage.getItem(`nok-os-autocleared-${tnyouBrand.id}`);
+      if (!hasAutoCleared) {
+        console.log(`Auto-clearing generated data for brand: ${tnyouBrand.name} (${tnyouBrand.id})`);
+        resetBrandData(tnyouBrand.id).then(() => {
+          localStorage.setItem(`nok-os-autocleared-${tnyouBrand.id}`, "true");
+        });
+      }
+    }
+  }, [brands]);
 
   return (
     <BrandContext.Provider value={{
@@ -647,8 +909,10 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addCreativeBrief,
       updateCreativeBrief,
       deleteCreativeBrief,
+      bulkApproveBriefs,
       addBrand,
       updateBrand,
+      deleteBrand,
       theme,
       setTheme,
       notifications,
@@ -660,9 +924,13 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       insights,
       rawAnalytics,
       directions,
+      ideas,
       addInsight,
       updateInsight,
       deleteInsight,
+      addCreativeIdea,
+      updateCreativeIdea,
+      deleteCreativeIdea,
       bulkApproveInsights,
       bulkDeleteInsights,
       saveRawAnalyticsRows,
@@ -679,7 +947,8 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       googleCalendarToken,
       googleCalendarUser,
       connectGoogleCalendar,
-      disconnectGoogleCalendar
+      disconnectGoogleCalendar,
+      resetBrandData
     }}>
       {children}
     </BrandContext.Provider>

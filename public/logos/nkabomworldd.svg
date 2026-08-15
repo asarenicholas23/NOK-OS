@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <!-- Circular container background for crisp contrast -->
+  <circle cx="200" cy="200" r="185" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="4" />
+  
+  <g transform="translate(20, 15)">
+    <!-- LEFT ARM: Vertical Dark Arm forming left stem of 'N' -->
+    <!-- Forearm -->
+    <path 
+      d="M100 340 L100 135 C100 115 110 95 125 90 C135 86 148 90 152 100 C156 94 166 90 174 94 C180 97 184 104 186 112 C190 106 198 102 206 106 C214 110 216 120 214 130 L185 180 L180 340 Z" 
+      fill="#1A1B22" 
+    />
+    <!-- Left Hand Clenched Fist Knuckle/Finger Highlights (White) -->
+    <path d="M125 102 C130 112 130 128 126 142" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none" />
+    <path d="M148 106 C153 118 153 134 148 148" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none" />
+    <path d="M170 110 C175 122 175 138 170 152" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none" />
+    <path d="M192 118 C196 128 196 142 190 156" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none" />
+    <!-- Left Thumb wrap -->
+    <path d="M110 140 C120 155 145 160 165 155" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none" />
+
+    <!-- RIGHT ARM: Vertical Gold/Tan Arm forming right stem of 'N' -->
+    <path 
+      d="M260 140 L260 340 L315 340 L315 140 C315 110 300 90 280 85 C265 80 250 95 245 115 L260 140 Z" 
+      fill="#C6A86E" 
+    />
+
+    <!-- DIAGONAL ARM: Warm Copper Brown Arm connecting left base to top-right -->
+    <path 
+      d="M135 255 C150 240 200 200 245 145 C265 120 285 95 305 85 C320 80 330 90 325 105 C320 120 295 160 255 210 C215 260 170 305 135 320 Z" 
+      fill="#B87146" 
+    />
+
+    <!-- DIAGONAL HAND GRIPPING LEFT ARM (Wrist grip at mid-left) -->
+    <path 
+      d="M110 240 C95 245 85 260 90 275 C95 290 110 295 135 290 L150 270 C150 250 130 235 110 240 Z" 
+      fill="#B87146" 
+    />
+    <!-- Fingers gripping left wrist (White highlights) -->
+    <path d="M92 255 C84 262 85 272 92 278" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" fill="none" />
+    <path d="M98 270 C90 278 92 288 100 292" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" fill="none" />
+    <path d="M108 284 C100 292 104 300 112 304" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" fill="none" />
+
+    <!-- TOP RIGHT HAND / CLASP (Tan/Gold fist clasping at apex) -->
+    <g transform="translate(265, 75)">
+      <!-- Fist outline on right apex -->
+      <path d="M10 12 C18 4 30 2 38 8 C44 14 42 24 36 30" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none" />
+      <path d="M22 16 C30 8 42 6 50 12 C56 18 54 28 48 34" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none" />
+      <path d="M34 20 C42 12 54 10 62 16 C68 22 66 32 60 38" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none" />
+      <path d="M16 28 C8 35 10 46 22 50 C34 54 46 46 48 38" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none" />
+    </g>
+  </g>
+</svg>

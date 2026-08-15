@@ -14,8 +14,10 @@ interface CampaignObjectiveOption {
 }
 
 export const BrandGuidePage: React.FC = () => {
-  const { activeBrand, theme, accentColor, updateBrand, rawAnalytics } = useBrand();
+  const { activeBrand, theme, accentColor, updateBrand, rawAnalytics, resetBrandData } = useBrand();
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
 
   // Editable brand guide state
   const [brandDescription, setBrandDescription] = useState("");
@@ -218,6 +220,23 @@ export const BrandGuidePage: React.FC = () => {
       setGeneratingBox(null);
     }
   };
+  
+  const handleResetWorkspace = async () => {
+    if (!activeBrand) return;
+    if (!showConfirmReset) {
+      setShowConfirmReset(true);
+      return;
+    }
+    setIsResetting(true);
+    try {
+      await resetBrandData(activeBrand.id);
+      setShowConfirmReset(false);
+    } catch (error) {
+      console.error("Error resetting workspace:", error);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const hasChanges = activeBrand ? (
     brandDescription !== (activeBrand.brandDescription || "") ||
@@ -283,7 +302,7 @@ export const BrandGuidePage: React.FC = () => {
 
       {/* Strategy Coordinate Info Alert banner */}
       <div className={`p-4 rounded-xl border flex items-start space-x-3 text-xs leading-relaxed ${
-        isDark ? "bg-slate-900/30 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+        isDark ? "bg-slate-900/30 border-border text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
       }`}>
         <AlertCircle className={`w-5 h-5 flex-shrink-0 ${getBrandTextColor()}`} />
         <div>
@@ -298,7 +317,7 @@ export const BrandGuidePage: React.FC = () => {
 
           {/* Section 1: Brand Core Description */}
           <div className={`border rounded-xl p-6 shadow-md transition-all duration-200 ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
           } ${getBrandBorderStyle()}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2.5">
@@ -324,7 +343,7 @@ export const BrandGuidePage: React.FC = () => {
 
           {/* Section 2: Active Campaign Objective Selector Grid */}
           <div className={`border rounded-xl p-6 shadow-md ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
           }`}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2.5">
@@ -355,14 +374,14 @@ export const BrandGuidePage: React.FC = () => {
                           ? "bg-slate-900 border-slate-600 ring-1 ring-slate-600"
                           : "bg-slate-50 border-slate-400 ring-1 ring-slate-400"
                         : isDark
-                          ? "bg-slate-950/40 border-slate-800/80 hover:bg-slate-900/40"
+                          ? "bg-slate-950/40 border-border/80 hover:bg-slate-900/40"
                           : "bg-white border-slate-200 hover:bg-slate-50"
                     }`}
                   >
                     <div className={`p-2 rounded-lg border ${
                       isSelected 
                         ? isDark ? "bg-slate-800 border-slate-600 text-white" : "bg-slate-100 border-slate-350 text-slate-900"
-                        : isDark ? "bg-slate-900/60 border-slate-800 text-slate-500" : "bg-slate-50 border-slate-200 text-slate-400"
+                        : isDark ? "bg-slate-900/60 border-border text-slate-500" : "bg-slate-50 border-slate-200 text-slate-400"
                     }`}>
                       <ObjIcon className="w-4 h-4" />
                     </div>
@@ -400,7 +419,7 @@ export const BrandGuidePage: React.FC = () => {
           
           {/* Content Pillars */}
           <div className={`border rounded-xl p-6 shadow-md transition-all duration-200 ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
           } ${getBrandBorderStyle()}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2.5">
@@ -441,7 +460,7 @@ export const BrandGuidePage: React.FC = () => {
 
           {/* Audience Personas */}
           <div className={`border rounded-xl p-6 shadow-md transition-all duration-200 ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
           } ${getBrandBorderStyle()}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2.5">
@@ -482,7 +501,7 @@ export const BrandGuidePage: React.FC = () => {
 
           {/* Competitor Context */}
           <div className={`border rounded-xl p-6 shadow-md transition-all duration-200 ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
           } ${getBrandBorderStyle()}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2.5">
@@ -523,7 +542,7 @@ export const BrandGuidePage: React.FC = () => {
 
           {/* Platform Notes */}
           <div className={`border rounded-xl p-6 shadow-md transition-all duration-200 ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
           } ${getBrandBorderStyle()}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2.5">
@@ -581,7 +600,7 @@ export const BrandGuidePage: React.FC = () => {
         <div className="lg:col-span-4 space-y-6">
           {/* Brand Voice Tone and Tagline */}
           <div className={`border rounded-xl p-6 shadow-md ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
           }`}>
             <div className="flex items-center space-x-2.5 mb-4">
               <Sliders className={`w-4 h-4 ${getBrandTextColor()}`} />
@@ -592,20 +611,20 @@ export const BrandGuidePage: React.FC = () => {
 
             <div className="space-y-3.5">
               <div className={`border p-4 rounded-lg ${
-                isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200"
+                isDark ? "bg-slate-950 border-border" : "bg-slate-50 border-slate-200"
               }`}>
                 <div className="text-[10px] font-mono uppercase text-slate-400 tracking-wide mb-1.5">Approved Voice Tone</div>
                 <p className={`text-xs leading-relaxed italic ${isDark ? "text-slate-300" : "text-slate-700"}`}>
-                  "{activeBrand ? activeBrand.voiceTone : "Professional, informative, and authoritative."}"
+                  {activeBrand && activeBrand.voiceTone ? `"${activeBrand.voiceTone}"` : <span className="not-italic text-slate-400">Not specified</span>}
                 </p>
               </div>
 
               <div className={`border p-4 rounded-lg ${
-                isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200"
+                isDark ? "bg-slate-950 border-border" : "bg-slate-50 border-slate-200"
               }`}>
                 <div className="text-[10px] font-mono uppercase text-slate-400 tracking-wide mb-1.5">Tagline / Positioning</div>
                 <p className={`text-xs leading-relaxed ${isDark ? "text-slate-300" : "text-slate-700"}`}>
-                  {activeBrand ? activeBrand.tagline : "Unifying global pipelines through intelligent automation."}
+                  {activeBrand && activeBrand.tagline ? activeBrand.tagline : <span className="text-slate-400">None specified</span>}
                 </p>
               </div>
             </div>
@@ -613,7 +632,7 @@ export const BrandGuidePage: React.FC = () => {
 
           {/* Color Palette box */}
           <div className={`border rounded-xl p-6 shadow-md ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
           }`}>
             <div className="flex items-center space-x-2.5 mb-4">
               <Sparkles className={`w-4 h-4 ${getBrandTextColor()}`} />
@@ -635,7 +654,7 @@ export const BrandGuidePage: React.FC = () => {
                 }`}>
                   <div className="flex items-center space-x-3">
                     <div 
-                      className="w-8 h-8 rounded-lg border border-slate-850"
+                      className="w-8 h-8 rounded-lg border border-border"
                       style={{ backgroundColor: getHexValue() }}
                     />
                     <div>
@@ -660,7 +679,7 @@ export const BrandGuidePage: React.FC = () => {
                   isDark ? "bg-slate-950 border-slate-855" : "bg-slate-50 border-slate-200"
                 }`}>
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-lg border border-slate-850 bg-slate-950" />
+                    <div className="w-8 h-8 rounded-lg border border-border bg-slate-950" />
                     <div>
                       <div className={`text-xs font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>Background Slate</div>
                       <div className="text-[9px] text-slate-500 font-mono mt-0.5">#020617</div>
@@ -683,7 +702,7 @@ export const BrandGuidePage: React.FC = () => {
                   isDark ? "bg-slate-950 border-slate-855" : "bg-slate-50 border-slate-200"
                 }`}>
                   <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-lg border border-slate-850 ${isDark ? "bg-slate-900" : "bg-white"}`} />
+                    <div className={`w-8 h-8 rounded-lg border border-border ${isDark ? "bg-slate-900" : "bg-white"}`} />
                     <div>
                       <div className={`text-xs font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>Surface Card Fill</div>
                       <div className="text-[9px] text-slate-500 font-mono mt-0.5">{isDark ? "#161616" : "#FFFFFF"}</div>
@@ -706,7 +725,7 @@ export const BrandGuidePage: React.FC = () => {
 
           {/* Typography */}
           <div className={`border rounded-xl p-6 shadow-md ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
           }`}>
             <div className="flex items-center space-x-2.5 mb-4">
               <Type className={`w-4 h-4 ${getBrandTextColor()}`} />
@@ -734,6 +753,55 @@ export const BrandGuidePage: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Workspace Administration Section */}
+      <div className={`border rounded-xl p-6 shadow-md transition-all duration-200 ${
+        isDark ? "bg-red-950/5 border-red-950/40" : "bg-red-50/20 border-red-100"
+      }`}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="text-xs font-mono uppercase tracking-wider text-red-500 font-bold flex items-center">
+              <AlertCircle className="w-4 h-4 mr-2" />
+              Workspace Administration
+            </h4>
+            <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+              Wipe all generated insights, campaign queues, calendar events, creative briefs, positioning directions, and raw analytics under the <span className="font-semibold text-slate-300 dark:text-white">"{activeBrand?.name}"</span> brand workspace. 
+              The visual styling, tagline, voice/tone, brand accents, and guidelines are kept safe.
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            {showConfirmReset ? (
+              <>
+                <button
+                  id="btn-cancel-reset"
+                  onClick={() => setShowConfirmReset(false)}
+                  className={`px-3 py-1.5 text-xs font-mono font-semibold rounded-md border transition-colors cursor-pointer ${
+                    isDark ? "border-border text-slate-400 hover:text-slate-200 hover:bg-slate-900" : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  id="btn-confirm-reset"
+                  onClick={handleResetWorkspace}
+                  disabled={isResetting}
+                  className="px-3.5 py-1.5 text-xs font-mono font-bold text-white bg-red-600 hover:bg-red-500 rounded-md shadow-md transition-colors cursor-pointer flex items-center"
+                >
+                  {isResetting ? "Clearing Workspace..." : "Confirm & Delete Everything"}
+                </button>
+              </>
+            ) : (
+              <button
+                id="btn-reset-brand-workspace"
+                onClick={handleResetWorkspace}
+                className="px-3.5 py-1.5 text-xs font-mono font-bold text-red-500 hover:text-white border border-red-500/20 hover:bg-red-600 hover:border-red-600 rounded-md transition-all duration-150 cursor-pointer"
+              >
+                Reset Workspace Data
+              </button>
+            )}
           </div>
         </div>
       </div>

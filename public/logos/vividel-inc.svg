@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" width="100%" height="100%" fill="none">
+  <!-- VIVIDEL in turquoise / cyan #1BC3B1 -->
+  <g fill="#1BC3B1">
+    <!-- First 'V' -->
+    <!-- Left diagonal slash -->
+    <polygon points="40,105 70,105 105,178 75,178" />
+    <!-- Right diagonal slash -->
+    <polygon points="170,105 140,105 85,218 115,218" />
+
+    <!-- First 'I' -->
+    <rect x="200" y="105" width="28" height="113" rx="3" />
+
+    <!-- Second 'V' -->
+    <polygon points="260,105 290,105 325,178 295,178" />
+    <polygon points="390,105 360,105 305,218 335,218" />
+
+    <!-- Second 'I' -->
+    <rect x="420" y="105" width="28" height="113" rx="3" />
+
+    <!-- 'D' -->
+    <path d="M 480 105 L 540 105 C 578 105 605 130 605 161.5 C 605 193 578 218 540 218 L 480 218 Z M 508 131 L 508 192 L 536 192 C 558 192 575 180 575 161.5 C 575 143 558 131 536 131 Z" />
+
+    <!-- 'E' (Three distinct horizontal bars) -->
+    <rect x="635" y="105" width="85" height="23" rx="3" />
+    <rect x="635" y="150" width="85" height="23" rx="3" />
+    <rect x="635" y="195" width="85" height="23" rx="3" />
+
+    <!-- 'L' -->
+    <path d="M 750 105 L 778 105 L 778 192 L 835 192 C 840 192 844 196 844 201 L 844 214 C 844 216 842 218 840 218 L 753 218 C 751 218 750 216 750 214 Z" />
+  </g>
+</svg>

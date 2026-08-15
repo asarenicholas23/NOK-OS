@@ -366,14 +366,14 @@ export const InsightsPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <div className="flex items-center space-x-1.5 border border-slate-800 bg-slate-950/40 px-2 py-1.5 rounded-lg">
+          <div className="flex items-center space-x-1.5 border border-border bg-slate-950/40 px-2 py-1.5 rounded-lg">
             <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold">Count</span>
             <select
               id="insights-generation-count-select"
               value={generationCount}
               onChange={(e) => setGenerationCount(Number(e.target.value))}
               className={`text-xs px-1.5 py-0.5 rounded border focus:outline-none focus:ring-1 font-mono cursor-pointer ${
-                isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-700"
+                isDark ? "bg-slate-950 border-border text-slate-200" : "bg-white border-slate-200 text-slate-700"
               }`}
             >
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
@@ -390,7 +390,7 @@ export const InsightsPage: React.FC = () => {
               generating
                 ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
                 : isDark
-                  ? "bg-slate-900 border-slate-800 text-slate-200 hover:border-slate-700"
+                  ? "bg-slate-900 border-border text-slate-200 hover:border-slate-700"
                   : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
             }`}
           >
@@ -415,7 +415,7 @@ export const InsightsPage: React.FC = () => {
               generating
                 ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
                 : isDark
-                  ? "bg-slate-900 border-slate-800 text-slate-200 hover:border-slate-700"
+                  ? "bg-slate-900 border-border text-slate-200 hover:border-slate-700"
                   : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
             }`}
           >
@@ -457,10 +457,10 @@ export const InsightsPage: React.FC = () => {
         <form 
           onSubmit={handleManualAdd}
           className={`border rounded-xl p-6 space-y-4 animate-in slide-in-from-top-4 duration-200 ${
-            isDark ? "bg-[#111] border-slate-800" : "bg-white border-slate-200 shadow-lg"
+            isDark ? "bg-sidebar border-border" : "bg-white border-slate-200 shadow-lg"
           }`}
         >
-          <div className="flex items-center justify-between border-b border-dashed pb-3 border-slate-800/50">
+          <div className="flex items-center justify-between border-b border-dashed pb-3 border-border/50">
             <h3 className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Log Manual Strategic Insight</h3>
             <span className="text-[10px] font-mono text-slate-500">Starts in PENDING status</span>
           </div>
@@ -476,7 +476,7 @@ export const InsightsPage: React.FC = () => {
                 onChange={e => setNewTitle(e.target.value)}
                 className={`w-full text-xs p-2.5 rounded border focus:outline-none focus:ring-1 ${
                   isDark 
-                    ? "bg-slate-950 border-slate-800 text-slate-200 focus:border-violet-500 focus:ring-violet-500" 
+                    ? "bg-slate-950 border-border text-slate-200 focus:border-violet-500 focus:ring-violet-500" 
                     : "bg-slate-50 border-slate-200 text-slate-800 focus:border-violet-500 focus:ring-violet-500"
                 }`}
               />
@@ -489,7 +489,7 @@ export const InsightsPage: React.FC = () => {
                 onChange={e => setNewStandpoint(e.target.value as any)}
                 className={`w-full text-xs p-2.5 rounded border focus:outline-none focus:ring-1 ${
                   isDark 
-                    ? "bg-slate-950 border-slate-800 text-slate-300 focus:border-violet-500" 
+                    ? "bg-slate-950 border-border text-slate-300 focus:border-violet-500" 
                     : "bg-slate-50 border-slate-200 text-slate-800 focus:border-violet-500"
                 }`}
               >
@@ -509,7 +509,7 @@ export const InsightsPage: React.FC = () => {
                 value={newMetric}
                 onChange={e => setNewMetric(e.target.value)}
                 className={`w-full text-xs p-2.5 rounded border focus:outline-none focus:ring-1 ${
-                  isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-850"
+                  isDark ? "bg-slate-950 border-border text-slate-200" : "bg-slate-50 border-slate-200 text-slate-850"
                 }`}
               />
             </div>
@@ -522,7 +522,7 @@ export const InsightsPage: React.FC = () => {
                 value={newChange}
                 onChange={e => setNewChange(e.target.value)}
                 className={`w-full text-xs p-2.5 rounded border focus:outline-none focus:ring-1 ${
-                  isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-850"
+                  isDark ? "bg-slate-950 border-border text-slate-200" : "bg-slate-50 border-slate-200 text-slate-850"
                 }`}
               />
             </div>
@@ -533,7 +533,7 @@ export const InsightsPage: React.FC = () => {
                 value={newType}
                 onChange={e => setNewType(e.target.value as any)}
                 className={`w-full text-xs p-2.5 rounded border focus:outline-none focus:ring-1 ${
-                  isDark ? "bg-slate-950 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-800"
+                  isDark ? "bg-slate-950 border-border text-slate-300" : "bg-slate-50 border-slate-200 text-slate-800"
                 }`}
               >
                 <option value="positive">Positive</option>
@@ -552,7 +552,7 @@ export const InsightsPage: React.FC = () => {
               value={newDesc}
               onChange={e => setNewDesc(e.target.value)}
               className={`w-full text-xs p-2.5 rounded border focus:outline-none focus:ring-1 ${
-                isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-850"
+                isDark ? "bg-slate-950 border-border text-slate-200" : "bg-slate-50 border-slate-200 text-slate-850"
               }`}
             />
           </div>
@@ -570,11 +570,11 @@ export const InsightsPage: React.FC = () => {
       )}
 
       {/* Filters and Selection Control Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800/40 pb-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border/40 pb-4">
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Status buttons */}
-          <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-slate-850" : "bg-slate-100 border-slate-200"}`}>
+          <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-border" : "bg-slate-100 border-slate-200"}`}>
             {(["All", "Pending", "Approved", "Rejected"] as const).map(status => (
               <button
                 key={status}
@@ -594,7 +594,7 @@ export const InsightsPage: React.FC = () => {
           </div>
 
           {/* Standpoint buttons */}
-          <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-slate-850" : "bg-slate-100 border-slate-200"}`}>
+          <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-border" : "bg-slate-100 border-slate-200"}`}>
             {["All", "analytics", "observation", "opportunity", "pattern", "lesson"].map(sp => (
               <button
                 key={sp}
@@ -616,7 +616,7 @@ export const InsightsPage: React.FC = () => {
 
         {/* Bulk Action Panel */}
         {selectedIds.length > 0 && (
-          <div className="flex items-center space-x-3 p-1.5 bg-slate-950 border border-slate-800 rounded-lg animate-in zoom-in-95 duration-150">
+          <div className="flex items-center space-x-3 p-1.5 bg-slate-950 border border-border rounded-lg animate-in zoom-in-95 duration-150">
             <span className="text-[10px] font-mono font-bold px-2 text-slate-400">
               {selectedIds.length} SELECTED
             </span>
@@ -655,7 +655,7 @@ export const InsightsPage: React.FC = () => {
           onClick={handleSelectAll}
           className={`px-3 py-1.5 rounded border text-[10px] font-mono font-bold flex items-center space-x-1.5 transition-colors cursor-pointer ${
             isDark 
-              ? "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700" 
+              ? "bg-slate-950 border-border text-slate-300 hover:border-slate-700" 
               : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
           }`}
         >
@@ -695,7 +695,7 @@ export const InsightsPage: React.FC = () => {
                 isSelected 
                   ? "ring-1 ring-violet-500 border-violet-500/45 scale-[0.99] "
                   : isDark 
-                    ? "bg-[#161616] border-slate-800/80 hover:border-slate-700" 
+                    ? "bg-card border-border/80 hover:border-slate-700" 
                     : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg"
               }`}
             >
@@ -712,7 +712,7 @@ export const InsightsPage: React.FC = () => {
                         value={editInsightTitle}
                         onChange={(e) => setEditInsightTitle(e.target.value)}
                         className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                         }`}
                       />
                     </div>
@@ -724,7 +724,7 @@ export const InsightsPage: React.FC = () => {
                         value={editInsightDesc}
                         onChange={(e) => setEditInsightDesc(e.target.value)}
                         className={`w-full text-xs px-2.5 py-1.5 border rounded focus:outline-none focus:border-violet-500 font-sans resize-none ${
-                          isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                          isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                         }`}
                       />
                     </div>
@@ -736,7 +736,7 @@ export const InsightsPage: React.FC = () => {
                           value={editInsightStandpoint}
                           onChange={(e) => setEditInsightStandpoint(e.target.value as any)}
                           className={`w-full text-xs px-2 py-1 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         >
                           <option value="analytics">Analytics</option>
@@ -753,7 +753,7 @@ export const InsightsPage: React.FC = () => {
                           value={editInsightType}
                           onChange={(e) => setEditInsightType(e.target.value as any)}
                           className={`w-full text-xs px-2 py-1 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         >
                           <option value="positive">Positive</option>
@@ -771,7 +771,7 @@ export const InsightsPage: React.FC = () => {
                           value={editInsightMetric}
                           onChange={(e) => setEditInsightMetric(e.target.value)}
                           className={`w-full text-xs px-2.5 py-1 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         />
                       </div>
@@ -783,7 +783,7 @@ export const InsightsPage: React.FC = () => {
                           value={editInsightChange}
                           onChange={(e) => setEditInsightChange(e.target.value)}
                           className={`w-full text-xs px-2.5 py-1 border rounded focus:outline-none focus:border-violet-500 font-sans ${
-                            isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                            isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                           }`}
                         />
                       </div>
@@ -858,7 +858,7 @@ export const InsightsPage: React.FC = () => {
                   {/* Status and Actions Row */}
                   <div className="space-y-3 mt-4" onClick={e => e.stopPropagation()}>
                     {/* Status indicator line */}
-                    <div className="flex items-center justify-between text-[10px] font-mono border-t border-slate-800/40 pt-3 text-slate-500">
+                    <div className="flex items-center justify-between text-[10px] font-mono border-t border-border/40 pt-3 text-slate-500">
                       <span className="flex items-center">
                         <Database className="w-3 h-3 mr-1" />
                         Metric: {item.metric}
@@ -928,7 +928,7 @@ export const InsightsPage: React.FC = () => {
         })}
 
         {filteredInsights.length === 0 && (
-          <div className="col-span-full text-center py-16 border border-dashed border-slate-800/60 rounded-xl">
+          <div className="col-span-full text-center py-16 border border-dashed border-border/60 rounded-xl">
             <Lightbulb className="w-10 h-10 text-slate-500 mx-auto mb-3" />
             <h4 className="text-sm font-semibold text-slate-400">No strategic insights found</h4>
             <p className="text-xs text-slate-500 mt-1 mb-4">Try relaxing filters or generate insights from loaded analytics metrics above.</p>
@@ -938,7 +938,7 @@ export const InsightsPage: React.FC = () => {
               disabled={loadingDemo}
               className={`mx-auto px-4 py-2 border rounded-lg font-mono text-xs font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
                 isDark
-                  ? "bg-slate-900 border-slate-800 text-slate-200 hover:border-slate-700 hover:bg-slate-850"
+                  ? "bg-slate-900 border-border text-slate-200 hover:border-slate-700 hover:bg-slate-850"
                   : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
               }`}
             >

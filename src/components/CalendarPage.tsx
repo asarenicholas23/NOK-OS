@@ -19,10 +19,23 @@ import {
   Linkedin,
   Instagram,
   Mail,
-  Youtube
+  Youtube,
+  FileSpreadsheet,
+  Download,
+  Share2,
+  FileDown,
+  Loader2,
+  FileText
 } from "lucide-react";
-import { CalendarEvent } from "../lib/firebase";
+import { CalendarEvent, CreativeBrief } from "../lib/firebase";
 import { fetchGoogleCalendarEvents, createGoogleCalendarEvent, GoogleCalendarEvent } from "../utils/googleCalendar";
+import { downloadCalendarExcel, downloadCalendarCSV } from "../utils/calendarExporter";
+import { downloadCalendarPDF } from "../utils/pdfGenerator";
+import { CalendarEmailModal } from "./CalendarEmailModal";
+import { WeeklyContentPlannerGrid } from "./WeeklyContentPlannerGrid";
+import { RequestChangesModal } from "./RequestChangesModal";
+import { ShareCalendarReviewModal } from "./ShareCalendarReviewModal";
+import { BriefDetailModal } from "./BriefDetailModal";
 
 export const CalendarPage: React.FC = () => {
   const { 
@@ -32,17 +45,33 @@ export const CalendarPage: React.FC = () => {
     updateCalendarEvent,
     deleteCalendarEvent,
     queues,
+    addCampaign,
     updateCampaign,
+    briefs,
+    updateCreativeBrief,
+    bulkApproveBriefs,
     theme, 
     accentColor,
     googleCalendarToken,
     googleCalendarUser,
     connectGoogleCalendar,
-    disconnectGoogleCalendar
+    disconnectGoogleCalendar,
+    gmailToken,
+    gmailUser,
+    connectGmail,
+    addNotification
   } = useBrand();
+
+  const [plannerViewMode, setPlannerViewMode] = useState<"planner" | "matrix">("planner");
+  const [selectedBriefForChanges, setSelectedBriefForChanges] = useState<CreativeBrief | null>(null);
+  const [selectedBriefForDetail, setSelectedBriefForDetail] = useState<CreativeBrief | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Date Navigation State (Defaulting to July 2026 to showcase the seeded mock events perfectly)
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date(2026, 6, 1)); 
@@ -201,6 +230,80 @@ export const CalendarPage: React.FC = () => {
     return item.scheduledTime.split(/[ T]/)[0];
   };
 
+  // Helper for matching briefs to calendar dates safely
+  const normalizeDateString = (dStr?: string): string => {
+    if (!dStr) return "";
+    const trimmed = dStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slashMatch) {
+      const m = slashMatch[1].padStart(2, "0");
+      const d = slashMatch[2].padStart(2, "0");
+      const y = slashMatch[3];
+      return `${y}-${m}-${d}`;
+    }
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, "0");
+      const d = String(parsed.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    return trimmed;
+  };
+
+  const handleDownloadExcel = async () => {
+    setDownloadingExcel(true);
+    setShowExportMenu(false);
+    try {
+      await downloadCalendarExcel({
+        brand: activeBrand,
+        briefs,
+        calendarEvents,
+        queues,
+        googleEvents,
+        monthName: months[month],
+        year
+      });
+      addNotification("Calendar Downloaded", `Exported styled Content Calendar for ${activeBrand?.name || "Active Brand"}.`, "success");
+    } catch (err: any) {
+      console.error(err);
+      addNotification("Export Failed", "Could not generate Excel spreadsheet.", "warning");
+    } finally {
+      setDownloadingExcel(false);
+    }
+  };
+
+  const handleDownloadCSV = () => {
+    setShowExportMenu(false);
+    try {
+      downloadCalendarCSV({
+        brand: activeBrand,
+        briefs,
+        calendarEvents,
+        queues,
+        googleEvents
+      });
+      addNotification("CSV Downloaded", "Google Sheets compatible CSV exported.", "success");
+    } catch (err: any) {
+      console.error(err);
+      addNotification("Export Failed", "Could not generate CSV file.", "warning");
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    setShowExportMenu(false);
+    try {
+      downloadCalendarPDF(activeBrand, briefs, months[month], year);
+      addNotification("PDF Downloaded", "Executive Content Calendar & Approval PDF exported.", "success");
+    } catch (err: any) {
+      console.error(err);
+      addNotification("Export Failed", "Could not generate PDF calendar export.", "warning");
+    }
+  };
+
+  const approvedBriefs = briefs.filter(b => b.status === "Approved");
+
   // Visual Styling Helpers
   const getEventBadge = (status: CalendarEvent["status"]) => {
     switch (status) {
@@ -291,7 +394,7 @@ export const CalendarPage: React.FC = () => {
       case "wasn't posted":
         return { border: "border-rose-500/25", text: "text-rose-500", bg: "bg-rose-500/5" };
       default:
-        return { border: "border-slate-800/20", text: "text-slate-400", bg: "bg-slate-100/5" };
+        return { border: "border-border/20", text: "text-slate-400", bg: "bg-slate-100/5" };
     }
   };
 
@@ -308,24 +411,135 @@ export const CalendarPage: React.FC = () => {
     ? queues.filter(q => getScheduledPostDate(q) === selectedDate)
     : [];
 
-  const totalSelectedDayItems = selectedDayRoadmap.length + selectedDayGoogle.length + selectedDayPosts.length;
+  const selectedDayBriefs = selectedDate
+    ? briefs.filter(b => normalizeDateString(b.date) === selectedDate || b.date === selectedDate)
+    : [];
+
+  const totalSelectedDayItems = selectedDayRoadmap.length + selectedDayGoogle.length + selectedDayPosts.length + selectedDayBriefs.length;
 
   return (
     <div 
       id="calendar-view" 
-      className={`space-y-8 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
+      className={`space-y-6 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
     >
-      {/* Header title */}
+      {/* Header title & Action Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
         <div>
-          <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-slate-100" : "text-slate-900"}`}>
-            Interactive Content Calendar
-          </h2>
+          <div className="flex items-center space-x-2.5">
+            <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-slate-100" : "text-slate-900"}`}>
+              Interactive Content Calendar
+            </h2>
+            {approvedBriefs.length > 0 && (
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                {approvedBriefs.length} Approved Briefs
+              </span>
+            )}
+          </div>
           <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Navigate months, synchronize Google Calendar events, and audit scheduled post delivery states.
+            Navigate months, export styled Excel / Google Sheets workbooks, email schedules, and audit delivery states.
           </p>
         </div>
-        <div className="flex items-center space-x-2.5">
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Share for Owner Review Button */}
+          <button
+            id="btn-share-for-owner-review"
+            onClick={() => setShowShareModal(true)}
+            className={`flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md shadow-xs border transition-all font-mono cursor-pointer ${
+              isDark 
+                ? "bg-violet-600/15 border-violet-500/40 hover:border-violet-500/70 text-violet-300 hover:bg-violet-500/25" 
+                : "bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100"
+            }`}
+            title="Share interactive calendar review link for owner approval"
+          >
+            <Share2 className="w-3.5 h-3.5 text-violet-400" />
+            <span>Share for Approval</span>
+          </button>
+
+          {/* Download Calendar Dropdown */}
+          <div className="relative">
+            <button
+              id="btn-download-calendar-main"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={downloadingExcel}
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md shadow-xs border transition-all font-mono cursor-pointer ${
+                isDark 
+                  ? "bg-[#18181F] border-emerald-500/30 hover:border-emerald-500/60 text-emerald-300 hover:bg-emerald-500/10" 
+                  : "bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+              }`}
+              title="Download content calendar and briefs spreadsheet"
+            >
+              {downloadingExcel ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+              ) : (
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+              <span>{downloadingExcel ? "Exporting..." : "Download Calendar"}</span>
+            </button>
+
+            {showExportMenu && (
+              <div 
+                id="export-calendar-menu"
+                className={`absolute right-0 mt-1.5 w-60 rounded-xl border shadow-xl py-1.5 z-40 animate-in fade-in zoom-in-95 ${
+                  isDark ? "bg-[#15151A] border-white/10 text-slate-200" : "bg-white border-slate-200 text-slate-800"
+                }`}
+              >
+                <div className="px-3 py-1 text-[9px] font-mono uppercase tracking-wider text-slate-400 font-bold border-b border-white/5">
+                  Export Calendar & Briefs
+                </div>
+                <button
+                  id="btn-export-xlsx"
+                  onClick={handleDownloadExcel}
+                  className="w-full text-left px-3 py-2 text-xs font-mono flex items-center space-x-2.5 hover:bg-emerald-500/10 hover:text-emerald-300 cursor-pointer transition-colors"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div>
+                    <div className="font-bold">Excel Workbook (.xlsx)</div>
+                    <div className="text-[10px] text-slate-400 font-sans">Styled, multi-tab with approved briefs & specs</div>
+                  </div>
+                </button>
+                <button
+                  id="btn-export-csv"
+                  onClick={handleDownloadCSV}
+                  className="w-full text-left px-3 py-2 text-xs font-mono flex items-center space-x-2.5 hover:bg-violet-500/10 hover:text-violet-300 cursor-pointer transition-colors border-t border-white/5"
+                >
+                  <FileText className="w-4 h-4 text-violet-400 shrink-0" />
+                  <div>
+                    <div className="font-bold">Google Sheets / CSV (.csv)</div>
+                    <div className="text-[10px] text-slate-400 font-sans">Raw tabular format ready for import</div>
+                  </div>
+                </button>
+                <button
+                  id="btn-export-pdf"
+                  onClick={handleDownloadPDF}
+                  className="w-full text-left px-3 py-2 text-xs font-mono flex items-center space-x-2.5 hover:bg-rose-500/10 hover:text-rose-300 cursor-pointer transition-colors border-t border-white/5"
+                >
+                  <FileDown className="w-4 h-4 text-rose-400 shrink-0" />
+                  <div>
+                    <div className="font-bold">PDF Approval Document (.pdf)</div>
+                    <div className="text-[10px] text-slate-400 font-sans">Landscape executive calendar & approval matrix</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Share via Email Button */}
+          <button
+            id="btn-share-calendar-email"
+            onClick={() => setShowEmailModal(true)}
+            className={`flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md shadow-xs border transition-all font-mono cursor-pointer ${
+              isDark 
+                ? "bg-[#18181F] border-blue-500/30 hover:border-blue-500/60 text-blue-300 hover:bg-blue-500/10" 
+                : "bg-white border-blue-300 text-blue-800 hover:bg-blue-50"
+            }`}
+            title="Email styled calendar spreadsheet to team members"
+          >
+            <Mail className="w-3.5 h-3.5 text-blue-400" />
+            <span>Share via Email</span>
+          </button>
+
+          {/* Add Milestone Button */}
           <button
             id="btn-trigger-add-event"
             onClick={() => {
@@ -334,7 +548,7 @@ export const CalendarPage: React.FC = () => {
                 setDate(selectedDate);
               }
             }}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 text-xs font-semibold rounded-md shadow-md transition-colors font-mono cursor-pointer ${
+            className={`flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md shadow-md transition-colors font-mono cursor-pointer ${
               showAddForm ? "bg-rose-600 hover:bg-rose-500 text-white" : getBrandBgButton()
             }`}
           >
@@ -344,11 +558,113 @@ export const CalendarPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Main View Mode Selector */}
+      <div className={`p-1.5 rounded-2xl border flex items-center space-x-2 ${
+        isDark ? "bg-[#141518] border-slate-800" : "bg-slate-100 border-slate-200"
+      }`}>
+        <button
+          id="tab-view-weekly-planner"
+          onClick={() => setPlannerViewMode("planner")}
+          className={`flex-1 flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+            plannerViewMode === "planner"
+              ? "bg-violet-600 text-white shadow-lg shadow-violet-600/20"
+              : isDark ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60" : "text-slate-600 hover:text-slate-900 hover:bg-white"
+          }`}
+        >
+          <CalendarDays className="w-4 h-4" />
+          <span>Weekly Content Planner (Approval Hub)</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+            plannerViewMode === "planner" ? "bg-white/20 text-white" : "bg-slate-700/50 text-slate-300"
+          }`}>
+            {briefs.length} Briefs
+          </span>
+        </button>
+
+        <button
+          id="tab-view-monthly-matrix"
+          onClick={() => setPlannerViewMode("matrix")}
+          className={`flex-1 flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+            plannerViewMode === "matrix"
+              ? "bg-violet-600 text-white shadow-lg shadow-violet-600/20"
+              : isDark ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60" : "text-slate-600 hover:text-slate-900 hover:bg-white"
+          }`}
+        >
+          <CalendarIcon className="w-4 h-4" />
+          <span>Monthly Roadmap & Milestone Matrix</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+            plannerViewMode === "matrix" ? "bg-white/20 text-white" : "bg-slate-700/50 text-slate-300"
+          }`}>
+            {calendarEvents.length + googleEvents.length} Events
+          </span>
+        </button>
+      </div>
+
+      {/* Approved Briefs & Multi-Channel Sync Ribbon */}
+      <div 
+        id="calendar-approved-briefs-banner"
+        className={`border rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all ${
+          approvedBriefs.length > 0 
+            ? isDark ? "bg-emerald-500/5 border-emerald-500/30" : "bg-emerald-50/70 border-emerald-300"
+            : isDark ? "bg-[#141418] border-white/10" : "bg-slate-50 border-slate-200"
+        }`}
+      >
+        <div className="flex items-center space-x-3.5">
+          <div className={`p-2.5 rounded-xl shrink-0 ${
+            approvedBriefs.length > 0 
+              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" 
+              : "bg-violet-500/10 text-violet-400 border border-violet-500/20"
+          }`}>
+            <FileSpreadsheet className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h4 className="text-xs font-bold font-mono uppercase tracking-wide">
+                {approvedBriefs.length > 0 
+                  ? `Active Roadmap: ${approvedBriefs.length} Approved Creative Briefs Scheduled` 
+                  : "Creative Briefs & Multi-Channel Roadmap Matrix"}
+              </h4>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase">
+                Excel & Sheets Ready
+              </span>
+            </div>
+            <p className={`text-[11px] mt-0.5 ${isDark ? "text-slate-400" : "text-slate-600"}`}>
+              {approvedBriefs.length > 0
+                ? `${approvedBriefs.length} briefs approved for production. Total Queue: ${queues.length} posts | Roadmap Milestones: ${calendarEvents.length} events.`
+                : "Approved briefs are automatically mapped into the calendar roadmap and available for download and email distribution."}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 shrink-0">
+          <button
+            onClick={handleDownloadExcel}
+            disabled={downloadingExcel}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition-all disabled:opacity-50"
+            title="Download full styled Excel spreadsheet (.xlsx)"
+          >
+            {downloadingExcel ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            <span>Download .xlsx</span>
+          </button>
+          <button
+            onClick={() => setShowEmailModal(true)}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all cursor-pointer ${
+              isDark 
+                ? "bg-[#18181F] border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10" 
+                : "bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+            }`}
+            title="Share spreadsheet schedule via email"
+          >
+            <Mail className="w-3.5 h-3.5" />
+            <span>Email Schedule</span>
+          </button>
+        </div>
+      </div>
+
       {/* Google Calendar Connection Banner */}
       <div 
         id="gcalendar-connection-banner"
         className={`border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${
-          isDark ? "bg-[#111111] border-slate-800/60" : "bg-slate-50 border-slate-200"
+          isDark ? "bg-[#111111] border-border/60" : "bg-slate-50 border-slate-200"
         }`}
       >
         <div className="flex items-center space-x-3.5">
@@ -365,6 +681,11 @@ export const CalendarPage: React.FC = () => {
                 : "Integrate Google Calendar to seamlessly view corporate meetings alongside your social campaign roadmap."
               }
             </p>
+            {!googleCalendarToken && typeof window !== "undefined" && window.self !== window.top && (
+              <p className="text-[10px] text-amber-500 font-medium mt-1.5 flex items-center gap-1 bg-amber-500/10 p-1 px-2 rounded border border-amber-500/20 max-w-xl">
+                <span>⚠️ Preview Mode Notice: If the authorization popup fails, please open this app in a <strong>New Tab</strong> (using the top-right icon) to sign in safely.</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -376,7 +697,7 @@ export const CalendarPage: React.FC = () => {
                 onClick={handleManualSync}
                 disabled={loadingGoogle || syncingNow}
                 className={`p-1.5 rounded border text-[11px] font-mono cursor-pointer flex items-center space-x-1 ${
-                  isDark ? "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                  isDark ? "bg-slate-900 border-border text-slate-300 hover:bg-slate-800" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                 }`}
                 title="Sync calendar events now"
               >
@@ -410,7 +731,7 @@ export const CalendarPage: React.FC = () => {
         <div 
           id="event-form-card" 
           className={`border rounded-xl p-6 shadow-xl animate-in slide-in-from-top-3 duration-200 ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200"
           }`}
         >
           <div className="flex justify-between items-center mb-4">
@@ -435,7 +756,7 @@ export const CalendarPage: React.FC = () => {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans ${
-                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                    isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                   }`}
                 />
               </div>
@@ -446,7 +767,7 @@ export const CalendarPage: React.FC = () => {
                   value={type}
                   onChange={(e) => setType(e.target.value as CalendarEvent["type"])}
                   className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans ${
-                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                    isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                   }`}
                 >
                   <option value="Campaign">Campaign</option>
@@ -465,7 +786,7 @@ export const CalendarPage: React.FC = () => {
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans ${
-                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                    isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                   }`}
                 />
               </div>
@@ -476,7 +797,7 @@ export const CalendarPage: React.FC = () => {
                   value={status}
                   onChange={(e) => setStatus(e.target.value as CalendarEvent["status"])}
                   className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans ${
-                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                    isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                   }`}
                 >
                   <option value="Planned">Planned</option>
@@ -494,7 +815,7 @@ export const CalendarPage: React.FC = () => {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans ${
-                    isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                    isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
                   }`}
                 />
               </div>
@@ -513,14 +834,60 @@ export const CalendarPage: React.FC = () => {
         </div>
       )}
 
-      {/* Grid Layout of Months with visual content cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Main Content Area based on Planner vs Matrix View */}
+      {plannerViewMode === "planner" ? (
+        <WeeklyContentPlannerGrid
+          briefs={briefs}
+          activeBrand={activeBrand}
+          theme={theme}
+          activeColor={activeColor}
+          monthName={months[month]}
+          monthIndex={month}
+          year={year}
+          onPrevMonth={handlePrevMonth}
+          onNextMonth={handleNextMonth}
+          onSelectMonth={(mIdx) => setCurrentDate(new Date(year, mIdx, 1))}
+          onSelectYear={(y) => setCurrentDate(new Date(y, month, 1))}
+          onJumpToday={() => setCurrentDate(new Date())}
+          onApproveDay={async (brief) => {
+            await updateCreativeBrief(brief.id, { status: "Approved" });
+            addNotification(
+              "Creative Brief Approved",
+              `"${brief.title}" for ${brief.dayOfWeek || "scheduled day"} has been approved and moved to the Posting Queue.`,
+              "success"
+            );
+          }}
+          onRequestChanges={(brief) => {
+            setSelectedBriefForChanges(brief);
+          }}
+          onApproveAllWeek={async (weekNum, briefIds) => {
+            await bulkApproveBriefs(briefIds);
+            addNotification(
+              "Week Approved",
+              `All proposed content for Week ${weekNum} (${briefIds.length} briefs) has been approved and staged in the Posting Queue.`,
+              "success"
+            );
+          }}
+          onOpenBriefDetail={(brief) => {
+            setSelectedBriefForDetail(brief);
+          }}
+          onShareCalendar={() => {
+            setShowShareModal(true);
+          }}
+          updateCreativeBrief={updateCreativeBrief}
+          addCampaign={addCampaign}
+          addCalendarEvent={addCalendarEvent}
+          addNotification={addNotification}
+        />
+      ) : (
+        /* Grid Layout of Months with visual content cards (Monthly Matrix) */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Calendar visual layout box (Dynamic Monthly Grid) */}
         <div 
           id="calendar-grid-card" 
           className={`border rounded-xl p-6 lg:col-span-8 shadow-lg flex flex-col justify-between ${
-            isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200"
+            isDark ? "bg-card border-border" : "bg-white border-slate-200"
           }`}
         >
           <div>
@@ -536,7 +903,7 @@ export const CalendarPage: React.FC = () => {
                   <button 
                     onClick={handlePrevMonth}
                     className={`p-1.5 rounded-lg border transition-colors hover:text-slate-100 ${
-                      isDark ? "border-slate-800 bg-slate-950/40 hover:bg-slate-900" : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                      isDark ? "border-border bg-slate-950/40 hover:bg-slate-900" : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
                     }`}
                     title="Previous Month"
                   >
@@ -548,7 +915,7 @@ export const CalendarPage: React.FC = () => {
                   <button 
                     onClick={handleNextMonth}
                     className={`p-1.5 rounded-lg border transition-colors hover:text-slate-100 ${
-                      isDark ? "border-slate-800 bg-slate-950/40 hover:bg-slate-900" : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                      isDark ? "border-border bg-slate-950/40 hover:bg-slate-900" : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
                     }`}
                     title="Next Month"
                   >
@@ -560,7 +927,7 @@ export const CalendarPage: React.FC = () => {
 
             {/* Calendar Weekday headers */}
             <div className={`grid grid-cols-7 gap-1 text-center text-[10px] font-mono text-slate-400 font-bold mb-3 border-b pb-2 ${
-              isDark ? "border-slate-800" : "border-slate-100"
+              isDark ? "border-border" : "border-slate-100"
             }`}>
               <span>SUN</span>
               <span>MON</span>
@@ -577,8 +944,9 @@ export const CalendarPage: React.FC = () => {
                 const dailyInternalEvents = calendarEvents.filter(e => e.date === cell.dateString);
                 const dailyGoogleEvents = googleEvents.filter(evt => getGoogleEventDate(evt) === cell.dateString);
                 const dailyPosts = queues.filter(q => getScheduledPostDate(q) === cell.dateString);
+                const dailyBriefs = briefs.filter(b => normalizeDateString(b.date) === cell.dateString || b.date === cell.dateString);
 
-                const hasAnything = dailyInternalEvents.length > 0 || dailyGoogleEvents.length > 0 || dailyPosts.length > 0;
+                const hasAnything = dailyInternalEvents.length > 0 || dailyGoogleEvents.length > 0 || dailyPosts.length > 0 || dailyBriefs.length > 0;
                 const isSelected = selectedDate === cell.dateString;
                 
                 // Compare with real calendar today's date
@@ -599,7 +967,7 @@ export const CalendarPage: React.FC = () => {
                         ? `bg-violet-600/10 dark:bg-violet-600/5 ${getBrandAccentBorder()} ring-1 ring-offset-0 ring-violet-500/30`
                         : cell.isCurrentMonth
                         ? isDark 
-                          ? "bg-[#181818]/60 border-slate-850 hover:border-slate-700" 
+                          ? "bg-[#181818]/60 border-border hover:border-slate-700" 
                           : "bg-slate-50 border-slate-200 hover:border-slate-300"
                         : isDark
                         ? "bg-slate-950/20 border-slate-900/40 opacity-40 hover:opacity-75"
@@ -616,16 +984,35 @@ export const CalendarPage: React.FC = () => {
                       }`}>
                         {cell.dayNum}
                       </span>
-                      {isRealToday && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Today" />
-                      )}
+                      <div className="flex items-center space-x-1">
+                        {dailyBriefs.length > 0 && (
+                          <span 
+                            className="w-1.5 h-1.5 rounded-full bg-emerald-400" 
+                            title={`${dailyBriefs.length} Creative Brief(s)`} 
+                          />
+                        )}
+                        {isRealToday && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Today" />
+                        )}
+                      </div>
                     </div>
 
                     {/* Compact Events display stack */}
                     <div className="space-y-1 mt-1 max-h-[50px] overflow-hidden">
                       
+                      {/* Creative Briefs scheduled for this date */}
+                      {dailyBriefs.slice(0, 1).map((b) => (
+                        <div
+                          key={b.id}
+                          className="text-[7px] font-mono font-bold px-1 py-0.5 rounded border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 leading-none truncate"
+                          title={`[Brief - ${b.status}] ${b.title}`}
+                        >
+                          📋 {b.title}
+                        </div>
+                      ))}
+
                       {/* Internal Roadmap Events */}
-                      {dailyInternalEvents.slice(0, 2).map((evt) => {
+                      {dailyInternalEvents.slice(0, 1).map((evt) => {
                         const hexColor = getHexForCalendar(evt.type);
                         return (
                           <div 
@@ -644,7 +1031,7 @@ export const CalendarPage: React.FC = () => {
                       })}
 
                       {/* Google Calendar Events */}
-                      {dailyGoogleEvents.slice(0, 2).map((evt) => (
+                      {dailyGoogleEvents.slice(0, 1).map((evt) => (
                         <div 
                           key={evt.id} 
                           className="text-[7.5px] font-mono font-semibold px-1 py-0.5 rounded border border-blue-500/25 text-blue-500 bg-blue-500/5 leading-none truncate"
@@ -655,7 +1042,7 @@ export const CalendarPage: React.FC = () => {
                       ))}
 
                       {/* Social Queue Scheduled Posts with status-specific styling */}
-                      {dailyPosts.slice(0, 2).map((post) => {
+                      {dailyPosts.slice(0, 1).map((post) => {
                         const style = getPostStatusStyle(post.status);
                         return (
                           <div
@@ -670,9 +1057,9 @@ export const CalendarPage: React.FC = () => {
                       })}
 
                       {/* More items indicator */}
-                      {(dailyInternalEvents.length + dailyGoogleEvents.length + dailyPosts.length) > 2 && (
+                      {(dailyBriefs.length + dailyInternalEvents.length + dailyGoogleEvents.length + dailyPosts.length) > 2 && (
                         <div className="text-[7px] font-mono text-slate-500 text-right pr-1">
-                          +{ (dailyInternalEvents.length + dailyGoogleEvents.length + dailyPosts.length) - 2 } more
+                          +{ (dailyBriefs.length + dailyInternalEvents.length + dailyGoogleEvents.length + dailyPosts.length) - 2 } more
                         </div>
                       )}
                     </div>
@@ -682,8 +1069,9 @@ export const CalendarPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 pt-3 border-t border-slate-800/20 text-[9px] font-mono text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 pt-3 border-t border-border/20 text-[9px] font-mono text-slate-400">
             <span className="font-bold">Legend:</span>
+            <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1" />📋 Approved Brief</span>
             <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-violet-500 mr-1" />⭐ Internal Milestone</span>
             <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1" />📅 Google Calendar Event</span>
             <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1" />✓ Posted</span>
@@ -694,10 +1082,10 @@ export const CalendarPage: React.FC = () => {
 
         {/* Dynamic Agenda details sidebar */}
         <div className={`border rounded-xl p-6 shadow-lg flex flex-col justify-between lg:col-span-4 ${
-          isDark ? "bg-[#161616] border-slate-800" : "bg-white border-slate-200 shadow-sm"
+          isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
         }`}>
           <div>
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-800/20">
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-border/20">
               <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">
                 {selectedDate ? "Day Agenda Summary" : "Milestone Roadmap"}
               </h4>
@@ -714,7 +1102,7 @@ export const CalendarPage: React.FC = () => {
 
             {selectedDate && (
               <div className={`mb-4 px-3 py-2 rounded-lg border font-mono text-[10px] leading-tight ${
-                isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200 text-slate-600"
+                isDark ? "bg-slate-950 border-border" : "bg-slate-50 border-slate-200 text-slate-600"
               }`}>
                 <div className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Focus Date</div>
                 <div className={`text-xs font-bold ${isDark ? "text-violet-400" : "text-violet-600"}`}>{selectedDate}</div>
@@ -729,13 +1117,54 @@ export const CalendarPage: React.FC = () => {
               {/* If date selected, display aggregated events for that specific day */}
               {selectedDate ? (
                 <>
+                  {/* Creative Briefs for selected day */}
+                  {selectedDayBriefs.map((brief) => (
+                    <div 
+                      key={brief.id} 
+                      id={`calendar-brief-${brief.id}`}
+                      className={`border p-4 rounded-lg relative hover:border-emerald-500/50 transition-colors ${
+                        isDark ? "bg-emerald-950/20 border-emerald-500/30" : "bg-emerald-50/60 border-emerald-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-mono font-bold tracking-wider px-2 py-0.5 rounded border uppercase border-emerald-500/40 text-emerald-400 bg-emerald-500/10 flex items-center space-x-1">
+                          <FileSpreadsheet className="w-2.5 h-2.5" />
+                          <span>Creative Brief</span>
+                        </span>
+                        <span className="text-[8px] font-mono px-2 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-bold">
+                          {brief.status}
+                        </span>
+                      </div>
+                      <h5 className={`text-xs font-bold mt-2.5 ${isDark ? "text-emerald-300" : "text-emerald-900"}`}>
+                        📋 {brief.title}
+                      </h5>
+                      <p className={`text-[10px] mt-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>
+                        {brief.targetAudience ? `Target: ${brief.targetAudience}` : "Creative brief document"}
+                      </p>
+                      {(brief.deliverables || brief.formatSpec) && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {brief.deliverables && (
+                            <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-black/20 border border-white/10 text-slate-300">
+                              📦 {brief.deliverables}
+                            </span>
+                          )}
+                          {brief.formatSpec && (
+                            <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-black/20 border border-white/10 text-slate-300">
+                              📐 {brief.formatSpec}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
                   {/* Internal milestones for selected day */}
                   {selectedDayRoadmap.map((event) => (
                     <div 
                       key={event.id} 
                       id={`calendar-milestone-${event.id}`}
-                      className={`border p-4 rounded-lg relative hover:border-slate-300 dark:hover:border-slate-750 transition-colors ${
-                        isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200"
+                      className={`border p-4 rounded-lg relative hover:border-slate-350 dark:hover:border-slate-750 transition-colors ${
+                        isDark ? "bg-slate-950 border-border" : "bg-slate-50 border-slate-200"
                       }`}
                     >
                       <button
@@ -770,7 +1199,7 @@ export const CalendarPage: React.FC = () => {
                                   ? "bg-slate-800 text-white border-slate-500 font-semibold" 
                                   : "bg-slate-200 text-slate-800 border-slate-400 font-semibold"
                                 : isDark 
-                                  ? "text-slate-500 border-slate-850 hover:text-slate-300 hover:bg-slate-900" 
+                                  ? "text-slate-500 border-border hover:text-slate-300 hover:bg-slate-900" 
                                   : "text-slate-400 border-slate-200 hover:text-slate-600 hover:bg-slate-50"
                             }`}
                           >
@@ -843,7 +1272,7 @@ export const CalendarPage: React.FC = () => {
                                     ? "bg-slate-800 text-white border-slate-500 font-semibold" 
                                     : "bg-slate-200 text-slate-800 border-slate-400 font-semibold"
                                   : isDark 
-                                    ? "text-slate-500 border-slate-850 hover:text-slate-300 hover:bg-slate-900" 
+                                    ? "text-slate-500 border-border hover:text-slate-300 hover:bg-slate-900" 
                                     : "text-slate-400 border-slate-200 hover:text-slate-600 hover:bg-slate-50"
                               }`}
                             >
@@ -856,7 +1285,7 @@ export const CalendarPage: React.FC = () => {
                   })}
 
                   {totalSelectedDayItems === 0 && (
-                    <div className="text-center py-12 text-slate-400 text-xs font-mono border border-dashed border-slate-800/30 rounded-xl">
+                    <div className="text-center py-12 text-slate-400 text-xs font-mono border border-dashed border-border/30 rounded-xl">
                       <AlertCircle className="w-8 h-8 text-slate-500 mx-auto mb-2" />
                       <div>No roadmap events on this date.</div>
                       <p className="text-[10px] text-slate-500 mt-1">Click "Plan Milestone" to schedule a plan for {selectedDate}.</p>
@@ -866,12 +1295,34 @@ export const CalendarPage: React.FC = () => {
               ) : (
                 /* Otherwise, display standard upcoming items list */
                 <>
+                  {/* Approved Briefs Preview */}
+                  {approvedBriefs.slice(0, 3).map((brief) => (
+                    <div 
+                      key={brief.id} 
+                      className={`border p-4 rounded-lg border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40 transition-colors`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-mono font-bold tracking-wider px-2 py-0.5 border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 rounded uppercase flex items-center space-x-1">
+                          <FileSpreadsheet className="w-2.5 h-2.5" />
+                          <span>Approved Brief</span>
+                        </span>
+                        <span className="text-[8px] font-mono text-emerald-400 font-bold">
+                          {brief.date || "Scheduled"}
+                        </span>
+                      </div>
+                      <h5 className="text-xs font-bold mt-2.5 text-emerald-400">📋 {brief.title}</h5>
+                      <p className={`text-[10px] mt-1 line-clamp-2 ${isDark ? "text-slate-400" : "text-slate-600"}`}>
+                        {brief.targetAudience ? `Audience: ${brief.targetAudience}` : "Approved creative brief ready for deployment."}
+                      </p>
+                    </div>
+                  ))}
+
                   {calendarEvents.map((event) => (
                     <div 
                       key={event.id} 
                       id={`calendar-milestone-${event.id}`}
                       className={`border p-4 rounded-lg relative hover:border-slate-350 dark:hover:border-slate-750 transition-colors ${
-                        isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200"
+                        isDark ? "bg-slate-950 border-border" : "bg-slate-50 border-slate-200"
                       }`}
                     >
                       <button
@@ -906,7 +1357,7 @@ export const CalendarPage: React.FC = () => {
                                   ? "bg-slate-800 text-white border-slate-500 font-semibold" 
                                   : "bg-slate-200 text-slate-800 border-slate-400 font-semibold"
                                 : isDark 
-                                  ? "text-slate-500 border-slate-850 hover:text-slate-300 hover:bg-slate-900" 
+                                  ? "text-slate-500 border-border hover:text-slate-300 hover:bg-slate-900" 
                                   : "text-slate-400 border-slate-200 hover:text-slate-600 hover:bg-slate-50"
                             }`}
                           >
@@ -960,7 +1411,7 @@ export const CalendarPage: React.FC = () => {
                     );
                   })}
 
-                  {(calendarEvents.length === 0 && googleEvents.length === 0) && (
+                  {(calendarEvents.length === 0 && googleEvents.length === 0 && approvedBriefs.length === 0) && (
                     <div className="text-center py-12 text-slate-400 text-xs font-mono">
                       <AlertCircle className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                       <div>No roadmap records or synced Google events.</div>
@@ -971,11 +1422,95 @@ export const CalendarPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="text-[10px] font-mono text-slate-400 border-t border-slate-150 dark:border-slate-800 pt-4 mt-4">
+          <div className="text-[10px] font-mono text-slate-400 border-t border-slate-150 dark:border-border pt-4 mt-4">
             * Select any calendar day cell to view detail summaries, or click "Plan Milestone" to add items.
           </div>
         </div>
       </div>
+      )}
+
+      {/* Request Changes Modal */}
+      {selectedBriefForChanges && (
+        <RequestChangesModal
+          brief={selectedBriefForChanges}
+          activeBrand={activeBrand}
+          theme={theme}
+          onClose={() => setSelectedBriefForChanges(null)}
+          onSubmit={async (briefId, notes) => {
+            await updateCreativeBrief(briefId, {
+              status: "Changes Requested",
+              revisionNotes: notes
+            });
+            addNotification(
+              "Changes Requested",
+              `Revision feedback submitted for "${selectedBriefForChanges.title}".`,
+              "info"
+            );
+            setSelectedBriefForChanges(null);
+          }}
+        />
+      )}
+
+      {/* Creative Brief Full Detail Modal (Owner / Designer views) */}
+      {selectedBriefForDetail && (
+        <BriefDetailModal
+          brief={selectedBriefForDetail}
+          activeBrand={activeBrand}
+          theme={theme}
+          activeColor={activeColor}
+          onClose={() => setSelectedBriefForDetail(null)}
+          onApprove={async (brief) => {
+            await updateCreativeBrief(brief.id, { status: "Approved" });
+            addNotification(
+              "Brief Approved",
+              `"${brief.title}" approved and staged into Posting Queue.`,
+              "success"
+            );
+            setSelectedBriefForDetail(null);
+          }}
+          onRequestChanges={(brief) => {
+            setSelectedBriefForDetail(null);
+            setSelectedBriefForChanges(brief);
+          }}
+        />
+      )}
+
+      {/* Share Calendar for Review Modal */}
+      {showShareModal && (
+        <ShareCalendarReviewModal
+          activeBrand={activeBrand}
+          theme={theme}
+          briefs={briefs}
+          monthName={months[month]}
+          year={year}
+          onClose={() => setShowShareModal(false)}
+          onOpenEmailModal={() => setShowEmailModal(true)}
+          gmailToken={gmailToken}
+          gmailUser={gmailUser}
+          connectGmail={connectGmail}
+          addNotification={addNotification}
+        />
+      )}
+
+      {/* Calendar Email / Download Modal */}
+      {showEmailModal && (
+        <CalendarEmailModal
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          brand={activeBrand}
+          briefs={briefs}
+          calendarEvents={calendarEvents}
+          queues={queues}
+          googleEvents={googleEvents}
+          monthName={months[month]}
+          year={year}
+          gmailToken={gmailToken}
+          gmailUser={gmailUser}
+          connectGmail={connectGmail}
+          addNotification={addNotification}
+          isDark={isDark}
+        />
+      )}
     </div>
   );
 };

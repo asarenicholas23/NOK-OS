@@ -1,0 +1,9 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Private workspace & internal API routes
+Disallow: /os/
+Disallow: /api/
+
+Sitemap: https://noksocial.com/sitemap.xml
