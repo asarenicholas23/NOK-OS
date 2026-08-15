@@ -1,13 +1,31 @@
 import express from "express";
-import path from "path";
+import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import admin from "firebase-admin";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+
+// Origins allowed to call this API. Firebase Hosting serves the frontend on a
+// different origin than this server, so CORS must be explicit.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:3000")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
+}));
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -21,6 +39,36 @@ const ai = new GoogleGenAI({
     }
   }
 });
+
+// Initialize Firebase Admin (service account credentials) so this server can
+// verify staff ID tokens and validate calendar-review share tokens with trusted access.
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+  }),
+});
+const adminDb = admin.firestore();
+
+// Gate: only signed-in staff (real Firebase email/password accounts) may call
+// the Gemini-backed endpoints below, so a stranger can't burn the API quota.
+async function requireStaffAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization || "";
+  const match = authHeader.match(/^Bearer (.+)$/);
+  if (!match) {
+    return res.status(401).json({ error: "Missing Authorization header." });
+  }
+  try {
+    const decoded = await admin.auth().verifyIdToken(match[1]);
+    if (decoded.firebase?.sign_in_provider !== "password") {
+      return res.status(403).json({ error: "Not authorized." });
+    }
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid or expired session." });
+  }
+}
 
 // Helper function to handle generation with model fallbacks to survive 503 service unavailable spikes
 async function generateContentWithFallback(contents: string, config: any) {
@@ -45,7 +93,7 @@ async function generateContentWithFallback(contents: string, config: any) {
 }
 
 // API endpoint to generate strategic insights from real uploaded data or from brand guide specifications
-app.post("/api/generate-insights", async (req, res) => {
+app.post("/api/generate-insights", requireStaffAuth, async (req, res) => {
   try {
     const { tagline, voiceTone, brandGuide, analyticsData, count = 5, sourceType = "data" } = req.body;
 
@@ -138,7 +186,7 @@ For each insight, return:
 });
 
 // API endpoint to generate custom AI Performance Reports from real uploaded data
-app.post("/api/generate-performance-intelligence", async (req, res) => {
+app.post("/api/generate-performance-intelligence", requireStaffAuth, async (req, res) => {
   try {
     const { brandId, tagline, voiceTone, brandGuide, analyticsData } = req.body;
 
@@ -220,7 +268,7 @@ Return JSON in this format:
 });
 
 // API endpoint to generate brand content direction pillars from approved insights
-app.post("/api/generate-directions", async (req, res) => {
+app.post("/api/generate-directions", requireStaffAuth, async (req, res) => {
   try {
     const { tagline, voiceTone, brandGuide, approvedInsights, count = 5 } = req.body;
 
@@ -275,7 +323,7 @@ For each brand direction, provide:
 });
 
 // API endpoint to generate creative content briefs from brand directions
-app.post("/api/generate-briefs", async (req, res) => {
+app.post("/api/generate-briefs", requireStaffAuth, async (req, res) => {
   try {
     const { tagline, voiceTone, brandGuide, approvedDirections, count = 5 } = req.body;
 
@@ -385,7 +433,7 @@ Always populate the following sections for each brief:
 });
 
 // API endpoint to suggest strategic brand guide details
-app.post("/api/suggest-brand-guide", async (req, res) => {
+app.post("/api/suggest-brand-guide", requireStaffAuth, async (req, res) => {
   try {
     const { 
       brandName, 
@@ -444,7 +492,7 @@ Return a single JSON object containing these 4 suggested fields. Maintain a high
 });
 
 // API endpoint to generate creative sandbox ideas (dump/sandbox of copy drafts, concepts, hashtags)
-app.post("/api/generate-sandbox-ideas", async (req, res) => {
+app.post("/api/generate-sandbox-ideas", requireStaffAuth, async (req, res) => {
   try {
     const { brandContext, topic } = req.body;
 
@@ -526,7 +574,7 @@ Make sure all JSON keys are correct, and return exactly 3 ideas.`;
 });
 
 // API endpoint for conversational AI Chatbot with Brand and Performance Context
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", requireStaffAuth, async (req, res) => {
   try {
     const { messages, brandContext, performanceContext } = req.body;
 
@@ -646,7 +694,7 @@ Ensure all JSON fields are populated. If some fields are not mentioned, infer re
 });
 
 // API endpoint to scrape and parse full Substack, Blogger, or medium blog posts into clean Markdown
-app.post("/api/import-blog-post", async (req, res) => {
+app.post("/api/import-blog-post", requireStaffAuth, async (req, res) => {
   try {
     const { url, rawText } = req.body;
 
@@ -735,7 +783,66 @@ Return JSON in this exact structure:
   }
 });
 
-// Vite dev server or static server
+// ==========================================
+// CALENDAR REVIEW TOKEN EXCHANGE
+// ==========================================
+// The public client-approval page (/review/:token) needs to read and update
+// briefs for one brand without being a logged-in staff member. Rather than
+// opening Firestore rules to unauthenticated queries (which can't be safely
+// scoped to "the caller who actually holds this token"), the raw share token
+// is validated here with trusted Admin SDK access, and exchanged for a
+// short-lived Firebase custom auth token carrying the resolved brandId /
+// shareLinkId as custom claims. The client then signs in with that token, and
+// Firestore rules grant it read/update access scoped to exactly that brand
+// and that link (see firestore.rules).
+app.post("/api/calendar-review/exchange", async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token || typeof token !== "string") {
+      return res.status(400).json({ error: "missing_token" });
+    }
+
+    const snap = await adminDb
+      .collection("calendarShareLinks")
+      .where("token", "==", token)
+      .limit(1)
+      .get();
+
+    if (snap.empty) {
+      return res.status(404).json({ error: "not_found" });
+    }
+
+    const linkDoc = snap.docs[0];
+    const linkData = linkDoc.data();
+
+    if (linkData.revoked) {
+      return res.status(403).json({
+        error: "revoked",
+        shareLink: { id: linkDoc.id, ...linkData },
+      });
+    }
+
+    const customToken = await admin.auth().createCustomToken(`client-${linkDoc.id}`, {
+      shareLinkId: linkDoc.id,
+      brandId: linkData.brandId,
+    });
+
+    res.json({
+      customToken,
+      shareLink: { id: linkDoc.id, ...linkData },
+    });
+  } catch (error: any) {
+    console.error("Calendar review token exchange error:", error);
+    res.status(500).json({ error: "Failed to validate review link." });
+  }
+});
+
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
+// Vite dev server (local full-stack dev only). In production this server is
+// API-only — the static frontend is deployed separately to Firebase Hosting.
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -743,12 +850,6 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {

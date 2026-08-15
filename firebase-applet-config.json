@@ -1,9 +1,9 @@
 {
-  "projectId": "perceptive-enterprise-hhh41",
-  "appId": "1:79721164862:web:fc42ff7c2727e42aefa16f",
-  "apiKey": "AIzaSyAw1xfMuRvf9z8QBC1idtIoUeH-eBeNyKE",
-  "authDomain": "perceptive-enterprise-hhh41.firebaseapp.com",
-  "storageBucket": "perceptive-enterprise-hhh41.firebasestorage.app",
-  "messagingSenderId": "79721164862",
+  "projectId": "nok-os-prod",
+  "appId": "1:288873586116:web:cc3186e62ecaf45e185891",
+  "apiKey": "AIzaSyDBiyLPMt7n0MZsEkLbbqIYbSxURQgdiL0",
+  "authDomain": "nok-os-prod.firebaseapp.com",
+  "storageBucket": "nok-os-prod.firebasestorage.app",
+  "messagingSenderId": "288873586116",
   "measurementId": ""
 }

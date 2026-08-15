@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useBrand } from "../context/BrandContext";
+import { apiFetch } from "../lib/apiBase";
 import { Plus, FileText, ClipboardList, AlertCircle, Sparkles, UserCheck, Milestone, Loader2, Download, Mail, Send, LogOut, CheckCircle2, Eye, Presentation, Palette } from "lucide-react";
 import { generateBriefPDF } from "../utils/pdfGenerator";
 import { sendBriefEmail } from "../utils/gmailSender";
@@ -302,7 +303,7 @@ export const BriefsPage: React.FC = () => {
         throw new Error("No brand directions found. Please create or generate brand positioning directions first.");
       }
 
-      const response = await fetch("/api/generate-briefs", {
+      const response = await apiFetch("/api/generate-briefs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

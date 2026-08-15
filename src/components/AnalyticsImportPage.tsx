@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useBrand } from "../context/BrandContext";
+import { apiFetch } from "../lib/apiBase";
 import { cleanAndNormalizeData } from "../utils/dataCleaner";
 import { 
   UploadCloud, 
@@ -70,7 +71,7 @@ export const AnalyticsImportPage: React.FC = () => {
     if (!activeBrand) return;
     setGeneratingInsights(true);
     try {
-      const response = await fetch("/api/generate-insights", {
+      const response = await apiFetch("/api/generate-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

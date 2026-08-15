@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "nok-os-prod"
+  },
+  "targets": {
+    "nok-os-prod": {
+      "hosting": {
+        "main": [
+          "nok-os"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

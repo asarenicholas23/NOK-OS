@@ -18,22 +18,24 @@ import {
   HelpCircle,
   Eye
 } from "lucide-react";
-import { 
-  db, 
-  CreativeBrief, 
-  Brand, 
-  CalendarShareLink, 
-  fetchCalendarShareLinkByToken,
+import {
+  db,
+  auth,
+  CreativeBrief,
+  Brand,
+  CalendarShareLink,
   recordShareLinkAccess,
   recordShareLinkAction
 } from "../lib/firebase";
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  doc, 
-  updateDoc, 
+import { signInWithCustomToken, signOut } from "firebase/auth";
+import { API_BASE_URL } from "../lib/apiBase";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  updateDoc,
   getDoc,
   getDocs,
   writeBatch
@@ -83,9 +85,17 @@ export const ClientCalendarApprovalView: React.FC = () => {
 
       try {
         setLoading(true);
-        const linkData = await fetchCalendarShareLinkByToken(token);
 
-        if (!linkData) {
+        // Validate the raw token server-side (trusted Admin SDK access) and
+        // exchange it for a Firebase custom auth token scoped to this brand/link,
+        // so subsequent Firestore reads/writes are authorized by security rules.
+        const exchangeResp = await fetch(`${API_BASE_URL}/api/calendar-review/exchange`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token })
+        });
+
+        if (exchangeResp.status === 404) {
           if (isMounted) {
             setErrorStatus("not_found");
             setLoading(false);
@@ -93,14 +103,24 @@ export const ClientCalendarApprovalView: React.FC = () => {
           return;
         }
 
-        if (linkData.revoked) {
+        if (exchangeResp.status === 403) {
+          const body = await exchangeResp.json().catch(() => ({}));
           if (isMounted) {
-            setShareLink(linkData);
+            if (body.shareLink) setShareLink(body.shareLink as CalendarShareLink);
             setErrorStatus("revoked");
             setLoading(false);
           }
           return;
         }
+
+        if (!exchangeResp.ok) {
+          throw new Error("Failed to validate review link.");
+        }
+
+        const { customToken, shareLink: linkData } = await exchangeResp.json();
+
+        await signOut(auth).catch(() => {});
+        await signInWithCustomToken(auth, customToken);
 
         if (isMounted) {
           setShareLink(linkData);

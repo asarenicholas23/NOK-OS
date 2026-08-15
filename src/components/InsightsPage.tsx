@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useBrand } from "../context/BrandContext";
+import { apiFetch } from "../lib/apiBase";
 import { 
   Lightbulb, 
   Zap, 
@@ -296,7 +297,7 @@ export const InsightsPage: React.FC = () => {
         ];
       }
 
-      const response = await fetch("/api/generate-insights", {
+      const response = await apiFetch("/api/generate-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

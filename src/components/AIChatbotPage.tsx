@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useBrand } from "../context/BrandContext";
+import { apiFetch } from "../lib/apiBase";
 import { 
   MessageSquare, 
   Sparkles, 
@@ -209,7 +210,7 @@ How can I help you today? You can:
       })) : null;
 
       // Request API
-      const response = await fetch("/api/chat", {
+      const response = await apiFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

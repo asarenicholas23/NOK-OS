@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useBrand } from "../context/BrandContext";
+import { apiFetch } from "../lib/apiBase";
 import { 
   Waypoints, 
   Compass, 
@@ -135,7 +136,7 @@ export const DirectionsPage: React.FC = () => {
     setGeneratingDirections(true);
     try {
       const sourceInsights = approvedInsights.length > 0 ? approvedInsights : insights;
-      const response = await fetch("/api/generate-directions", {
+      const response = await apiFetch("/api/generate-directions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -192,7 +193,7 @@ export const DirectionsPage: React.FC = () => {
         throw new Error("No brand directions found to feed the creative brief generator.");
       }
 
-      const response = await fetch("/api/generate-briefs", {
+      const response = await apiFetch("/api/generate-briefs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

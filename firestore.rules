@@ -1,9 +1,68 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Open rules for the development sandbox to handle all collections seamlessly
+
+    // Real staff accounts only (email/password sign-in via LoginScreen).
+    // Deliberately excludes anonymous and custom-token (client review) sessions.
+    function isStaff() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    // A client review session minted by /api/calendar-review/exchange after
+    // validating the share token server-side. Scoped to one brand via custom claim.
+    function isClientForBrand(brandId) {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'custom'
+        && request.auth.token.brandId == brandId;
+    }
+
+    function isClientForLink(linkId) {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'custom'
+        && request.auth.token.shareLinkId == linkId;
+    }
+
+    function onlyKeysChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    match /brands/{brandId} {
+      allow read: if isStaff() || isClientForBrand(brandId);
+      allow write: if isStaff();
+    }
+
+    match /briefs/{briefId} {
+      allow read: if isStaff() || isClientForBrand(resource.data.brandId);
+      // Clients may only flip approval state / leave revision notes on a brief
+      // that already belongs to their brand — never its content, and never create/delete.
+      allow update: if isStaff()
+        || (isClientForBrand(resource.data.brandId)
+            && onlyKeysChanged(['status', 'approver', 'revisionNotes']));
+      allow create, delete: if isStaff();
+    }
+
+    match /calendarShareLinks/{linkId} {
+      allow get: if isStaff() || isClientForLink(linkId);
+      allow list: if isStaff();
+      // Clients may only record their own access/action tracking metadata.
+      allow update: if isStaff()
+        || (isClientForLink(linkId)
+            && onlyKeysChanged(['lastAccessedAt', 'lastActionAt', 'lastActionSummary']));
+      allow create, delete: if isStaff();
+    }
+
+    match /campaignQueues/{id} { allow read, write: if isStaff(); }
+    match /calendarEvents/{id} { allow read, write: if isStaff(); }
+    match /metrics/{id} { allow read, write: if isStaff(); }
+    match /strategicInsights/{id} { allow read, write: if isStaff(); }
+    match /brandDirections/{id} { allow read, write: if isStaff(); }
+    match /rawAnalytics/{id} { allow read, write: if isStaff(); }
+    match /creativeIdeas/{id} { allow read, write: if isStaff(); }
+
+    // Deny everything else by default.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

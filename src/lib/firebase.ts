@@ -13,17 +13,17 @@ import {
   serverTimestamp,
   orderBy
 } from "firebase/firestore";
-import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
 // Config parsed from firebase-applet-config.json
 const firebaseConfig = {
-  apiKey: "AIzaSyAw1xfMuRvf9z8QBC1idtIoUeH-eBeNyKE",
-  authDomain: "perceptive-enterprise-hhh41.firebaseapp.com",
-  projectId: "perceptive-enterprise-hhh41",
-  storageBucket: "perceptive-enterprise-hhh41.firebasestorage.app",
-  messagingSenderId: "79721164862",
-  appId: "1:79721164862:web:fc42ff7c2727e42aefa16f"
+  apiKey: "AIzaSyDBiyLPMt7n0MZsEkLbbqIYbSxURQgdiL0",
+  authDomain: "nok-os-prod.firebaseapp.com",
+  projectId: "nok-os-prod",
+  storageBucket: "nok-os-prod.firebasestorage.app",
+  messagingSenderId: "288873586116",
+  appId: "1:288873586116:web:cc3186e62ecaf45e185891"
 };
 
 // Initialize Firebase
@@ -68,28 +68,11 @@ export const signInWithGoogleCalendar = async (): Promise<{ user: User; accessTo
   }
 };
 
-// Initialize Firestore. 
-// Note: We use the specific custom database ID provisioned for this applet
-export const db = getFirestore(app, "ai-studio-e3932094-ce6a-4b33-8e66-55c4292dcc93");
+// Initialize Firestore (default database on the nok-os-prod project).
+export const db = getFirestore(app);
 
 // Initialize Cloud Functions
 export const functions = getFunctions(app, "us-central1");
-
-// Helper to sign in anonymously for Auth Context if needed
-export const ensureAuthenticated = async () => {
-  if (!auth.currentUser) {
-    try {
-      await signInAnonymously(auth);
-      console.log("Logged in anonymously to Firebase Auth");
-    } catch (error: any) {
-      if (error && (error.code === "auth/admin-restricted-operation" || String(error).includes("admin-restricted-operation"))) {
-        console.warn("Firebase Anonymous Auth is restricted by admin policy. Operating in sandbox / open database mode.");
-      } else {
-        console.warn("Error signing in anonymously:", error);
-      }
-    }
-  }
-};
 
 // Interfaces
 export interface Brand {
@@ -775,8 +758,6 @@ export const FALLBACK_METRICS: Record<string, AnalyticsMetric[]> = {
 // Seeder Function to populate Firestore so the DB is not empty
 export const seedDatabaseIfEmpty = async () => {
   try {
-    await ensureAuthenticated();
-    
     // Check if brands exist
     const brandsSnapshot = await getDocs(collection(db, "brands"));
     if (brandsSnapshot.empty) {
@@ -973,8 +954,6 @@ export const subscribeToIdeas = (brandId: string, onUpdate: (ideas: CreativeIdea
 // Callable Cloud Function client invocation
 export const generatePerformanceIntelligence = async (brandId: string, metricsPayload: any): Promise<PerformanceIntelligenceReport> => {
   try {
-    await ensureAuthenticated();
-    
     // Attempt HTTPS Callable Functions call to v2 Cloud Function 'generatePerformanceIntelligence'
     const generateIntelligenceFn = httpsCallable<
       { brandId: string; metrics: any }, 
@@ -1139,26 +1118,11 @@ export const getOrCreateCalendarShareLink = async (
   }
 };
 
-export const fetchCalendarShareLinkByToken = async (
-  token: string
-): Promise<CalendarShareLink | null> => {
-  try {
-    const shareLinksRef = collection(db, "calendarShareLinks");
-    const q = query(shareLinksRef, where("token", "==", token));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      return null;
-    }
-
-    const docSnap = querySnapshot.docs[0];
-    const data = docSnap.data() as Omit<CalendarShareLink, "id">;
-    return { id: docSnap.id, ...data };
-  } catch (error) {
-    console.error("Error fetching calendar share link by token:", error);
-    return null;
-  }
-};
+// NOTE: token -> share link resolution now happens server-side via
+// POST /api/calendar-review/exchange (see server.ts + ClientCalendarApprovalView),
+// which validates the token with trusted Admin SDK access and mints a scoped
+// custom auth token, instead of querying calendarShareLinks directly as an
+// unauthenticated client (Firestore rules no longer allow that).
 
 export const revokeCalendarShareLink = async (linkId: string): Promise<void> => {
   try {

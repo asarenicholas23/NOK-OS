@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useBrand } from "../context/BrandContext";
+import { apiFetch } from "../lib/apiBase";
 import { 
   Sparkles, 
   Plus, 
@@ -161,7 +162,7 @@ export const CreativeSandboxPage: React.FC = () => {
     setStagedIdeas([]);
 
     try {
-      const response = await fetch("/api/generate-sandbox-ideas", {
+      const response = await apiFetch("/api/generate-sandbox-ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

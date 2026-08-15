@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useCms } from "../context/CmsContext";
+import { apiFetch } from "../lib/apiBase";
 import { BlogPost, ServicePackage, DiscoveryRequest, ClientBrand } from "../data/cmsData";
 import { 
   FileText, 
@@ -198,7 +199,7 @@ export const CmsPage: React.FC = () => {
     setImporting(true);
 
     try {
-      const resp = await fetch("/api/import-blog-post", {
+      const resp = await apiFetch("/api/import-blog-post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

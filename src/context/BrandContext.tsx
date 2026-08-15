@@ -20,7 +20,6 @@ import {
   subscribeToDirections,
   subscribeToIdeas,
   seedDatabaseIfEmpty,
-  ensureAuthenticated,
   auth,
   signInWithGoogleGmail,
   signInWithGoogleCalendar
@@ -50,7 +49,6 @@ interface BrandContextType {
   loading: boolean;
   user: any;
   logout: () => Promise<void>;
-  loginFallbackUser: (email: string) => void;
   addCampaign: (campaign: Omit<CampaignQueue, "id" | "brandId">) => Promise<void>;
   updateCampaign: (id: string, campaign: Partial<CampaignQueue>) => Promise<void>;
   deleteCampaign: (id: string) => Promise<void>;
@@ -209,46 +207,21 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Listen to Auth State changes & Seed Database
   useEffect(() => {
-    // Check if there is a local fallback user first
-    const localUserStr = localStorage.getItem("workspace_fallback_user");
-    if (localUserStr) {
-      try {
-        const localUser = JSON.parse(localUserStr);
-        setUser(localUser);
-        seedDatabaseIfEmpty();
-        setLoading(false);
-        return;
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         await seedDatabaseIfEmpty();
       } else {
-        const localUserStrCheck = localStorage.getItem("workspace_fallback_user");
-        if (!localUserStrCheck) {
-          setUser(null);
-        }
+        setUser(null);
       }
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  const loginFallbackUser = (email: string) => {
-    const fallbackUser = { email, uid: "fallback-" + Date.now() };
-    localStorage.setItem("workspace_fallback_user", JSON.stringify(fallbackUser));
-    setUser(fallbackUser);
-    seedDatabaseIfEmpty();
-  };
-
   const logout = async () => {
     setLoading(true);
     try {
-      localStorage.removeItem("workspace_fallback_user");
       await signOut(auth);
       setUser(null);
       setGmailToken(null);
@@ -909,7 +882,6 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       loading,
       user,
       logout,
-      loginFallbackUser,
       addCampaign,
       updateCampaign,
       deleteCampaign,

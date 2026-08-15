@@ -1,15 +1,10 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { auth } from "../lib/firebase";
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword 
-} from "firebase/auth";
-import { useBrand } from "../context/BrandContext";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { ShieldCheck, Mail, Lock, Sparkles, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 
 export const LoginScreen: React.FC = () => {
-  const { loginFallbackUser } = useBrand();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,42 +25,10 @@ export const LoginScreen: React.FC = () => {
       await signInWithEmailAndPassword(auth, email, password);
       setSuccess("Authenticated successfully!");
     } catch (signInErr: any) {
-      console.log("Sign in failed. Attempting automatic signup if user doesn't exist...", signInErr);
-      
-      const isOperationNotAllowed = signInErr.code === "auth/operation-not-allowed" || String(signInErr).includes("operation-not-allowed");
-      
-      if (isOperationNotAllowed) {
-        console.warn("Firebase Email/Password Auth is disabled. Activating local fallback session...");
-        setSuccess("Activated secure sandbox session! Entering workspace...");
-        setTimeout(() => {
-          loginFallbackUser(email);
-        }, 1000);
-        return;
-      }
-
-      if (
-        signInErr.code === "auth/user-not-found" || 
-        signInErr.code === "auth/invalid-credential" || 
-        String(signInErr).includes("user-not-found") ||
-        String(signInErr).includes("invalid-credential")
-      ) {
-        try {
-          await createUserWithEmailAndPassword(auth, email, password);
-          setSuccess("Account registered and authenticated successfully!");
-        } catch (signUpErr: any) {
-          if (signUpErr.code === "auth/operation-not-allowed" || String(signUpErr).includes("operation-not-allowed")) {
-            console.warn("Firebase signup restricted. Activating local fallback session...");
-            setSuccess("Activated secure sandbox session! Entering workspace...");
-            setTimeout(() => {
-              loginFallbackUser(email);
-            }, 1000);
-          } else {
-            setError(signUpErr.message || "Failed to authenticate. Please check your credentials.");
-          }
-        }
-      } else {
-        setError(signInErr.message || "Authentication failed.");
-      }
+      console.error("Sign in failed:", signInErr);
+      setError(
+        "Invalid credentials, or no account exists for this address. Contact your workspace admin to be added as a team member."
+      );
     } finally {
       setLoading(false);
     }

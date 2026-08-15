@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useBrand } from "../context/BrandContext";
+import { apiFetch } from "../lib/apiBase";
 import { 
   Palette, Copy, Check, Type, Sparkles, Sliders, Save, FileText, Users, Flame, Globe,
   Megaphone, Shield, Send, Heart, Target, AlertCircle, RefreshCw, ShoppingBag, Award
@@ -182,7 +183,7 @@ export const BrandGuidePage: React.FC = () => {
     }
 
     try {
-      const response = await fetch("/api/suggest-brand-guide", {
+      const response = await apiFetch("/api/suggest-brand-guide", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
