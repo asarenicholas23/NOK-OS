@@ -1256,3 +1256,29 @@ export const recordShareLinkEmailSent = async (
   }
 };
 
+/**
+ * Strips all undefined fields recursively from an object so Firestore operations (setDoc, updateDoc, addDoc) never fail.
+ */
+export function cleanFirestoreData<T extends Record<string, any>>(obj: T): T {
+  if (obj === null || obj === undefined || typeof obj !== "object") {
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanFirestoreData(item)) as any;
+  }
+
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (value !== null && typeof value === "object" && !(value instanceof Date)) {
+        result[key] = cleanFirestoreData(value);
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result as T;
+}
+
+

@@ -157,17 +157,17 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
         weekNumber: selectedWeek,
         dayOfWeek: selectedDayOfWeek,
         date: targetDate,
-        campaignId,
-        campaignName: workflowType !== "weekly" ? campaignName : undefined,
-        sequencePosition: workflowType !== "weekly" ? sequencePosition : undefined,
-        platform: channel,
-        contentPillar,
-        postType,
-        mainFocus,
-        progressTracking,
+        campaignId: campaignId || "",
+        campaignName: workflowType !== "weekly" ? (campaignName || "") : "",
+        sequencePosition: workflowType !== "weekly" ? (sequencePosition || "") : "",
+        platform: channel || "LinkedIn",
+        contentPillar: contentPillar || "Marketing & Strategy",
+        postType: postType || "Carousel / Multi-Slide",
+        mainFocus: mainFocus || "Reach & Thought Leadership",
+        progressTracking: progressTracking || "Create",
         status,
-        topicIdea: brief.topicIdea || brief.title,
-        copywritingCaption: brief.copywritingCaption || brief.keyMessage
+        topicIdea: brief.topicIdea || brief.title || "",
+        copywritingCaption: brief.copywritingCaption || brief.keyMessage || ""
       };
 
       await updateCreativeBrief(brief.id, updatedBriefData);

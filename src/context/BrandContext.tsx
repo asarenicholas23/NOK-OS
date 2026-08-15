@@ -9,6 +9,7 @@ import {
   RawAnalyticsRow,
   BrandDirection,
   CreativeIdea,
+  cleanFirestoreData,
   subscribeToBrands,
   subscribeToCampaignQueues,
   subscribeToCalendarEvents,
@@ -473,18 +474,18 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addCampaign = async (campaign: Omit<CampaignQueue, "id" | "brandId">) => {
     const { db } = await import("../lib/firebase");
     const { collection, addDoc } = await import("firebase/firestore");
-    await addDoc(collection(db, "campaignQueues"), {
+    await addDoc(collection(db, "campaignQueues"), cleanFirestoreData({
       ...campaign,
       brandId: activeBrandId,
       createdAt: new Date().toISOString()
-    });
+    }));
     addNotification("Campaign Scheduled", `New post "${campaign.title}" has been successfully added to the pipeline.`, "success");
   };
 
   const updateCampaign = async (id: string, campaign: Partial<CampaignQueue>) => {
     const { db } = await import("../lib/firebase");
-    const { doc, updateDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "campaignQueues", id), campaign);
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "campaignQueues", id), cleanFirestoreData(campaign), { merge: true });
     addNotification("Campaign Updated", "Campaign queue document was successfully modified.", "info");
   };
 
@@ -498,17 +499,17 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addCalendarEvent = async (event: Omit<CalendarEvent, "id" | "brandId">) => {
     const { db } = await import("../lib/firebase");
     const { collection, addDoc } = await import("firebase/firestore");
-    await addDoc(collection(db, "calendarEvents"), {
+    await addDoc(collection(db, "calendarEvents"), cleanFirestoreData({
       ...event,
       brandId: activeBrandId
-    });
+    }));
     addNotification("Roadmap Event Created", `"${event.title}" is now added to the content roadmap.`, "info");
   };
 
   const updateCalendarEvent = async (id: string, event: Partial<CalendarEvent>) => {
     const { db } = await import("../lib/firebase");
-    const { doc, updateDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "calendarEvents", id), event);
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "calendarEvents", id), cleanFirestoreData(event), { merge: true });
     addNotification("Event Updated", "Content roadmap event details were modified.", "info");
   };
 
@@ -522,21 +523,30 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addCreativeBrief = async (brief: Omit<CreativeBrief, "id" | "brandId">) => {
     const { db } = await import("../lib/firebase");
     const { collection, addDoc } = await import("firebase/firestore");
-    await addDoc(collection(db, "briefs"), {
+    await addDoc(collection(db, "briefs"), cleanFirestoreData({
       ...brief,
       brandId: activeBrandId
-    });
+    }));
     addNotification("Creative Brief Logged", `Brief for "${brief.title}" successfully saved.`, "info");
   };
 
   const updateCreativeBrief = async (id: string, brief: Partial<CreativeBrief>) => {
     const { db } = await import("../lib/firebase");
-    const { doc, updateDoc, collection, addDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "briefs", id), brief);
+    const { doc, setDoc, collection, addDoc } = await import("firebase/firestore");
+    
+    // Check if brief document exists or if we should merge with existing brief in local state
+    const existingBrief = briefs.find(b => b.id === id);
+    const mergedBriefPayload = {
+      ...(existingBrief || {}),
+      ...brief,
+      id,
+      brandId: existingBrief?.brandId || activeBrandId
+    };
+    
+    await setDoc(doc(db, "briefs", id), cleanFirestoreData(mergedBriefPayload), { merge: true });
     
     // If status is changed to Approved, ensure it is available in Posting Queue
     if (brief.status === "Approved") {
-      const existingBrief = briefs.find(b => b.id === id);
       const briefTitle = brief.title || existingBrief?.title || "Approved Campaign";
       const briefChannel = (brief.platform?.split(",")[0]?.trim() || existingBrief?.platform?.split(",")[0]?.trim() || "Instagram") as CampaignQueue["channel"];
       const briefContent = brief.copywritingCaption || existingBrief?.copywritingCaption || brief.keyMessage || existingBrief?.keyMessage || briefTitle;
@@ -545,7 +555,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Check if already in queue
       const inQueue = queues.some(q => q.title.toLowerCase() === briefTitle.toLowerCase());
       if (!inQueue) {
-        await addDoc(collection(db, "campaignQueues"), {
+        await addDoc(collection(db, "campaignQueues"), cleanFirestoreData({
           brandId: activeBrandId,
           title: briefTitle,
           channel: briefChannel,
@@ -557,7 +567,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             engagementRate: 5.2
           },
           createdAt: new Date().toISOString()
-        });
+        }));
       }
       addNotification("Brief Approved", `"${briefTitle}" is approved and queued in the Posting Queue.`, "success");
     } else if (brief.status === "Changes Requested") {
@@ -626,19 +636,19 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { db } = await import("../lib/firebase");
     const { doc, setDoc } = await import("firebase/firestore");
     const newId = brand.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    await setDoc(doc(db, "brands", newId), {
+    await setDoc(doc(db, "brands", newId), cleanFirestoreData({
       ...brand,
       id: newId,
       createdAt: new Date().toISOString()
-    });
+    }));
     setActiveBrandId(newId);
     addNotification("New Brand Provisioned", `Brand workspace for "${brand.name}" is now online!`, "success");
   };
 
   const updateBrand = async (id: string, brand: Partial<Brand>) => {
     const { db } = await import("../lib/firebase");
-    const { doc, updateDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "brands", id), brand);
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "brands", id), cleanFirestoreData(brand), { merge: true });
     
     // update activeBrand local state if it is active brand
     if (activeBrandId === id && activeBrand) {
@@ -674,18 +684,18 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addCreativeIdea = async (idea: Omit<CreativeIdea, "id" | "brandId">) => {
     const { db } = await import("../lib/firebase");
     const { collection, addDoc } = await import("firebase/firestore");
-    await addDoc(collection(db, "creativeIdeas"), {
+    await addDoc(collection(db, "creativeIdeas"), cleanFirestoreData({
       ...idea,
       brandId: activeBrandId,
       createdAt: new Date().toISOString()
-    });
+    }));
     addNotification("Idea Saved", `"${idea.title}" saved to your Creative Sandbox.`, "success");
   };
 
   const updateCreativeIdea = async (id: string, idea: Partial<CreativeIdea>) => {
     const { db } = await import("../lib/firebase");
-    const { doc, updateDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "creativeIdeas", id), idea);
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "creativeIdeas", id), cleanFirestoreData(idea), { merge: true });
     addNotification("Idea Updated", "Creative Sandbox item modified.", "info");
   };
 
@@ -699,18 +709,18 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addInsight = async (insight: Omit<StrategicInsight, "id" | "brandId">) => {
     const { db } = await import("../lib/firebase");
     const { collection, addDoc } = await import("firebase/firestore");
-    await addDoc(collection(db, "strategicInsights"), {
+    await addDoc(collection(db, "strategicInsights"), cleanFirestoreData({
       ...insight,
       brandId: activeBrandId,
       createdAt: new Date().toISOString()
-    });
+    }));
     addNotification("Strategic Insight Logged", `Insight "${insight.title}" has been successfully added.`, "success");
   };
 
   const updateInsight = async (id: string, insight: Partial<StrategicInsight>) => {
     const { db } = await import("../lib/firebase");
-    const { doc, updateDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "strategicInsights", id), insight);
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "strategicInsights", id), cleanFirestoreData(insight), { merge: true });
     addNotification("Insight Updated", "Strategic insight details were modified.", "info");
   };
 
@@ -724,19 +734,19 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addDirection = async (direction: Omit<BrandDirection, "id" | "brandId">) => {
     const { db } = await import("../lib/firebase");
     const { collection, addDoc } = await import("firebase/firestore");
-    await addDoc(collection(db, "brandDirections"), {
+    await addDoc(collection(db, "brandDirections"), cleanFirestoreData({
       ...direction,
       status: direction.status || "Pending",
       brandId: activeBrandId,
       createdAt: new Date().toISOString()
-    });
+    }));
     addNotification("Positioning Direction Logged", `Direction pillar "${direction.pillar}" has been successfully added.`, "success");
   };
 
   const updateDirection = async (id: string, direction: Partial<BrandDirection>) => {
     const { db } = await import("../lib/firebase");
-    const { doc, updateDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "brandDirections", id), direction);
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "brandDirections", id), cleanFirestoreData(direction), { merge: true });
     addNotification("Direction Updated", "Brand positioning direction details were modified.", "info");
   };
 
