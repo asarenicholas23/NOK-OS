@@ -286,16 +286,13 @@ export const InsightsPage: React.FC = () => {
   };
 
   const handleGenerateInsights = async (sourceType: "data" | "guides") => {
+    if (sourceType === "data" && rawAnalytics.length === 0) {
+      addNotification("No Analytics Data", "Upload real performance data via Analytics Import first, or use \"Generate from Guides\" instead.", "warning");
+      return;
+    }
     setGenerating(true);
     try {
-      let payload = [];
-      if (sourceType === "data") {
-        payload = rawAnalytics.length > 0 ? rawAnalytics : [
-          { title: "LinkedIn Standard Benchmark", platform: "LinkedIn", type: "Text", impressions: 3200, engagement: 180, engagementRate: 5.6 },
-          { title: "Twitter Deployment Thread", platform: "Twitter/X", type: "Text", impressions: 8900, engagement: 560, engagementRate: 6.2 },
-          { title: "ESG Keynote Video", platform: "YouTube", type: "Video", impressions: 15400, engagement: 1100, engagementRate: 7.1 }
-        ];
-      }
+      const payload = sourceType === "data" ? rawAnalytics : [];
 
       const response = await apiFetch("/api/generate-insights", {
         method: "POST",
@@ -386,9 +383,10 @@ export const InsightsPage: React.FC = () => {
           <button
             id="insights-generate-data-btn"
             onClick={() => handleGenerateInsights("data")}
-            disabled={generating}
+            disabled={generating || rawAnalytics.length === 0}
+            title={rawAnalytics.length === 0 ? "Upload analytics data via Analytics Import first" : undefined}
             className={`px-3 py-2 border rounded-lg font-mono text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
-              generating
+              generating || rawAnalytics.length === 0
                 ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
                 : isDark
                   ? "bg-slate-900 border-border text-slate-200 hover:border-slate-700"
@@ -403,7 +401,7 @@ export const InsightsPage: React.FC = () => {
             ) : (
               <>
                 <Database className={`w-3.5 h-3.5 ${getBrandTextColor()}`} />
-                <span>Generate from Data</span>
+                <span>{rawAnalytics.length > 0 ? "Generate from Data" : "Generate from Data (Upload First)"}</span>
               </>
             )}
           </button>

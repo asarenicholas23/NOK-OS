@@ -172,10 +172,15 @@ export const BrandGuidePage: React.FC = () => {
     return campaignObjectives.find(obj => obj.id === campaignObjective) || campaignObjectives[0];
   };
 
-  // Global & Individual Suggestion Handler
-  const handleSuggestAI = async (targetField: "all" | "contentPillars" | "audiencePersonas" | "competitorContext" | "platformNotes") => {
+  // Global & Individual Suggestion Handler. Accepts an objective override so
+  // callers that just changed the objective (state updates are async) can pass
+  // the new value directly instead of reading a stale closure over campaignObjective.
+  const handleSuggestAI = async (
+    targetField: "all" | "contentPillars" | "audiencePersonas" | "competitorContext" | "platformNotes",
+    objectiveIdOverride?: string
+  ) => {
     if (!activeBrand) return;
-    
+
     if (targetField === "all") {
       setIsGeneratingAll(true);
     } else {
@@ -183,6 +188,8 @@ export const BrandGuidePage: React.FC = () => {
     }
 
     try {
+      const activeObjective = campaignObjectives.find(obj => obj.id === (objectiveIdOverride || campaignObjective)) || campaignObjectives[0];
+
       const response = await apiFetch("/api/suggest-brand-guide", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -192,7 +199,7 @@ export const BrandGuidePage: React.FC = () => {
           tagline: activeBrand.tagline,
           voiceTone: activeBrand.voiceTone,
           brandDescription: brandDescription,
-          campaignObjective: getActiveObjectiveObj().title + " - " + getActiveObjectiveObj().fullDesc,
+          campaignObjective: activeObjective.title + " - " + activeObjective.fullDesc,
           analyticsData: rawAnalytics || []
         })
       });
@@ -307,7 +314,7 @@ export const BrandGuidePage: React.FC = () => {
       }`}>
         <AlertCircle className={`w-5 h-5 flex-shrink-0 ${getBrandTextColor()}`} />
         <div>
-          <span className="font-bold">Optimizing Positioning Suggestions:</span> Fill in the <span className="font-semibold">Brand Description</span> and choose an active <span className="font-semibold">Campaign Objective</span> below. If you also import social media raw analytics, the AI will synthesize specific recommendations tailored precisely to what is already working!
+          <span className="font-bold">Optimizing Positioning Suggestions:</span> Fill in the <span className="font-semibold">Brand Description</span> first, then choose an active <span className="font-semibold">Campaign Objective</span> below — the AI will automatically fill in the coordinates the first time. Re-run anytime with "AI Suggest All Coordinates." If you also import social media raw analytics, suggestions will be tailored precisely to what is already working!
         </div>
       </div>
 
@@ -368,7 +375,16 @@ export const BrandGuidePage: React.FC = () => {
                   <button
                     key={obj.id}
                     id={`objective-card-${obj.id}`}
-                    onClick={() => setCampaignObjective(obj.id)}
+                    onClick={() => {
+                      setCampaignObjective(obj.id);
+                      // First-time setup: mission is filled in, no coordinates generated yet.
+                      // Auto-fill them now that a goal has been picked, matching the intended
+                      // mission -> goal -> AI-fill flow, without clobbering existing edits.
+                      const fieldsEmpty = !contentPillars && !audiencePersonas && !competitorContext && !platformNotes;
+                      if (brandDescription.trim() && fieldsEmpty && !isGeneratingAll) {
+                        handleSuggestAI("all", obj.id);
+                      }
+                    }}
                     className={`p-4 rounded-xl text-left border flex items-start space-x-3 transition-all duration-200 cursor-pointer hover:shadow-md ${
                       isSelected
                         ? isDark
