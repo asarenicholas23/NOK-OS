@@ -295,13 +295,14 @@ export const BriefsPage: React.FC = () => {
   };
 
   const handleGenerateBriefsFromDirections = async () => {
+    const approvedDirections = directions.filter(d => d.status === "Approved");
+    if (approvedDirections.length === 0) {
+      addNotification("Approval Required", "Approve at least one brand direction before generating creative briefs.", "warning");
+      return;
+    }
     setGeneratingBriefs(true);
     try {
-      const approvedDirections = directions.filter(d => d.status === "Approved");
-      const sourceDirections = approvedDirections.length > 0 ? approvedDirections : directions;
-      if (sourceDirections.length === 0) {
-        throw new Error("No brand directions found. Please create or generate brand positioning directions first.");
-      }
+      const sourceDirections = approvedDirections;
 
       const response = await apiFetch("/api/generate-briefs", {
         method: "POST",
@@ -412,9 +413,10 @@ export const BriefsPage: React.FC = () => {
           <button
             id="btn-generate-briefs-from-directions"
             onClick={handleGenerateBriefsFromDirections}
-            disabled={generatingBriefs}
+            disabled={generatingBriefs || directions.filter(d => d.status === "Approved").length === 0}
+            title={directions.filter(d => d.status === "Approved").length === 0 ? "Approve at least one direction first" : undefined}
             className={`px-4 py-2 border rounded-lg font-mono text-xs font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
-              generatingBriefs
+              generatingBriefs || directions.filter(d => d.status === "Approved").length === 0
                 ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
                 : isDark
                   ? "bg-slate-900 border-border text-slate-200 hover:border-slate-700"
@@ -430,10 +432,10 @@ export const BriefsPage: React.FC = () => {
               <>
                 <Sparkles className="w-3.5 h-3.5 text-violet-500" />
                 <span>
-                  Generate Briefs from Directions 
-                  {directions.filter(d => d.status === "Approved").length > 0 
-                    ? ` (${directions.filter(d => d.status === "Approved").length} Approved)` 
-                    : " (All)"}
+                  Generate Briefs from Directions
+                  {directions.filter(d => d.status === "Approved").length > 0
+                    ? ` (${directions.filter(d => d.status === "Approved").length} Approved)`
+                    : " (Approve Directions First)"}
                 </span>
               </>
             )}

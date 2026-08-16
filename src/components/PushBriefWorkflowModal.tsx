@@ -172,7 +172,9 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
 
       await updateCreativeBrief(brief.id, updatedBriefData);
 
-      // 2. If Workflow is "hybrid" or "campaign", push to Campaign Queue
+      // 2. If Workflow is "hybrid" or "campaign", also push to the posting queue.
+      // The brief's own weekNumber/dayOfWeek (set above) is what places it on the
+      // Weekly Content Planner — no separate calendar milestone record needed.
       if (workflowType === "hybrid" || workflowType === "campaign") {
         const scheduledTime = `${targetDate}T10:00`;
         const content = `[${workflowType.toUpperCase()} WORKFLOW • ${selectedDayOfWeek} W${selectedWeek}]\n\nTitle: ${brief.title}\n\nObjective:\n${brief.objective}\n\nCore Message:\n${brief.keyMessage}\n\nTarget Audience:\n${brief.targetAudience}\n\nDeliverables:\n${brief.deliverables || "N/A"}`;
@@ -187,26 +189,6 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
             estimatedReach: 24000,
             engagementRate: 4.8
           }
-        });
-
-        // 3. Add Content Calendar Event Milestone
-        await addCalendarEvent({
-          title: workflowType === "campaign" 
-            ? `[Campaign] ${brief.title}` 
-            : `[Weekly + Campaign] ${brief.title}`,
-          date: targetDate,
-          type: "Campaign",
-          status: status === "Approved" ? "Planned" : "Draft",
-          notes: `Assigned to Week ${selectedWeek} (${selectedDayOfWeek}) • Channel: ${channel} • Sequence: ${sequencePosition}`
-        });
-      } else {
-        // Weekly only: Add simple roadmap milestone
-        await addCalendarEvent({
-          title: `[Weekly Social] ${brief.title}`,
-          date: targetDate,
-          type: "Social",
-          status: status === "Approved" ? "Planned" : "Draft",
-          notes: `Weekly Cadence: Week ${selectedWeek} (${selectedDayOfWeek}) • Pillar: ${contentPillar}`
         });
       }
 

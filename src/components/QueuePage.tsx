@@ -4,20 +4,27 @@ import { ListOrdered, Plus, Filter, RefreshCw, Send, CheckCircle2, Clock, PlayCi
 import { CampaignQueue } from "../lib/firebase";
 
 export const QueuePage: React.FC = () => {
-  const { 
-    activeBrand, 
-    queues, 
-    addCampaign, 
-    updateCampaign, 
-    deleteCampaign, 
-    theme, 
+  const {
+    activeBrand,
+    queues,
+    addCampaign,
+    updateCampaign,
+    deleteCampaign,
+    theme,
     accentColor,
     briefs,
-    calendarEvents,
-    addCalendarEvent,
-    updateCalendarEvent,
+    updateCreativeBrief,
     addNotification
   } = useBrand();
+
+  // Weekly Planner uses a 4-week-per-month model with Monday-first day names.
+  const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const computeWeekAndDay = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    const weekNumber = Math.min(4, Math.ceil(d.getDate() / 7));
+    const dayOfWeek = DAY_NAMES[d.getDay()];
+    return { weekNumber, dayOfWeek };
+  };
   const [showAddModal, setShowAddModal] = useState(false);
   const [title, setTitle] = useState("");
   const [channel, setChannel] = useState<CampaignQueue["channel"]>("LinkedIn");
@@ -56,8 +63,9 @@ export const QueuePage: React.FC = () => {
     try {
       const content = `Objective:\n${brief.objective}\n\nTarget Audience:\n${brief.targetAudience}\n\nDeliverables:\n${brief.deliverables || "N/A"}`;
       const scheduledTime = `${date}T10:00`;
+      const { weekNumber, dayOfWeek } = computeWeekAndDay(date);
 
-      // 1. Add Campaign to Firestore
+      // 1. Add Campaign to the posting queue
       await addCampaign({
         title: brief.title,
         channel: briefChannel || "LinkedIn",
@@ -70,18 +78,17 @@ export const QueuePage: React.FC = () => {
         }
       });
 
-      // 2. Add Calendar Event to Firestore
-      await addCalendarEvent({
-        title: `[Campaign] ${brief.title}`,
+      // 2. Place the brief itself on the Weekly Content Planner (single source of truth)
+      await updateCreativeBrief(brief.id, {
+        weekNumber,
+        dayOfWeek,
         date,
-        type: "Campaign",
-        status: "Planned",
-        notes: `Creative brief key message: ${brief.keyMessage}`
+        platform: briefChannel || brief.platform
       });
 
       addNotification(
-        "Mapped to Calendar",
-        `"${brief.title}" has been successfully added to the campaign queue & scheduled for ${date} in the Content Calendar!`,
+        "Mapped to Weekly Planner",
+        `"${brief.title}" has been added to the campaign queue and placed on ${dayOfWeek}, Week ${weekNumber} in the Weekly Content Planner.`,
         "success"
       );
 
@@ -104,36 +111,20 @@ export const QueuePage: React.FC = () => {
     }
     try {
       const scheduledTime = `${date}T10:00`;
+      await updateCampaign(campaign.id, { scheduledTime });
 
-      // 1. Update Campaign Queue Item's scheduledTime
-      await updateCampaign(campaign.id, {
-        scheduledTime
-      });
-
-      // 2. Find if there's an existing Calendar Event
-      const existingEvent = (calendarEvents || []).find(
-        e => e.title === `[Campaign] ${campaign.title}` || e.title === campaign.title
+      // Keep the matching brief's Weekly Planner slot (if any) in sync with the new date.
+      const { weekNumber, dayOfWeek } = computeWeekAndDay(date);
+      const matchingBrief = (briefs || []).find(
+        b => b.title.toLowerCase() === campaign.title.toLowerCase()
       );
-
-      if (existingEvent) {
-        // Update existing calendar event
-        await updateCalendarEvent(existingEvent.id, {
-          date
-        });
-      } else {
-        // Create a new calendar event
-        await addCalendarEvent({
-          title: `[Campaign] ${campaign.title}`,
-          date,
-          type: "Campaign",
-          status: "Planned",
-          notes: `Campaign scheduled from operations pipeline. Distribution: ${campaign.channel}`
-        });
+      if (matchingBrief) {
+        await updateCreativeBrief(matchingBrief.id, { weekNumber, dayOfWeek, date });
       }
 
       addNotification(
         "Sync Complete",
-        `Campaign "${campaign.title}" successfully synced to ${date} in the Content Calendar!`,
+        `Campaign "${campaign.title}" successfully synced to ${dayOfWeek}, Week ${weekNumber} in the Weekly Content Planner.`,
         "success"
       );
     } catch (err) {

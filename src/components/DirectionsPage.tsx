@@ -133,9 +133,13 @@ export const DirectionsPage: React.FC = () => {
 
   // Handler: Generate brand content direction pillars from approved insights
   const handleGenerateDirections = async () => {
+    if (approvedInsights.length === 0) {
+      addNotification("Approval Required", "Approve at least one strategic insight before generating brand directions.", "warning");
+      return;
+    }
     setGeneratingDirections(true);
     try {
-      const sourceInsights = approvedInsights.length > 0 ? approvedInsights : insights;
+      const sourceInsights = approvedInsights;
       const response = await apiFetch("/api/generate-directions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -184,14 +188,14 @@ export const DirectionsPage: React.FC = () => {
 
   // Handler: Generate content briefs from directions
   const handleGenerateBriefs = async () => {
+    const approvedDirections = directions.filter(d => d.status === "Approved");
+    if (approvedDirections.length === 0) {
+      addNotification("Approval Required", "Approve at least one brand direction before generating creative briefs.", "warning");
+      return;
+    }
     setGeneratingBriefs(true);
     try {
-      // Filter for approved directions
-      const approvedDirections = directions.filter(d => d.status === "Approved");
-      const sourceDirections = approvedDirections.length > 0 ? approvedDirections : directions;
-      if (sourceDirections.length === 0) {
-        throw new Error("No brand directions found to feed the creative brief generator.");
-      }
+      const sourceDirections = approvedDirections;
 
       const response = await apiFetch("/api/generate-briefs", {
         method: "POST",
@@ -358,9 +362,10 @@ export const DirectionsPage: React.FC = () => {
           <button
             id="generate-directions-btn"
             onClick={handleGenerateDirections}
-            disabled={generatingDirections}
+            disabled={generatingDirections || approvedInsights.length === 0}
+            title={approvedInsights.length === 0 ? "Approve at least one insight first" : undefined}
             className={`px-4 py-2 border rounded-lg font-mono text-xs font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
-              generatingDirections
+              generatingDirections || approvedInsights.length === 0
                 ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
                 : isDark
                   ? "bg-slate-900 border-border text-slate-200 hover:border-slate-700"
@@ -375,7 +380,7 @@ export const DirectionsPage: React.FC = () => {
             ) : (
               <>
                 <Sparkles className={`w-3.5 h-3.5 ${getBrandTextColor()}`} />
-                <span>Generate Directions {approvedInsights.length > 0 ? `(${approvedInsights.length} Approved Insights)` : "(All)"}</span>
+                <span>Generate Directions {approvedInsights.length > 0 ? `(${approvedInsights.length} Approved Insights)` : "(Approve Insights First)"}</span>
               </>
             )}
           </button>
@@ -383,9 +388,10 @@ export const DirectionsPage: React.FC = () => {
           <button
             id="generate-briefs-btn"
             onClick={handleGenerateBriefs}
-            disabled={generatingBriefs || directions.length === 0}
+            disabled={generatingBriefs || directions.filter(d => d.status === "Approved").length === 0}
+            title={directions.filter(d => d.status === "Approved").length === 0 ? "Approve at least one direction first" : undefined}
             className={`px-4 py-2 border rounded-lg font-mono text-xs font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
-              generatingBriefs || directions.length === 0
+              generatingBriefs || directions.filter(d => d.status === "Approved").length === 0
                 ? "bg-slate-800 border-slate-750 text-slate-500 cursor-not-allowed"
                 : isDark
                   ? "bg-slate-900 border-border text-slate-200 hover:border-slate-700 animate-pulse"
@@ -400,7 +406,7 @@ export const DirectionsPage: React.FC = () => {
             ) : (
               <>
                 <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Generate Content Briefs</span>
+                <span>Generate Content Briefs {directions.filter(d => d.status === "Approved").length > 0 ? `(${directions.filter(d => d.status === "Approved").length} Approved)` : "(Approve Directions First)"}</span>
               </>
             )}
           </button>

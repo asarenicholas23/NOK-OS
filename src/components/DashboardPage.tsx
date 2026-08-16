@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useBrand, Brand } from "../context/BrandContext";
 import { useCms } from "../context/CmsContext";
 import { 
@@ -25,14 +25,14 @@ import {
 } from "lucide-react";
 
 export const DashboardPage: React.FC = () => {
-  const { 
-    brands, 
-    activeBrand, 
-    setActiveBrandId, 
+  const {
+    brands,
+    activeBrand,
+    setActiveBrandId,
     activeBrandId,
-    metrics, 
-    queues, 
-    calendarEvents, 
+    rawAnalytics,
+    queues,
+    calendarEvents,
     addBrand,
     updateBrand,
     theme,
@@ -129,8 +129,76 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  // Safe metrics helper
-  const renderedMetrics = metrics.length > 0 ? metrics : [];
+  // Derive dashboard stat cards from real uploaded analytics data for the active
+  // brand, instead of the static one-time-seeded "metrics" collection. When a
+  // "comparison" dataset has been imported, cards show comparison-vs-baseline
+  // change; otherwise they just reflect the single uploaded dataset.
+  const hasRealAnalytics = rawAnalytics.length > 0;
+
+  const renderedMetrics = useMemo(() => {
+    if (!hasRealAnalytics) return [];
+
+    const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const baseline = rawAnalytics.filter(r => r.datasetType !== "comparison");
+    const comparison = rawAnalytics.filter(r => r.datasetType === "comparison");
+    const current = comparison.length > 0 ? comparison : baseline;
+    const previous = comparison.length > 0 ? baseline : [];
+
+    const sumField = (rows: typeof rawAnalytics, field: "impressions" | "engagement" | "reach" | "engagementRate") =>
+      rows.reduce((acc, r) => acc + (Number(r[field]) || 0), 0);
+
+    const avgField = (rows: typeof rawAnalytics, field: "engagementRate") =>
+      rows.length > 0 ? sumField(rows, field) / rows.length : 0;
+
+    const trendFor = (rows: typeof rawAnalytics, field: "impressions" | "engagement" | "reach" | "engagementRate") => {
+      const vals = dayOrder.map(d =>
+        sumField(rows.filter(r => (r.dayOfWeek || "").toLowerCase() === d.toLowerCase()), field)
+      );
+      return vals.some(v => v > 0) ? vals : [1, 1, 1, 1, 1, 1, 1];
+    };
+
+    const changeFor = (curr: number, prev: number) => {
+      if (comparison.length === 0) return { change: "New Data", changeType: "neutral" as const };
+      if (!prev) return { change: "+100%", changeType: "increase" as const };
+      const pct = ((curr - prev) / prev) * 100;
+      return {
+        change: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,
+        changeType: pct > 0.05 ? ("increase" as const) : pct < -0.05 ? ("decrease" as const) : ("neutral" as const)
+      };
+    };
+
+    const impressions = sumField(current, "impressions");
+    const impressionsPrev = sumField(previous, "impressions");
+    const engagement = sumField(current, "engagement");
+    const engagementPrev = sumField(previous, "engagement");
+    const reach = sumField(current, "reach");
+    const reachPrev = sumField(previous, "reach");
+    const engagementRate = avgField(current, "engagementRate");
+    const engagementRatePrev = avgField(previous, "engagementRate");
+
+    return [
+      {
+        id: "live-impressions", brandId: activeBrandId, label: "Total Impressions",
+        value: impressions.toLocaleString(), trend: trendFor(current, "impressions"),
+        ...changeFor(impressions, impressionsPrev)
+      },
+      {
+        id: "live-engagement", brandId: activeBrandId, label: "Total Engagement",
+        value: engagement.toLocaleString(), trend: trendFor(current, "engagement"),
+        ...changeFor(engagement, engagementPrev)
+      },
+      {
+        id: "live-engagement-rate", brandId: activeBrandId, label: "Avg. Engagement Rate",
+        value: `${engagementRate.toFixed(2)}%`, trend: trendFor(current, "engagementRate"),
+        ...changeFor(engagementRate, engagementRatePrev)
+      },
+      {
+        id: "live-reach", brandId: activeBrandId, label: "Total Reach",
+        value: reach.toLocaleString(), trend: trendFor(current, "reach"),
+        ...changeFor(reach, reachPrev)
+      }
+    ];
+  }, [rawAnalytics, activeBrandId, hasRealAnalytics]);
 
   return (
     <div 
@@ -499,6 +567,23 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Dynamic Brand Metric Cards Grid */}
+      {!hasRealAnalytics && (
+        <div className={`border rounded-xl p-6 flex items-center gap-4 ${
+          isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"
+        }`}>
+          <span className="p-2.5 rounded-xl bg-violet-500/10 text-violet-500 shrink-0">
+            <Brain className="w-5 h-5" />
+          </span>
+          <div>
+            <h4 className={`text-sm font-bold ${isDark ? "text-text" : "text-slate-900"}`}>
+              No analytics data imported yet for {activeBrand?.name || "this brand"}
+            </h4>
+            <p className={`text-xs mt-1 ${isDark ? "text-muted" : "text-slate-500"}`}>
+              These stat cards reflect real uploaded performance data. Go to <strong>Analytics Import</strong> to upload a CSV/JSON export and populate this dashboard.
+            </p>
+          </div>
+        </div>
+      )}
       <div id="metric-cards-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {renderedMetrics.map((metric) => {
           const isIncrease = metric.changeType === "increase";

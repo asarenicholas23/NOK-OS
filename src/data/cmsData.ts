@@ -182,7 +182,7 @@ export const INITIAL_DISCOVERY_REQUESTS: DiscoveryRequest[] = [
 
 export const INITIAL_AGENCY_INFO: AgencyInfo = {
   name: "NOK Social",
-  heroTitle: "Nok Social Digital Marketing Experts",
+  heroTitle: "Marketing systems built to replace guesswork.",
   heroSubtitle: "We replace guesswork with structured content engines, data-backed campaign workflows, and high-conversion creative brief systems — tailored for startups, fashion, beauty, artisans, and scaling brands.",
   address: "Konongo Low cost",
   whatsapp: "+233235337886",
