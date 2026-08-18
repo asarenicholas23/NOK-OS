@@ -236,45 +236,30 @@ export const HomePage: React.FC = () => {
           </div>
         </section>
 
-        {/* Tactile Craft Section */}
+        {/* Free Resources Banner */}
         <section className="px-4 sm:px-8 py-20 max-w-7xl mx-auto">
-          <div className="p-8 sm:p-12 rounded-3xl neu-raised-lg space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-              <div className="space-y-4">
-                <span className="text-xs font-mono text-[#C5A065] uppercase tracking-wider font-semibold">
-                  Tailored for Scaling Brands & Artisans
-                </span>
-                <h2 className="font-display text-2xl sm:text-4xl font-bold text-[#F2F0EB]">
-                  Soft-pressed strategy for growing digital brands & artisans.
-                </h2>
-                <p className="text-sm text-zinc-200 leading-relaxed">
-                  Whether you run an emerging startup, curate thrift fashion, handcraft leather accessories, or manage a beauty studio — NOK Social builds custom social media systems that honor your brand.
-                </p>
-                <div className="pt-2">
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="neu-gold-btn px-5 py-3 rounded-xl text-xs font-bold font-mono inline-flex items-center space-x-2 cursor-pointer"
-                  >
-                    <span>Start Your Brand Audit</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-5 rounded-2xl neu-pressed space-y-2">
-                  <div className="text-2xl font-bold font-mono text-[#C5A065]">100%</div>
-                  <div className="text-xs text-[#F2F0EB] font-semibold">Market Context</div>
-                  <div className="text-[11px] text-zinc-200 leading-relaxed">Optimized for Mobile Money, WhatsApp Commerce & Instagram DMs.</div>
-                </div>
-                <div className="p-5 rounded-2xl neu-pressed space-y-2">
-                  <div className="text-2xl font-bold font-mono text-[#F2F0EB]">PDF & Web</div>
-                  <div className="text-xs text-[#F2F0EB] font-semibold">Dual Dispatch</div>
-                  <div className="text-[11px] text-zinc-200 leading-relaxed">Export approved creative briefs as PDFs or dispatch via Gmail.</div>
-                </div>
-              </div>
+          <Link
+            to="/resources"
+            className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 p-8 sm:p-12 rounded-3xl neu-raised-lg hover:neu-pressed transition-all duration-200"
+          >
+            <div className="space-y-3">
+              <span className="text-xs font-mono text-[#C5A065] uppercase tracking-wider font-semibold">
+                Free Tools & Templates
+              </span>
+              <h2 className="font-display text-2xl sm:text-4xl font-bold text-[#F2F0EB]">
+                Grab our free resources — no strings attached.
+              </h2>
+              <p className="text-sm text-zinc-200 leading-relaxed max-w-xl">
+                Lead trackers, audit checklists, and other tools we use ourselves — free to unlock in seconds.
+              </p>
             </div>
-          </div>
+            <div className="shrink-0">
+              <span className="neu-gold-btn px-5 py-3 rounded-xl text-xs font-bold font-mono inline-flex items-center space-x-2">
+                <span>Browse Free Resources</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </div>
+          </Link>
         </section>
 
         {/* CTA Section */}

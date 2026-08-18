@@ -57,6 +57,10 @@ service cloud.firestore {
     match /cms/{docId} { allow read: if true; allow write: if isStaff(); }
     match /services/{id} { allow read: if true; allow write: if isStaff(); }
 
+    // Public lead-magnet capture (Resources page). Visitors may only create a
+    // lead record for themselves — never read others' leads or edit/delete any.
+    match /leads/{id} { allow create: if true; allow read, update, delete: if isStaff(); }
+
     match /campaignQueues/{id} { allow read, write: if isStaff(); }
     match /calendarEvents/{id} { allow read, write: if isStaff(); }
     match /metrics/{id} { allow read, write: if isStaff(); }

@@ -27,6 +27,7 @@ const HomePage = lazy(() => import("./components/HomePage").then(m => ({ default
 const BlogPage = lazy(() => import("./components/BlogPage").then(m => ({ default: m.BlogPage })));
 const BlogPostPage = lazy(() => import("./components/BlogPostPage").then(m => ({ default: m.BlogPostPage })));
 const IgHealthCheckPage = lazy(() => import("./components/IgHealthCheckPage").then(m => ({ default: m.IgHealthCheckPage })));
+const ResourcesPage = lazy(() => import("./components/ResourcesPage").then(m => ({ default: m.ResourcesPage })));
 const ClientCalendarApprovalView = lazy(() => import("./components/ClientCalendarApprovalView").then(m => ({ default: m.ClientCalendarApprovalView })));
 
 // Loading Spinner Component for Suspense Fallback
@@ -143,6 +144,7 @@ export default function App() {
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blog/:slug" element={<BlogPostPage />} />
               <Route path="/ighealthcheck" element={<IgHealthCheckPage />} />
+              <Route path="/resources" element={<ResourcesPage />} />
               <Route path="/review/:token" element={<ClientCalendarApprovalView />} />
               <Route path="/review" element={<ClientCalendarApprovalView />} />
               <Route path="/approve/:token" element={<ClientCalendarApprovalView />} />

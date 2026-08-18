@@ -86,6 +86,16 @@ export const PublicNavbar: React.FC = () => {
             <span>IG Health Check</span>
             <span className="text-[9px] font-mono bg-[#B08D57]/20 text-[#C5A065] px-1.5 py-0.5 rounded font-semibold">Soon</span>
           </Link>
+          <Link
+            to="/resources"
+            className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${
+              isActive("/resources")
+                ? "neu-pressed text-[#C5A065] font-semibold"
+                : "text-zinc-200 hover:text-[#F2F0EB]"
+            }`}
+          >
+            Free Resources
+          </Link>
         </nav>
 
         {/* Right Action buttons & Theme Switcher */}
@@ -190,6 +200,15 @@ export const PublicNavbar: React.FC = () => {
             >
               <span>IG Health Check</span>
               <span className="text-[9px] font-mono bg-[#B08D57]/20 text-[#C5A065] px-1.5 py-0.5 rounded font-semibold">Soon</span>
+            </Link>
+            <Link
+              to="/resources"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`block px-4 py-2.5 rounded-xl text-xs font-medium ${
+                isActive("/resources") ? "neu-pressed text-[#C5A065] font-semibold" : "text-zinc-200 hover:text-[#F2F0EB]"
+              }`}
+            >
+              Free Resources
             </Link>
 
             {/* Mobile Theme Toggle Pill inside menu */}
