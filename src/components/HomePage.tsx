@@ -120,9 +120,6 @@ export const HomePage: React.FC = () => {
 
                 {/* Target Audience Image Cards */}
                 <div className="space-y-3">
-                  <div className="text-xs font-mono text-[#C5A065] uppercase tracking-wider font-semibold">
-                    Strategic Brand Fit
-                  </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     {targetAudience.map((audience, i) => (
@@ -145,17 +142,6 @@ export const HomePage: React.FC = () => {
                     ))}
                   </div>
                 </div>
-
-                {/* Sample Workflow Card */}
-                <div className="p-4 rounded-xl neu-pressed space-y-2">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-zinc-200">Brief → Queue → Dispatch</span>
-                    <span className="text-[#C5A065] font-semibold">Ready</span>
-                  </div>
-                  <div className="w-full bg-[#15151A] h-2 rounded-full overflow-hidden p-0.5 neu-pressed">
-                    <div className="bg-gradient-to-r from-[#B08D57] to-[#C5A065] h-full rounded-full w-3/4"></div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -167,9 +153,6 @@ export const HomePage: React.FC = () => {
         {/* Services Section */}
         <section id="services" className="px-4 sm:px-8 py-20 max-w-7xl mx-auto border-t border-[#1C1C22]">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <div className="inline-block px-3 py-1 rounded-full neu-pressed text-[#C5A065] text-xs font-mono tracking-wider uppercase font-semibold">
-              Transparent Service Architecture
-            </div>
             <h2 className="font-display text-2xl sm:text-4xl font-bold text-[#F2F0EB] tracking-tight">
               5-Tier Service Structure
             </h2>
