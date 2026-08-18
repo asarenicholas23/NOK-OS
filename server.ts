@@ -389,7 +389,19 @@ Always populate the following sections for each brief:
 10. TONE & VISUAL REFERENCE: 2-3 adjectives for tone, brand guide reference (colors, fonts, logo placement), and style inspiration references if available.
 11. SUCCESS METRIC / KPI TARGET: The specific metric target (e.g., ">= 2.5% engagement rate", "15 saves", "3 inbound DMs") so performance can be reviewed against a target.
 12. DELIVERABLES & SCOPE: Exact count and type of final assets (e.g., "1x LinkedIn document post (7-slide carousel)").
-13. APPROVER: Who signs off before this goes to the designer (e.g., "Osei").`;
+13. APPROVER: Who signs off before this goes to the designer (e.g., "Osei").
+
+The brief will be dropped directly into a spreadsheet-style content calendar row, so you MUST also populate these calendar fields for every brief, using this exact vocabulary:
+14. PLATFORM: Exactly one of "Instagram", "Facebook", "LinkedIn", "TikTok", "Twitter/X", "YouTube", "Newsletter" — pick the single best-fit primary channel (this drives a dropdown, not free text).
+15. MAIN FOCUS: Exactly one of "Reach", "Engagement", "Link Click", "Sales" — the funnel stage this asset serves.
+16. TOPIC/IDEA: A short (one sentence) hook or idea line for the calendar cell — punchier and shorter than the key message, e.g. "What if your body and mind were your greatest asset?".
+17. CONTENT PILLAR: The specific content pillar this brief belongs to, drawn from the brand's actual content pillars provided above (fall back to a sensible pillar name like "Strategy", "Proof", "Culture", or "Product" if none were provided).
+18. TYPE: Exactly one of "Artwork", "Carousel", "Video", "Reel" — matching the format implied by the content outline above (this drives a dropdown, not free text).
+19. PROGRESS TRACKING: Always "Create" for a freshly generated brief (this is the starting stage of a dropdown that later moves through Edit/Film/Review/Schedule/Done).
+20. VISUAL REFERENCE: 1-2 short sentences of art direction (palette, typography, reference style) for the calendar cell — a condensed version of the tone & visual reference above.
+21. VISUAL COPY DETAIL: The same detailed slide/scene/section-by-section breakdown you wrote for CONTENT OUTLINE above, repeated here verbatim so the calendar cell and the full brief stay in sync.
+22. COPYWRITING CAPTION: The actual publish-ready caption or on-post copy text a scheduler would paste straight into the platform — written in full sentences in brand voice, not a summary.
+23. HASHTAGS: A short block of relevant hashtags (e.g. "#BrandName #ContentPillar #CampaignTheme").`;
 
     const response = await generateContentWithFallback(dataPrompt, {
       responseMimeType: "application/json",
@@ -412,13 +424,26 @@ Always populate the following sections for each brief:
             toneVisualRef: { type: Type.STRING },
             successMetric: { type: Type.STRING },
             deliverables: { type: Type.STRING },
-            approver: { type: Type.STRING }
+            approver: { type: Type.STRING },
+            platform: { type: Type.STRING },
+            mainFocus: { type: Type.STRING },
+            topicIdea: { type: Type.STRING },
+            contentPillar: { type: Type.STRING },
+            postType: { type: Type.STRING },
+            progressTracking: { type: Type.STRING },
+            visualReference: { type: Type.STRING },
+            visualCopyDetail: { type: Type.STRING },
+            copywritingCaption: { type: Type.STRING },
+            hashtags: { type: Type.STRING }
           },
           required: [
-            "title", "campaignId", "date", "sequencePosition", "objective", 
-            "targetAudience", "keyMessage", "proofPoint", "formatSpec", 
-            "contentOutline", "cta", "toneVisualRef", "successMetric", 
-            "deliverables", "approver"
+            "title", "campaignId", "date", "sequencePosition", "objective",
+            "targetAudience", "keyMessage", "proofPoint", "formatSpec",
+            "contentOutline", "cta", "toneVisualRef", "successMetric",
+            "deliverables", "approver",
+            "platform", "mainFocus", "topicIdea", "contentPillar", "postType",
+            "progressTracking", "visualReference", "visualCopyDetail",
+            "copywritingCaption", "hashtags"
           ]
         }
       }

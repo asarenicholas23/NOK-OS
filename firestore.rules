@@ -52,6 +52,11 @@ service cloud.firestore {
       allow create, delete: if isStaff();
     }
 
+    // Public marketing site content (agency info + pricing). Readable by anyone
+    // visiting the public site; only staff can edit it from the CMS.
+    match /cms/{docId} { allow read: if true; allow write: if isStaff(); }
+    match /services/{id} { allow read: if true; allow write: if isStaff(); }
+
     match /campaignQueues/{id} { allow read, write: if isStaff(); }
     match /calendarEvents/{id} { allow read, write: if isStaff(); }
     match /metrics/{id} { allow read, write: if isStaff(); }

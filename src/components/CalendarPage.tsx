@@ -36,21 +36,24 @@ import { WeeklyContentPlannerGrid } from "./WeeklyContentPlannerGrid";
 import { RequestChangesModal } from "./RequestChangesModal";
 import { ShareCalendarReviewModal } from "./ShareCalendarReviewModal";
 import { BriefDetailModal } from "./BriefDetailModal";
+import { CreativeBriefsStudio } from "./CreativeBriefsStudio";
 
 export const CalendarPage: React.FC = () => {
-  const { 
-    activeBrand, 
-    calendarEvents, 
-    addCalendarEvent, 
+  const {
+    activeBrand,
+    calendarEvents,
+    addCalendarEvent,
     updateCalendarEvent,
     deleteCalendarEvent,
     queues,
     addCampaign,
     updateCampaign,
     briefs,
+    directions,
+    addCreativeBrief,
     updateCreativeBrief,
     bulkApproveBriefs,
-    theme, 
+    theme,
     accentColor,
     googleCalendarToken,
     googleCalendarUser,
@@ -59,6 +62,7 @@ export const CalendarPage: React.FC = () => {
     gmailToken,
     gmailUser,
     connectGmail,
+    disconnectGmail,
     addNotification
   } = useBrand();
 
@@ -473,6 +477,26 @@ export const CalendarPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Creative Briefs Studio: generate, draft, and triage briefs before they're slotted onto the calendar below */}
+      <CreativeBriefsStudio
+        briefs={briefs}
+        directions={directions}
+        activeBrand={activeBrand}
+        theme={theme}
+        activeColor={activeColor}
+        currentMonthName={months[month]}
+        currentYear={year}
+        addCreativeBrief={addCreativeBrief}
+        updateCreativeBrief={updateCreativeBrief}
+        addCampaign={addCampaign}
+        addCalendarEvent={addCalendarEvent}
+        gmailToken={gmailToken}
+        gmailUser={gmailUser}
+        connectGmail={connectGmail}
+        disconnectGmail={disconnectGmail}
+        addNotification={addNotification}
+      />
+
       {/* Weekly Content Planner (single source of truth for scheduling) */}
       <WeeklyContentPlannerGrid
           briefs={briefs}
@@ -482,6 +506,8 @@ export const CalendarPage: React.FC = () => {
           monthName={months[month]}
           monthIndex={month}
           year={year}
+          queues={queues}
+          updateCampaign={updateCampaign}
           onPrevMonth={handlePrevMonth}
           onNextMonth={handleNextMonth}
           onSelectMonth={(mIdx) => setCurrentDate(new Date(year, mIdx, 1))}

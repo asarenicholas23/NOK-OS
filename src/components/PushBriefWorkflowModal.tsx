@@ -18,6 +18,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { CreativeBrief, Brand, CampaignQueue } from "../lib/firebase";
+import { computeDateForWeekDay, getWeeksInMonth } from "../utils/weekSchedule";
 
 interface PushBriefWorkflowModalProps {
   brief: CreativeBrief | null;
@@ -88,17 +89,8 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
   );
   const safeMonthIdx = monthIdx >= 0 ? monthIdx : 6; // Default to July
 
-  const calculateTargetDate = (year: number, mIdx: number, week: number, dayName: string) => {
-    const dayOffset = DAYS_OF_WEEK.indexOf(dayName);
-    const safeOffset = dayOffset >= 0 ? dayOffset : 0;
-    // Calculate approximate day in month
-    const approxDay = (week - 1) * 7 + safeOffset + 1;
-    const maxDays = new Date(year, mIdx + 1, 0).getDate();
-    const day = Math.min(Math.max(approxDay, 1), maxDays);
-    const mStr = String(mIdx + 1).padStart(2, "0");
-    const dStr = String(day).padStart(2, "0");
-    return `${year}-${mStr}-${dStr}`;
-  };
+  const calculateTargetDate = (year: number, mIdx: number, week: number, dayName: string) =>
+    computeDateForWeekDay(year, mIdx, week, dayName);
 
   const [targetDate, setTargetDate] = useState<string>(() => {
     if (brief.date && /^\d{4}-\d{2}-\d{2}$/.test(brief.date)) {
@@ -417,10 +409,9 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
                     isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
                   }`}
                 >
-                  <option value={1}>Week 1 (Days 1–7)</option>
-                  <option value={2}>Week 2 (Days 8–14)</option>
-                  <option value={3}>Week 3 (Days 15–21)</option>
-                  <option value={4}>Week 4 (Days 22–28)</option>
+                  {Array.from({ length: getWeeksInMonth(selectedYear, safeMonthIdx) }, (_, i) => i + 1).map((w) => (
+                    <option key={w} value={w}>Week {w}</option>
+                  ))}
                 </select>
               </div>
 

@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { AgencyInfo, ServicePackage, INITIAL_AGENCY_INFO, INITIAL_SERVICES } from "../data/cmsData";
 
 // Config parsed from firebase-applet-config.json
 const firebaseConfig = {
@@ -951,6 +952,56 @@ export const subscribeToIdeas = (brandId: string, onUpdate: (ideas: CreativeIdea
   });
 };
 
+// Firestore helper: Listen to public site agency info (live streaming).
+// Falls back silently (keeps whatever local/default state the caller already has)
+// until the document exists, so a transient read error never stomps local edits.
+export const subscribeToAgencyInfo = (onUpdate: (info: AgencyInfo) => void) => {
+  return onSnapshot(doc(db, "cms", "agencyInfo"), (snap) => {
+    if (snap.exists()) {
+      onUpdate(snap.data() as AgencyInfo);
+    }
+  }, (err) => {
+    console.warn("Firestore subscription error on agencyInfo:", err);
+  });
+};
+
+// Firestore helper: Listen to public site services/pricing (live streaming).
+export const subscribeToServices = (onUpdate: (services: ServicePackage[]) => void) => {
+  const q = query(collection(db, "services"), orderBy("order"));
+  return onSnapshot(q, (snapshot) => {
+    if (!snapshot.empty) {
+      const list: ServicePackage[] = [];
+      snapshot.forEach((d) => list.push({ ...d.data(), id: d.id } as ServicePackage));
+      onUpdate(list);
+    }
+  }, (err) => {
+    console.warn("Firestore subscription error on services:", err);
+  });
+};
+
+// One-time migration: if the "services"/"cms" Firestore data has never been created,
+// seed it from whatever the caller currently has (e.g. this browser's pre-existing
+// localStorage edits) so those edits aren't lost when switching over to Firestore sync.
+export const migrateCmsToFirestoreIfEmpty = async (currentAgencyInfo: AgencyInfo, currentServices: ServicePackage[]) => {
+  try {
+    const [agencySnap, servicesSnap] = await Promise.all([
+      getDoc(doc(db, "cms", "agencyInfo")),
+      getDocs(collection(db, "services"))
+    ]);
+    if (!agencySnap.exists()) {
+      await setDoc(doc(db, "cms", "agencyInfo"), currentAgencyInfo || INITIAL_AGENCY_INFO);
+    }
+    if (servicesSnap.empty) {
+      const services = currentServices && currentServices.length > 0 ? currentServices : INITIAL_SERVICES;
+      for (let i = 0; i < services.length; i++) {
+        await setDoc(doc(db, "services", services[i].id), { ...services[i], order: i });
+      }
+    }
+  } catch (error) {
+    console.warn("CMS Firestore migration skipped:", error);
+  }
+};
+
 // Callable Cloud Function client invocation
 export const generatePerformanceIntelligence = async (brandId: string, metricsPayload: any): Promise<PerformanceIntelligenceReport> => {
   try {
@@ -1048,74 +1099,58 @@ export const getOrCreateCalendarShareLink = async (
   periodLabel?: string,
   brandName?: string
 ): Promise<CalendarShareLink> => {
-  try {
-    const shareLinksRef = collection(db, "calendarShareLinks");
-    
-    // Check if there is an active (non-revoked) link for this exact brand and period
-    let q;
-    if (periodType === "week" && weekNumber !== undefined) {
-      q = query(
-        shareLinksRef,
-        where("brandId", "==", brandId),
-        where("year", "==", year),
-        where("month", "==", month),
-        where("periodType", "==", "week"),
-        where("weekNumber", "==", weekNumber),
-        where("revoked", "==", false)
-      );
-    } else {
-      q = query(
-        shareLinksRef,
-        where("brandId", "==", brandId),
-        where("year", "==", year),
-        where("month", "==", month),
-        where("periodType", "==", "month"),
-        where("revoked", "==", false)
-      );
-    }
+  const shareLinksRef = collection(db, "calendarShareLinks");
 
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      const docSnap = querySnapshot.docs[0];
-      return { id: docSnap.id, ...(docSnap.data() as Omit<CalendarShareLink, "id">) };
-    }
-
-    // Otherwise create a new unguessable token link
-    const token = generateSecureCalendarToken();
-    const newLinkData: Omit<CalendarShareLink, "id"> = {
-      token,
-      brandId,
-      brandName: brandName || brandId,
-      periodType,
-      month,
-      year,
-      ...(weekNumber !== undefined ? { weekNumber } : {}),
-      periodLabel: periodLabel || `${month + 1}/${year}`,
-      createdAt: new Date().toISOString(),
-      revoked: false,
-      emailSentCount: 0
-    };
-
-    const docRef = await addDoc(shareLinksRef, newLinkData);
-    return { id: docRef.id, ...newLinkData };
-  } catch (error) {
-    console.error("Error creating/fetching calendar share link:", error);
-    // Return a safe local instance in case of offline/fallback mode
-    return {
-      id: "local-" + Date.now(),
-      token: generateSecureCalendarToken(),
-      brandId,
-      brandName: brandName || brandId,
-      periodType,
-      month,
-      year,
-      weekNumber,
-      periodLabel: periodLabel || `${month + 1}/${year}`,
-      createdAt: new Date().toISOString(),
-      revoked: false,
-      emailSentCount: 0
-    };
+  // Check if there is an active (non-revoked) link for this exact brand and period
+  let q;
+  if (periodType === "week" && weekNumber !== undefined) {
+    q = query(
+      shareLinksRef,
+      where("brandId", "==", brandId),
+      where("year", "==", year),
+      where("month", "==", month),
+      where("periodType", "==", "week"),
+      where("weekNumber", "==", weekNumber),
+      where("revoked", "==", false)
+    );
+  } else {
+    q = query(
+      shareLinksRef,
+      where("brandId", "==", brandId),
+      where("year", "==", year),
+      where("month", "==", month),
+      where("periodType", "==", "month"),
+      where("revoked", "==", false)
+    );
   }
+
+  // Let errors here (permission-denied, network, wrong project, etc.) propagate
+  // to the caller instead of silently returning an unsaved token — a link that
+  // looks valid but was never persisted is worse than a visible failure.
+  const querySnapshot = await getDocs(q);
+  if (!querySnapshot.empty) {
+    const docSnap = querySnapshot.docs[0];
+    return { id: docSnap.id, ...(docSnap.data() as Omit<CalendarShareLink, "id">) };
+  }
+
+  // Otherwise create a new unguessable token link
+  const token = generateSecureCalendarToken();
+  const newLinkData: Omit<CalendarShareLink, "id"> = {
+    token,
+    brandId,
+    brandName: brandName || brandId,
+    periodType,
+    month,
+    year,
+    ...(weekNumber !== undefined ? { weekNumber } : {}),
+    periodLabel: periodLabel || `${month + 1}/${year}`,
+    createdAt: new Date().toISOString(),
+    revoked: false,
+    emailSentCount: 0
+  };
+
+  const docRef = await addDoc(shareLinksRef, newLinkData);
+  return { id: docRef.id, ...newLinkData };
 };
 
 // NOTE: token -> share link resolution now happens server-side via
@@ -1147,7 +1182,7 @@ export const regenerateCalendarShareLink = async (
   periodLabel?: string,
   brandName?: string
 ): Promise<CalendarShareLink> => {
-  if (currentLinkId && !currentLinkId.startsWith("local-")) {
+  if (currentLinkId) {
     await revokeCalendarShareLink(currentLinkId);
   }
   
@@ -1173,7 +1208,7 @@ export const regenerateCalendarShareLink = async (
 };
 
 export const recordShareLinkAccess = async (linkId: string): Promise<void> => {
-  if (!linkId || linkId.startsWith("local-")) return;
+  if (!linkId) return;
   try {
     const linkRef = doc(db, "calendarShareLinks", linkId);
     const { updateDoc } = await import("firebase/firestore");
@@ -1189,7 +1224,7 @@ export const recordShareLinkAction = async (
   linkId: string,
   actionSummary: string
 ): Promise<void> => {
-  if (!linkId || linkId.startsWith("local-")) return;
+  if (!linkId) return;
   try {
     const linkRef = doc(db, "calendarShareLinks", linkId);
     const { updateDoc } = await import("firebase/firestore");
@@ -1206,7 +1241,7 @@ export const recordShareLinkEmailSent = async (
   linkId: string,
   recipient: string
 ): Promise<void> => {
-  if (!linkId || linkId.startsWith("local-")) return;
+  if (!linkId) return;
   try {
     const linkRef = doc(db, "calendarShareLinks", linkId);
     const { updateDoc, increment } = await import("firebase/firestore");

@@ -30,8 +30,9 @@ import {
   Target,
   Hash
 } from "lucide-react";
-import { CreativeBrief, Brand } from "../lib/firebase";
+import { CreativeBrief, Brand, CampaignQueue } from "../lib/firebase";
 import { PushBriefWorkflowModal } from "./PushBriefWorkflowModal";
+import { computeDateForWeekDay, getWeeksInMonth } from "../utils/weekSchedule";
 
 interface WeeklyContentPlannerGridProps {
   briefs: CreativeBrief[];
@@ -57,7 +58,22 @@ interface WeeklyContentPlannerGridProps {
   addCampaign?: (campaign: any) => Promise<void>;
   addCalendarEvent?: (event: any) => Promise<void>;
   addNotification?: (title: string, message: string, type?: "info" | "success" | "warning") => void;
+  queues?: CampaignQueue[];
+  updateCampaign?: (id: string, campaign: Partial<CampaignQueue>) => Promise<void>;
 }
+
+const PLATFORM_OPTIONS = ["Instagram", "Facebook", "LinkedIn", "TikTok", "Twitter/X", "YouTube", "Newsletter"];
+const MAIN_FOCUS_OPTIONS = ["Reach", "Engagement", "Link Click", "Sales"];
+const POST_TYPE_OPTIONS = ["Artwork", "Carousel", "Video", "Reel"];
+const PROGRESS_OPTIONS = ["Create", "Edit", "Film", "Review", "Schedule", "Done"];
+const POSTING_STATUS_OPTIONS: CampaignQueue["status"][] = ["scheduled", "waiting posting", "posted", "wasn't posted"];
+
+// Shared classes for inline "spreadsheet cell" dropdowns — appearance-none select
+// with a floating chevron, matching the month/year selector styling above.
+const inlineSelectClass = (isDark: boolean) =>
+  `appearance-none w-full pl-2 pr-6 py-1 rounded border text-[10px] font-mono font-bold cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+    isDark ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-white border-slate-300 text-slate-700"
+  }`;
 
 const DAYS_OF_WEEK = [
   "Monday",
@@ -97,9 +113,15 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
   updateCreativeBrief,
   addCampaign,
   addCalendarEvent,
-  addNotification
+  addNotification,
+  queues,
+  updateCampaign
 }) => {
   const isDark = theme === "dark";
+
+  // Finds the posting-ops (CampaignQueue) record auto-created when a brief is approved.
+  const findQueueItemForBrief = (brief: CreativeBrief) =>
+    queues?.find(q => q.title.toLowerCase() === brief.title.toLowerCase());
   const [expandedCaptions, setExpandedCaptions] = useState<Record<string, boolean>>({});
   const [copiedCaptionId, setCopiedCaptionId] = useState<string | null>(null);
 
@@ -114,54 +136,23 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
   // the brief the user picks from the list of already-generated, unscheduled briefs.
   const [pickerSlot, setPickerSlot] = useState<{ weekNum: number; dayName: string } | null>(null);
 
-  // Group briefs by weekNumber (Weeks 1 to 4)
-  const weekNumbers = [1, 2, 3, 4];
-
-  const safeMonthIndex = typeof monthIndex === "number" 
-    ? monthIndex 
-    : MONTHS_LIST.findIndex(m => m.toLowerCase() === monthName?.toLowerCase()) >= 0 
-      ? MONTHS_LIST.findIndex(m => m.toLowerCase() === monthName?.toLowerCase()) 
+  const safeMonthIndex = typeof monthIndex === "number"
+    ? monthIndex
+    : MONTHS_LIST.findIndex(m => m.toLowerCase() === monthName?.toLowerCase()) >= 0
+      ? MONTHS_LIST.findIndex(m => m.toLowerCase() === monthName?.toLowerCase())
       : new Date().getMonth();
 
-  // Helper to compute exact calendar date string for a given week & day
-  const getComputedDateForWeekDay = (weekNum: number, dayName: string) => {
-    const dayIdx = DAYS_OF_WEEK.indexOf(dayName);
-    const safeOffset = dayIdx >= 0 ? dayIdx : 0;
-    const dayNum = (weekNum - 1) * 7 + safeOffset + 1;
-    const maxDays = new Date(year, safeMonthIndex + 1, 0).getDate();
-    const safeDay = Math.min(Math.max(dayNum, 1), maxDays);
-    const mStr = String(safeMonthIndex + 1).padStart(2, "0");
-    const dStr = String(safeDay).padStart(2, "0");
-    return `${year}-${mStr}-${dStr}`;
-  };
+  // Show as many Monday-first week rows as needed to cover every day of the
+  // displayed month (4, 5, or 6 depending on how the month's days line up).
+  const weekNumbers = useMemo(
+    () => Array.from({ length: getWeeksInMonth(year, safeMonthIndex) }, (_, i) => i + 1),
+    [year, safeMonthIndex]
+  );
 
-  // Helper for platform badge styling
-  const getPlatformBadge = (platformStr?: string) => {
-    if (!platformStr) return null;
-    const platforms = platformStr.split(",").map(p => p.trim());
-    return (
-      <div className="flex flex-wrap gap-1">
-        {platforms.map((p, idx) => {
-          let badgeClass = "bg-slate-800 text-slate-300 border-slate-700";
-          if (/instagram/i.test(p)) badgeClass = "bg-pink-500/10 text-pink-400 border-pink-500/20";
-          else if (/facebook/i.test(p)) badgeClass = "bg-blue-500/10 text-blue-400 border-blue-500/20";
-          else if (/tiktok/i.test(p)) badgeClass = "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
-          else if (/linkedin/i.test(p)) badgeClass = "bg-sky-500/10 text-sky-400 border-sky-500/20";
-          else if (/twitter|x/i.test(p)) badgeClass = "bg-slate-500/10 text-slate-300 border-slate-500/20";
-          else if (/youtube/i.test(p)) badgeClass = "bg-red-500/10 text-red-400 border-red-500/20";
-
-          return (
-            <span 
-              key={idx} 
-              className={`text-[9px] font-mono px-1.5 py-0.5 rounded border font-semibold ${badgeClass}`}
-            >
-              {p}
-            </span>
-          );
-        })}
-      </div>
-    );
-  };
+  // Real calendar date for a given week (1-4) / Monday-first day name in the
+  // displayed month, so "Monday" always actually falls on a Monday.
+  const getComputedDateForWeekDay = (weekNum: number, dayName: string) =>
+    computeDateForWeekDay(year, safeMonthIndex, weekNum, dayName);
 
   // Helper for workflow badge on table row
   const getWorkflowBadge = (brief: CreativeBrief) => {
@@ -226,43 +217,6 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
     }
   };
 
-  // Helper for content pillar badge
-  const getPillarBadge = (pillar?: string) => {
-    if (!pillar) return <span className="text-slate-500 text-[10px]">—</span>;
-    return (
-      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-violet-500/10 text-violet-300 border border-violet-500/20">
-        {pillar}
-      </span>
-    );
-  };
-
-  // Helper for post type badge
-  const getTypeBadge = (postType?: string) => {
-    if (!postType) return <span className="text-slate-500 text-[10px]">—</span>;
-    return (
-      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-700/40 text-slate-300 border border-slate-700/60">
-        {postType}
-      </span>
-    );
-  };
-
-  // Helper for progress tracking badge
-  const getProgressBadge = (progress?: string) => {
-    if (!progress) return <span className="text-slate-500 text-[10px]">—</span>;
-    let color = "bg-slate-800 text-slate-300 border-slate-700";
-    if (progress === "Create") color = "bg-amber-500/10 text-amber-300 border-amber-500/20";
-    if (progress === "Edit") color = "bg-blue-500/10 text-blue-300 border-blue-500/20";
-    if (progress === "Film") color = "bg-purple-500/10 text-purple-300 border-purple-500/20";
-    if (progress === "Review") color = "bg-cyan-500/10 text-cyan-300 border-cyan-500/20";
-    if (progress === "Schedule" || progress === "Done") color = "bg-emerald-500/10 text-emerald-300 border-emerald-500/20";
-
-    return (
-      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${color}`}>
-        {progress}
-      </span>
-    );
-  };
-
   const handleCopyCaption = (briefId: string, text?: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -296,6 +250,18 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
     () => briefs.filter(b => !b.weekNumber),
     [briefs]
   );
+
+  // Content pillars are brand-specific free text, so the pillar dropdown is
+  // built from whatever pillar names are already in use for this brand
+  // (falls back to a starter set for brand-new workspaces with no data yet).
+  const contentPillarOptions = useMemo(() => {
+    const seen = new Set<string>();
+    briefs.forEach(b => { if (b.contentPillar) seen.add(b.contentPillar); });
+    if (seen.size === 0) {
+      ["Strategy", "Proof", "Culture", "Product"].forEach(p => seen.add(p));
+    }
+    return Array.from(seen);
+  }, [briefs]);
 
   const handleOpenSlotPicker = (weekNum: number, dayName: string) => {
     setPickerSlot({ weekNum, dayName });
@@ -469,10 +435,12 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
 
       {/* Render Each Week Grid */}
       {weekNumbers.map((weekNum) => {
-        // Filter briefs for this week
-        const weekBriefs = filteredBriefs.filter(
-          b => (b.weekNumber === weekNum) || (!b.weekNumber && weekNum === 1)
-        );
+        // Briefs actually scheduled (via their `date`) on one of this week
+        // row's 7 real calendar dates for the displayed month/year — this is
+        // what makes the grid respond to the month/year selector, and keeps
+        // "Monday" always meaning an actual Monday.
+        const weekDates = DAYS_OF_WEEK.map(d => getComputedDateForWeekDay(weekNum, d));
+        const weekBriefs = filteredBriefs.filter(b => b.date && weekDates.includes(b.date));
         const proposedInWeek = weekBriefs.filter(b => b.status === "Proposed");
         const approvedInWeek = weekBriefs.filter(b => b.status === "Approved");
         const changesInWeek = weekBriefs.filter(b => b.status === "Changes Requested");
@@ -600,7 +568,7 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       </div>
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
 
                       if (!dayBrief) {
                         return (
@@ -619,10 +587,29 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       return (
                         <td key={dayName} className="p-2.5 border-r border-slate-800/50">
                           <div className="flex flex-col space-y-2">
-                            {/* Workflow badge + Status badge */}
+                            {/* Workflow badge + Status dropdown */}
                             <div className="flex items-center justify-between gap-1">
                               {getWorkflowBadge(dayBrief)}
-                              {getStatusPill(dayBrief.status)}
+                              <div className="relative">
+                                <select
+                                  id={`select-status-${dayBrief.id}`}
+                                  value={dayBrief.status || "Proposed"}
+                                  disabled={!updateCreativeBrief}
+                                  onChange={(e) => updateCreativeBrief && updateCreativeBrief(dayBrief.id, { status: e.target.value as CreativeBrief["status"] })}
+                                  className={`appearance-none pl-2 pr-5 py-0.5 rounded-full text-[10px] font-mono font-bold border cursor-pointer focus:outline-none ${
+                                    dayBrief.status === "Approved"
+                                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                                      : dayBrief.status === "Changes Requested"
+                                      ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                                      : "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                                  }`}
+                                >
+                                  <option value="Proposed">Proposed</option>
+                                  <option value="Approved">Approved</option>
+                                  <option value="Changes Requested">Changes Requested</option>
+                                </select>
+                                <ChevronDown className="w-2.5 h-2.5 absolute right-1.5 top-1.5 pointer-events-none opacity-70" />
+                              </div>
                             </div>
 
                             {/* Per-day Approval Actions */}
@@ -689,10 +676,27 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Platform
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
+                      if (!dayBrief) {
+                        return (
+                          <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                            <span className="text-slate-500 text-[10px]">—</span>
+                          </td>
+                        );
+                      }
+                      const primaryPlatform = dayBrief.platform?.split(",")[0]?.trim() || "";
                       return (
                         <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
-                          {dayBrief ? getPlatformBadge(dayBrief.platform) : <span className="text-slate-500 text-[10px]">—</span>}
+                          <select
+                            id={`select-platform-${dayBrief.id}`}
+                            value={PLATFORM_OPTIONS.includes(primaryPlatform) ? primaryPlatform : ""}
+                            disabled={!updateCreativeBrief}
+                            onChange={(e) => updateCreativeBrief && updateCreativeBrief(dayBrief.id, { platform: e.target.value })}
+                            className={inlineSelectClass(isDark)}
+                          >
+                            <option value="" disabled>Select…</option>
+                            {PLATFORM_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
                         </td>
                       );
                     })}
@@ -707,16 +711,26 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Main Focus/Goals
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
+                      if (!dayBrief) {
+                        return (
+                          <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                            <span className="text-slate-500 text-[10px]">—</span>
+                          </td>
+                        );
+                      }
                       return (
                         <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
-                          {dayBrief?.mainFocus ? (
-                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                              {dayBrief.mainFocus}
-                            </span>
-                          ) : (
-                            <span className="text-slate-500 text-[10px]">—</span>
-                          )}
+                          <select
+                            id={`select-mainfocus-${dayBrief.id}`}
+                            value={MAIN_FOCUS_OPTIONS.includes(dayBrief.mainFocus || "") ? dayBrief.mainFocus : ""}
+                            disabled={!updateCreativeBrief}
+                            onChange={(e) => updateCreativeBrief && updateCreativeBrief(dayBrief.id, { mainFocus: e.target.value })}
+                            className={inlineSelectClass(isDark)}
+                          >
+                            <option value="" disabled>Select…</option>
+                            {MAIN_FOCUS_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+                          </select>
                         </td>
                       );
                     })}
@@ -731,7 +745,7 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Topic/Idea
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
                       return (
                         <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
                           {dayBrief ? (
@@ -755,10 +769,26 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Content Pillars
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
+                      if (!dayBrief) {
+                        return (
+                          <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                            <span className="text-slate-500 text-[10px]">—</span>
+                          </td>
+                        );
+                      }
                       return (
                         <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
-                          {dayBrief ? getPillarBadge(dayBrief.contentPillar) : <span className="text-slate-500 text-[10px]">—</span>}
+                          <select
+                            id={`select-pillar-${dayBrief.id}`}
+                            value={contentPillarOptions.includes(dayBrief.contentPillar || "") ? dayBrief.contentPillar : ""}
+                            disabled={!updateCreativeBrief}
+                            onChange={(e) => updateCreativeBrief && updateCreativeBrief(dayBrief.id, { contentPillar: e.target.value })}
+                            className={inlineSelectClass(isDark)}
+                          >
+                            <option value="" disabled>Select…</option>
+                            {contentPillarOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
                         </td>
                       );
                     })}
@@ -773,10 +803,26 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Type
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
+                      if (!dayBrief) {
+                        return (
+                          <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                            <span className="text-slate-500 text-[10px]">—</span>
+                          </td>
+                        );
+                      }
                       return (
                         <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
-                          {dayBrief ? getTypeBadge(dayBrief.postType) : <span className="text-slate-500 text-[10px]">—</span>}
+                          <select
+                            id={`select-posttype-${dayBrief.id}`}
+                            value={POST_TYPE_OPTIONS.includes(dayBrief.postType || "") ? dayBrief.postType : ""}
+                            disabled={!updateCreativeBrief}
+                            onChange={(e) => updateCreativeBrief && updateCreativeBrief(dayBrief.id, { postType: e.target.value })}
+                            className={inlineSelectClass(isDark)}
+                          >
+                            <option value="" disabled>Select…</option>
+                            {POST_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
                         </td>
                       );
                     })}
@@ -791,15 +837,148 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Progress Tracking
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
+                      if (!dayBrief) {
+                        return (
+                          <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                            <span className="text-slate-500 text-[10px]">—</span>
+                          </td>
+                        );
+                      }
                       return (
                         <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
-                          {dayBrief ? getProgressBadge(dayBrief.progressTracking) : <span className="text-slate-500 text-[10px]">—</span>}
+                          <select
+                            id={`select-progress-${dayBrief.id}`}
+                            value={PROGRESS_OPTIONS.includes(dayBrief.progressTracking || "") ? dayBrief.progressTracking : ""}
+                            disabled={!updateCreativeBrief}
+                            onChange={(e) => updateCreativeBrief && updateCreativeBrief(dayBrief.id, { progressTracking: e.target.value as CreativeBrief["progressTracking"] })}
+                            className={inlineSelectClass(isDark)}
+                          >
+                            <option value="" disabled>Select…</option>
+                            {PROGRESS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
                         </td>
                       );
                     })}
                     <td className="p-3 text-[10px] text-slate-400">
                       Stages: Create, Edit, Film, Schedule, Done
+                    </td>
+                  </tr>
+
+                  {/* ROW 7B: POSTING STATUS (driven by the Campaign Queue record auto-created on approval) */}
+                  <tr>
+                    <td className="p-3 font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold sticky left-0 z-10 bg-[#141518] border-r border-slate-800">
+                      Posting Status
+                    </td>
+                    {DAYS_OF_WEEK.map((dayName) => {
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
+                      if (!dayBrief) {
+                        return (
+                          <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                            <span className="text-slate-500 text-[10px]">—</span>
+                          </td>
+                        );
+                      }
+                      const queueItem = findQueueItemForBrief(dayBrief);
+                      if (!queueItem) {
+                        return (
+                          <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                            <span className="text-slate-500 text-[10px] italic">Approve to activate</span>
+                          </td>
+                        );
+                      }
+                      return (
+                        <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                          <select
+                            id={`select-posting-status-${dayBrief.id}`}
+                            value={queueItem.status}
+                            disabled={!updateCampaign}
+                            onChange={(e) => updateCampaign && updateCampaign(queueItem.id, { status: e.target.value as CampaignQueue["status"] })}
+                            className={inlineSelectClass(isDark)}
+                          >
+                            {POSTING_STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </td>
+                      );
+                    })}
+                    <td className="p-3 text-[10px] text-slate-400">
+                      Operations tracking once a brief is approved
+                    </td>
+                  </tr>
+
+                  {/* ROW 7C: REACH / ENGAGEMENT */}
+                  <tr className={isDark ? "bg-[#16171B]/40" : "bg-slate-50/30"}>
+                    <td className="p-3 font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold sticky left-0 z-10 bg-[#141518] border-r border-slate-800">
+                      Reach / Engagement
+                    </td>
+                    {DAYS_OF_WEEK.map((dayName) => {
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
+                      if (!dayBrief) {
+                        return (
+                          <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                            <span className="text-slate-500 text-[10px]">—</span>
+                          </td>
+                        );
+                      }
+                      const queueItem = findQueueItemForBrief(dayBrief);
+                      if (!queueItem) {
+                        return (
+                          <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                            <span className="text-slate-500 text-[10px] italic">—</span>
+                          </td>
+                        );
+                      }
+                      return (
+                        <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              defaultValue={queueItem.metrics?.estimatedReach ?? 0}
+                              disabled={!updateCampaign}
+                              onBlur={(e) => {
+                                const val = Number(e.target.value);
+                                if (updateCampaign && val !== (queueItem.metrics?.estimatedReach ?? 0)) {
+                                  updateCampaign(queueItem.id, {
+                                    metrics: {
+                                      estimatedReach: val,
+                                      engagementRate: queueItem.metrics?.engagementRate ?? 0
+                                    }
+                                  });
+                                }
+                              }}
+                              title="Estimated reach"
+                              className={`w-16 px-1.5 py-1 rounded border text-[10px] font-mono focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+                                isDark ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-white border-slate-300 text-slate-700"
+                              }`}
+                            />
+                            <input
+                              type="number"
+                              step="0.1"
+                              defaultValue={queueItem.metrics?.engagementRate ?? 0}
+                              disabled={!updateCampaign}
+                              onBlur={(e) => {
+                                const val = Number(e.target.value);
+                                if (updateCampaign && val !== (queueItem.metrics?.engagementRate ?? 0)) {
+                                  updateCampaign(queueItem.id, {
+                                    metrics: {
+                                      estimatedReach: queueItem.metrics?.estimatedReach ?? 0,
+                                      engagementRate: val
+                                    }
+                                  });
+                                }
+                              }}
+                              title="Engagement rate %"
+                              className={`w-14 px-1.5 py-1 rounded border text-[10px] font-mono focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+                                isDark ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-white border-slate-300 text-slate-700"
+                              }`}
+                            />
+                            <span className="text-[9px] text-slate-500">%</span>
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="p-3 text-[10px] text-slate-400">
+                      Est. reach & engagement rate
                     </td>
                   </tr>
 
@@ -809,7 +988,7 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Content Brief
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
                       if (!dayBrief) {
                         return (
                           <td key={dayName} className="p-3 border-r border-slate-800/50">
@@ -842,7 +1021,7 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Visual Reference
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
                       return (
                         <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
                           {dayBrief?.visualReference ? (
@@ -866,7 +1045,7 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Visual Copy Detail
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
                       return (
                         <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
                           {dayBrief?.visualCopyDetail ? (
@@ -890,7 +1069,7 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Copywriting
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
                       const isExpanded = dayBrief ? expandedCaptions[dayBrief.id] : false;
 
                       if (!dayBrief || !dayBrief.copywritingCaption) {
@@ -945,7 +1124,7 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                       Hashtags
                     </td>
                     {DAYS_OF_WEEK.map((dayName) => {
-                      const dayBrief = weekBriefs.find(b => b.dayOfWeek?.toLowerCase() === dayName.toLowerCase());
+                      const dayBrief = weekBriefs.find(b => b.date === getComputedDateForWeekDay(weekNum, dayName));
                       return (
                         <td key={dayName} className="p-3 border-r border-slate-800/50 align-top">
                           {dayBrief?.hashtags ? (

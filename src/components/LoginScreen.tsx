@@ -36,7 +36,7 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <div id="login-screen-view" className="min-h-screen bg-[#15151A] text-[#F2F0EB] flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans select-none">
-      
+
       {/* Back to Public Site link */}
       <div className="absolute top-6 left-6 z-20">
         <Link

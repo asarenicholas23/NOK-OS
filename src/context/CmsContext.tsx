@@ -1,16 +1,17 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { 
-  BlogPost, 
-  ServicePackage, 
-  AgencyInfo, 
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import {
+  BlogPost,
+  ServicePackage,
+  AgencyInfo,
   DiscoveryRequest,
   ClientBrand,
-  INITIAL_AGENCY_INFO, 
-  INITIAL_SERVICES, 
+  INITIAL_AGENCY_INFO,
+  INITIAL_SERVICES,
   INITIAL_BLOG_POSTS,
   INITIAL_DISCOVERY_REQUESTS,
   INITIAL_CLIENT_BRANDS
 } from "../data/cmsData";
+import { subscribeToAgencyInfo, subscribeToServices, migrateCmsToFirestoreIfEmpty, cleanFirestoreData } from "../lib/firebase";
 
 interface CmsContextType {
   agencyInfo: AgencyInfo;
@@ -18,10 +19,10 @@ interface CmsContextType {
   blogPosts: BlogPost[];
   discoveryRequests: DiscoveryRequest[];
   clientBrands: ClientBrand[];
-  updateAgencyInfo: (info: Partial<AgencyInfo>) => void;
-  addService: (service: Omit<ServicePackage, "id">) => void;
-  updateService: (id: string, updated: Partial<ServicePackage>) => void;
-  deleteService: (id: string) => void;
+  updateAgencyInfo: (info: Partial<AgencyInfo>) => Promise<void>;
+  addService: (service: Omit<ServicePackage, "id">) => Promise<void>;
+  updateService: (id: string, updated: Partial<ServicePackage>) => Promise<void>;
+  deleteService: (id: string) => Promise<void>;
   addBlogPost: (post: Omit<BlogPost, "id">) => void;
   updateBlogPost: (id: string, updated: Partial<BlogPost>) => void;
   deleteBlogPost: (id: string) => void;
@@ -31,7 +32,7 @@ interface CmsContextType {
   addClientBrand: (brand: Omit<ClientBrand, "id">) => void;
   updateClientBrand: (id: string, updated: Partial<ClientBrand>) => void;
   deleteClientBrand: (id: string) => void;
-  resetToDefaults: () => void;
+  resetToDefaults: () => Promise<void>;
 }
 
 const CmsContext = createContext<CmsContextType | undefined>(undefined);
@@ -43,6 +44,9 @@ const LOCAL_STORAGE_REQUESTS_KEY = "nok_cms_discovery_requests_v1";
 const LOCAL_STORAGE_BRANDS_KEY = "nok_cms_client_brands_v2";
 
 export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // agencyInfo & services live in Firestore so edits sync across browsers/devices.
+  // The local values (from this browser's pre-existing localStorage, if any) are
+  // used as the seed for a one-time migration the first time Firestore is empty.
   const [agencyInfo, setAgencyInfo] = useState<AgencyInfo>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_INFO_KEY);
@@ -60,6 +64,22 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return INITIAL_SERVICES;
     }
   });
+
+  const didMigrateCms = useRef(false);
+
+  useEffect(() => {
+    if (!didMigrateCms.current) {
+      didMigrateCms.current = true;
+      migrateCmsToFirestoreIfEmpty(agencyInfo, services);
+    }
+    const unsubInfo = subscribeToAgencyInfo(setAgencyInfo);
+    const unsubServices = subscribeToServices(setServices);
+    return () => {
+      unsubInfo();
+      unsubServices();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>(() => {
     try {
@@ -88,23 +108,6 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  // Sync to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_INFO_KEY, JSON.stringify(agencyInfo));
-    } catch (e) {
-      console.error("Failed to save agency info", e);
-    }
-  }, [agencyInfo]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_SERVICES_KEY, JSON.stringify(services));
-    } catch (e) {
-      console.error("Failed to save services", e);
-    }
-  }, [services]);
-
   useEffect(() => {
     try {
       localStorage.setItem(LOCAL_STORAGE_BLOG_KEY, JSON.stringify(blogPosts));
@@ -129,26 +132,30 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [clientBrands]);
 
-  const updateAgencyInfo = (info: Partial<AgencyInfo>) => {
-    setAgencyInfo((prev) => ({ ...prev, ...info }));
+  const updateAgencyInfo = async (info: Partial<AgencyInfo>) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "cms", "agencyInfo"), cleanFirestoreData({ ...agencyInfo, ...info }), { merge: true });
   };
 
-  const addService = (service: Omit<ServicePackage, "id">) => {
-    const newService: ServicePackage = {
-      ...service,
-      id: "service-" + Date.now()
-    };
-    setServices((prev) => [...prev, newService]);
+  const addService = async (service: Omit<ServicePackage, "id">) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc } = await import("firebase/firestore");
+    const id = "service-" + Date.now();
+    await setDoc(doc(db, "services", id), cleanFirestoreData({ ...service, id, order: services.length }));
   };
 
-  const updateService = (id: string, updated: Partial<ServicePackage>) => {
-    setServices((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...updated } : s))
-    );
+  const updateService = async (id: string, updated: Partial<ServicePackage>) => {
+    const current = services.find((s) => s.id === id);
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "services", id), cleanFirestoreData({ ...current, ...updated }), { merge: true });
   };
 
-  const deleteService = (id: string) => {
-    setServices((prev) => prev.filter((s) => s.id !== id));
+  const deleteService = async (id: string) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(doc(db, "services", id));
   };
 
   const addBlogPost = (post: Omit<BlogPost, "id">) => {
@@ -210,14 +217,16 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setClientBrands((prev) => prev.filter((b) => b.id !== id));
   };
 
-  const resetToDefaults = () => {
-    setAgencyInfo(INITIAL_AGENCY_INFO);
-    setServices(INITIAL_SERVICES);
+  const resetToDefaults = async () => {
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc, deleteDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "cms", "agencyInfo"), INITIAL_AGENCY_INFO);
+    await Promise.all(services.map((s) => deleteDoc(doc(db, "services", s.id))));
+    await Promise.all(INITIAL_SERVICES.map((s, i) => setDoc(doc(db, "services", s.id), { ...s, order: i })));
+
     setBlogPosts(INITIAL_BLOG_POSTS);
     setDiscoveryRequests(INITIAL_DISCOVERY_REQUESTS);
     setClientBrands(INITIAL_CLIENT_BRANDS);
-    localStorage.removeItem(LOCAL_STORAGE_INFO_KEY);
-    localStorage.removeItem(LOCAL_STORAGE_SERVICES_KEY);
     localStorage.removeItem(LOCAL_STORAGE_BLOG_KEY);
     localStorage.removeItem(LOCAL_STORAGE_REQUESTS_KEY);
     localStorage.removeItem(LOCAL_STORAGE_BRANDS_KEY);

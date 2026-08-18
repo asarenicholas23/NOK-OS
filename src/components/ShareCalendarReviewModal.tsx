@@ -68,6 +68,7 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
   // Share link state from Firestore
   const [shareLink, setShareLink] = useState<CalendarShareLink | null>(null);
   const [loadingLink, setLoadingLink] = useState(true);
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedDraft, setCopiedDraft] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -104,6 +105,7 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
       if (!activeBrand) return;
       try {
         setLoadingLink(true);
+        setLinkError(null);
         const link = await getOrCreateCalendarShareLink(
           activeBrand.id,
           actualMonth,
@@ -116,8 +118,14 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
         if (isMounted) {
           setShareLink(link);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error loading share link:", err);
+        if (isMounted) {
+          setShareLink(null);
+          setLinkError(
+            err?.message || "Could not create the review link. Please try again or contact support."
+          );
+        }
       } finally {
         if (isMounted) setLoadingLink(false);
       }
@@ -129,21 +137,47 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
     };
   }, [activeBrand, actualMonth, year, monthName]);
 
-  const shareUrl = shareLink
-    ? `${window.location.origin}/review/${shareLink.token}`
-    : `${window.location.origin}/review`;
+  const handleRetryLoadLink = async () => {
+    if (!activeBrand) return;
+    try {
+      setLoadingLink(true);
+      setLinkError(null);
+      const link = await getOrCreateCalendarShareLink(
+        activeBrand.id,
+        actualMonth,
+        year,
+        "month",
+        undefined,
+        `${monthName} ${year}`,
+        activeBrand.name
+      );
+      setShareLink(link);
+    } catch (err: any) {
+      console.error("Error loading share link:", err);
+      setShareLink(null);
+      setLinkError(
+        err?.message || "Could not create the review link. Please try again or contact support."
+      );
+    } finally {
+      setLoadingLink(false);
+    }
+  };
+
+  const shareUrl = shareLink ? `${window.location.origin}/review/${shareLink.token}` : "";
 
   const proposedCount = briefs.filter((b) => b.status === "Proposed").length;
   const approvedCount = briefs.filter((b) => b.status === "Approved").length;
   const changesRequestedCount = briefs.filter((b) => b.status === "Changes Requested").length;
 
   const handleCopyLink = () => {
+    if (!shareUrl) return;
     navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
 
   const handleCopyEmailDraft = () => {
+    if (!shareUrl) return;
     const draftText = `Subject: ${emailSubject}\n\nHi there,\n\n${customNote}\n\nReview and approve the content schedule in the live portal:\n${shareUrl}\n\n• 1-Click approvals on scheduled dates\n• Leave revision notes directly on posts\n• Zero login required\n\nBest regards,\n${activeBrand?.name || "Creative Team"}`;
     navigator.clipboard.writeText(draftText);
     setCopiedDraft(true);
@@ -151,6 +185,7 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
   };
 
   const handleOpenDefaultMailer = () => {
+    if (!shareUrl) return;
     const body = `Hi there,\n\n${customNote}\n\nReview & Approve Content Calendar:\n${shareUrl}\n\nBest regards,\n${activeBrand?.name || "Creative Team"}`;
     const mailtoUrl = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailtoUrl;
@@ -185,6 +220,7 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
 
     try {
       setIsRegenerating(true);
+      setLinkError(null);
       const newLink = await regenerateCalendarShareLink(
         shareLink.id,
         activeBrand.id,
@@ -197,8 +233,11 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
       );
       setShareLink(newLink);
       setCopied(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error regenerating share link:", err);
+      setLinkError(
+        err?.message || "Could not regenerate the review link. The previous link was already revoked — please try again."
+      );
     } finally {
       setIsRegenerating(false);
     }
@@ -440,6 +479,29 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
         {/* Tab 1: Share Link & Live Tracking */}
         {activeTab === "link" && (
           <div className="p-6 space-y-5">
+            {linkError && (
+              <div className="p-3.5 rounded-xl border text-xs flex items-start justify-between space-x-2.5 bg-rose-950/40 border-rose-500/30 text-rose-300">
+                <div className="flex items-start space-x-2.5">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">Link Not Saved</span>
+                    <span className="text-[11px] opacity-90">{linkError}</span>
+                  </div>
+                </div>
+                {!shareLink && (
+                  <button
+                    type="button"
+                    onClick={handleRetryLoadLink}
+                    disabled={loadingLink}
+                    className="shrink-0 flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-rose-500/10 border border-rose-500/30 text-rose-200 hover:bg-rose-500/20 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loadingLink ? "animate-spin" : ""}`} />
+                    <span>Retry</span>
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Approval Progress Metrics */}
             <div className="grid grid-cols-3 gap-3">
               <div className={`p-3 rounded-xl border ${
@@ -505,6 +567,8 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       <span>Generating secure cryptographic token...</span>
                     </span>
+                  ) : linkError ? (
+                    <span className="truncate text-rose-300">Link unavailable — see error above</span>
                   ) : (
                     <span className="truncate">{shareUrl}</span>
                   )}
@@ -513,12 +577,12 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
                 <button
                   id="btn-copy-share-url"
                   onClick={handleCopyLink}
-                  disabled={loadingLink || shareLink?.revoked}
+                  disabled={loadingLink || !shareUrl || shareLink?.revoked}
                   className={`flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer border transition-all disabled:opacity-40 ${
-                    copied 
-                      ? "bg-emerald-600 border-emerald-500 text-white" 
-                      : isDark 
-                      ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700" 
+                    copied
+                      ? "bg-emerald-600 border-emerald-500 text-white"
+                      : isDark
+                      ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700"
                       : "bg-slate-200 border-slate-300 text-slate-800 hover:bg-slate-300"
                   }`}
                   title="Copy link to clipboard"
@@ -529,14 +593,14 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
 
                 <a
                   id="btn-preview-portal"
-                  href={shareUrl}
+                  href={shareUrl || undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`flex items-center space-x-1 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
-                    shareLink?.revoked
+                    !shareUrl || shareLink?.revoked
                       ? "pointer-events-none opacity-40"
-                      : isDark 
-                      ? "bg-violet-600/20 border-violet-500/40 text-violet-300 hover:bg-violet-600/30" 
+                      : isDark
+                      ? "bg-violet-600/20 border-violet-500/40 text-violet-300 hover:bg-violet-600/30"
                       : "bg-violet-50 border-violet-300 text-violet-700 hover:bg-violet-100"
                   }`}
                   title="Open live client portal in new tab"
@@ -591,7 +655,7 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
             {/* Token Management Controls (Revoke / Regenerate) */}
             <div className="flex items-center justify-between pt-3 border-t border-slate-800/60">
               <div className="flex items-center space-x-2">
-                {!shareLink?.revoked ? (
+                {shareLink && !shareLink.revoked ? (
                   <button
                     id="btn-revoke-share-link"
                     type="button"
@@ -604,16 +668,18 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
                   </button>
                 ) : null}
 
-                <button
-                  id="btn-regenerate-share-link"
-                  type="button"
-                  onClick={handleRegenerate}
-                  disabled={isRegenerating}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 border border-violet-500/20 transition-all cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? "animate-spin" : ""}`} />
-                  <span>{isRegenerating ? "Regenerating..." : "Regenerate New Link"}</span>
-                </button>
+                {shareLink && (
+                  <button
+                    id="btn-regenerate-share-link"
+                    type="button"
+                    onClick={handleRegenerate}
+                    disabled={isRegenerating}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 border border-violet-500/20 transition-all cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? "animate-spin" : ""}`} />
+                    <span>{isRegenerating ? "Regenerating..." : "Regenerate New Link"}</span>
+                  </button>
+                )}
               </div>
 
               <button
