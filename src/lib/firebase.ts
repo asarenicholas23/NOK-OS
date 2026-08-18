@@ -94,6 +94,19 @@ export interface Brand {
   campaignObjective?: string;
 }
 
+// A lead captured from the public /resources page (not brand-scoped — the
+// resources hub is agency-wide marketing, not tied to a specific client brand).
+export interface Lead {
+  id: string;
+  name: string;
+  email: string;
+  businessName: string;
+  resourceId: string;
+  resourceTitle: string;
+  source: string;
+  timestamp?: any;
+}
+
 export interface CampaignQueue {
   id: string;
   brandId: string;
@@ -840,6 +853,23 @@ export const subscribeToCampaignQueues = (brandId: string, onUpdate: (queues: Ca
   }, (err) => {
     console.warn("Firestore subscription error, using fallback queues:", err);
     onUpdate(FALLBACK_QUEUES.filter(c => c.brandId === brandId));
+  });
+};
+
+// Firestore helper: Listen to leads captured from the public /resources page.
+// Not brand-scoped, so unlike the other subscribe* helpers this takes no brandId.
+export const subscribeToLeads = (onUpdate: (leads: Lead[]) => void) => {
+  const q = query(collection(db, "leads"), orderBy("timestamp", "desc"));
+
+  return onSnapshot(q, (snapshot) => {
+    const list: Lead[] = [];
+    snapshot.forEach((doc) => {
+      list.push({ ...doc.data(), id: doc.id } as Lead);
+    });
+    onUpdate(list);
+  }, (err) => {
+    console.warn("Firestore subscription error loading leads:", err);
+    onUpdate([]);
   });
 };
 

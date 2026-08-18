@@ -14,7 +14,8 @@ import {
   MessageSquare,
   Sparkles,
   Globe,
-  ArrowUpRight
+  ArrowUpRight,
+  Inbox
 } from "lucide-react";
 import { useBrand } from "../context/BrandContext";
 
@@ -37,6 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: "dashboard", label: "N.O.K Os Dashboard", icon: LayoutDashboard, category: "Core" },
     { id: "cms", label: "Blog & CMS Manager", icon: Globe, category: "Core" },
     { id: "brands", label: "Brand Registry", icon: Layers, category: "Core" },
+    { id: "leads", label: "Resource Leads", icon: Inbox, category: "Core" },
     { id: "calendar", label: "Content Calendar & Briefs", icon: Calendar, category: "Operations" },
     { id: "sandbox", label: "Creative Sandbox", icon: Sparkles, category: "Operations" },
     { id: "performance", label: "AI Intelligence", icon: Brain, category: "Intelligence" },

@@ -14,6 +14,7 @@ import { Header } from "./components/Header";
 const LoginScreen = lazy(() => import("./components/LoginScreen").then(m => ({ default: m.LoginScreen })));
 const DashboardPage = lazy(() => import("./components/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const BrandsPage = lazy(() => import("./components/BrandsPage").then(m => ({ default: m.BrandsPage })));
+const LeadsPage = lazy(() => import("./components/LeadsPage").then(m => ({ default: m.LeadsPage })));
 const CalendarPage = lazy(() => import("./components/CalendarPage").then(m => ({ default: m.CalendarPage })));
 const PerformanceIntelligencePage = lazy(() => import("./components/PerformanceIntelligencePage").then(m => ({ default: m.PerformanceIntelligencePage })));
 const AnalyticsImportPage = lazy(() => import("./components/AnalyticsImportPage").then(m => ({ default: m.AnalyticsImportPage })));
@@ -49,6 +50,7 @@ const OsAppShell: React.FC = () => {
       case "dashboard": return "Control Dashboard";
       case "cms": return "Blog & CMS Manager";
       case "brands": return "Brand Registry";
+      case "leads": return "Resource Leads";
       case "calendar": return "Content Calendar & Briefs";
       case "performance": return "Performance AI";
       case "import": return "Analytics Import";
@@ -66,6 +68,7 @@ const OsAppShell: React.FC = () => {
       case "dashboard": return <DashboardPage />;
       case "cms": return <CmsPage />;
       case "brands": return <BrandsPage />;
+      case "leads": return <LeadsPage />;
       case "calendar": return <CalendarPage />;
       case "performance": return <PerformanceIntelligencePage />;
       case "import": return <AnalyticsImportPage />;

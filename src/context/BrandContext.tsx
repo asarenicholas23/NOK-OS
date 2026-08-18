@@ -9,6 +9,7 @@ import {
   RawAnalyticsRow,
   BrandDirection,
   CreativeIdea,
+  Lead,
   cleanFirestoreData,
   subscribeToBrands,
   subscribeToCampaignQueues,
@@ -19,6 +20,7 @@ import {
   subscribeToRawAnalytics,
   subscribeToDirections,
   subscribeToIdeas,
+  subscribeToLeads,
   seedDatabaseIfEmpty,
   auth,
   signInWithGoogleGmail,
@@ -74,6 +76,7 @@ interface BrandContextType {
   rawAnalytics: RawAnalyticsRow[];
   directions: BrandDirection[];
   ideas: CreativeIdea[];
+  leads: Lead[];
   addInsight: (insight: Omit<StrategicInsight, "id" | "brandId">) => Promise<void>;
   updateInsight: (id: string, insight: Partial<StrategicInsight>) => Promise<void>;
   deleteInsight: (id: string) => Promise<void>;
@@ -117,6 +120,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [rawAnalytics, setRawAnalytics] = useState<RawAnalyticsRow[]>([]);
   const [directions, setDirections] = useState<BrandDirection[]>([]);
   const [ideas, setIdeas] = useState<CreativeIdea[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [gmailToken, setGmailToken] = useState<string | null>(null);
@@ -442,6 +446,16 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
     return () => unsubscribe();
   }, [activeBrandId]);
+
+  // Listen to Leads captured from the public /resources page. Not brand-scoped
+  // (agency-wide), so this is gated on staff auth rather than activeBrandId.
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = subscribeToLeads((updated) => {
+      setLeads(updated);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   // Firestore Add helpers
   const addCampaign = async (campaign: Omit<CampaignQueue, "id" | "brandId">) => {
@@ -907,6 +921,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       rawAnalytics,
       directions,
       ideas,
+      leads,
       addInsight,
       updateInsight,
       deleteInsight,
