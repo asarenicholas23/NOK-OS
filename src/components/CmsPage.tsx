@@ -303,7 +303,7 @@ export const CmsPage: React.FC = () => {
   };
 
   // Blog submission
-  const handleSaveBlog = (e: React.FormEvent) => {
+  const handleSaveBlog = async (e: React.FormEvent) => {
     e.preventDefault();
     const contentArray = blogFormData.contentRaw
       .split("\n\n")
@@ -321,37 +321,42 @@ export const CmsPage: React.FC = () => {
       year: "numeric"
     });
 
-    if (editingBlog) {
-      updateBlogPost(editingBlog.id, {
-        title: blogFormData.title,
-        slug,
-        category: blogFormData.category,
-        readTime: blogFormData.readTime,
-        coverImage: blogFormData.coverImage.trim() || undefined,
-        author: {
-          name: blogFormData.authorName,
-          role: blogFormData.authorRole
-        },
-        excerpt: blogFormData.excerpt,
-        content: contentArray
-      });
-      showNotification("Blog post updated successfully!");
-    } else {
-      addBlogPost({
-        slug,
-        title: blogFormData.title,
-        category: blogFormData.category,
-        date: dateStr,
-        readTime: blogFormData.readTime,
-        coverImage: blogFormData.coverImage.trim() || undefined,
-        author: {
-          name: blogFormData.authorName,
-          role: blogFormData.authorRole
-        },
-        excerpt: blogFormData.excerpt,
-        content: contentArray
-      });
-      showNotification("New blog post published!");
+    try {
+      if (editingBlog) {
+        await updateBlogPost(editingBlog.id, {
+          title: blogFormData.title,
+          slug,
+          category: blogFormData.category,
+          readTime: blogFormData.readTime,
+          coverImage: blogFormData.coverImage.trim() || undefined,
+          author: {
+            name: blogFormData.authorName,
+            role: blogFormData.authorRole
+          },
+          excerpt: blogFormData.excerpt,
+          content: contentArray
+        });
+        showNotification("Blog post updated successfully!");
+      } else {
+        await addBlogPost({
+          slug,
+          title: blogFormData.title,
+          category: blogFormData.category,
+          date: dateStr,
+          readTime: blogFormData.readTime,
+          coverImage: blogFormData.coverImage.trim() || undefined,
+          author: {
+            name: blogFormData.authorName,
+            role: blogFormData.authorRole
+          },
+          excerpt: blogFormData.excerpt,
+          content: contentArray
+        });
+        showNotification("New blog post published!");
+      }
+    } catch (err: any) {
+      alert("Failed to save this article: " + (err?.message || "Unknown error") + "\n\nYour changes were NOT saved. Please check you're still logged in and try again.");
+      return;
     }
 
     setEditingBlog(null);
@@ -460,7 +465,7 @@ export const CmsPage: React.FC = () => {
   };
 
   // Brand handlers
-  const handleSaveBrand = (e: React.FormEvent) => {
+  const handleSaveBrand = async (e: React.FormEvent) => {
     e.preventDefault();
     const servicesList = brandFormData.servicesRaw
       .split("\n")
@@ -480,40 +485,45 @@ export const CmsPage: React.FC = () => {
 
     const slug = brandFormData.slug.trim() || brandFormData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-    if (editingBrand) {
-      updateClientBrand(editingBrand.id, {
-        name: brandFormData.name,
-        slug,
-        tagline: brandFormData.tagline,
-        industry: brandFormData.industry,
-        overview: brandFormData.overview,
-        socialHandle: brandFormData.socialHandle,
-        website: brandFormData.website,
-        accentColor: brandFormData.accentColor,
-        bannerColor: brandFormData.bannerColor,
-        logoUrl: brandFormData.logoUrl,
-        servicesProvided: servicesList,
-        deliverables: deliverablesList,
-        metrics: metricsList.length > 0 ? metricsList : [{ value: "100%", label: "Strategy Alignment" }]
-      });
-      showNotification("Client brand updated successfully!");
-    } else {
-      addClientBrand({
-        name: brandFormData.name,
-        slug,
-        tagline: brandFormData.tagline,
-        industry: brandFormData.industry,
-        overview: brandFormData.overview,
-        socialHandle: brandFormData.socialHandle,
-        website: brandFormData.website,
-        accentColor: brandFormData.accentColor,
-        bannerColor: brandFormData.bannerColor,
-        logoUrl: brandFormData.logoUrl,
-        servicesProvided: servicesList,
-        deliverables: deliverablesList,
-        metrics: metricsList.length > 0 ? metricsList : [{ value: "100%", label: "Strategy Alignment" }]
-      });
-      showNotification("New client brand added to showcase!");
+    try {
+      if (editingBrand) {
+        await updateClientBrand(editingBrand.id, {
+          name: brandFormData.name,
+          slug,
+          tagline: brandFormData.tagline,
+          industry: brandFormData.industry,
+          overview: brandFormData.overview,
+          socialHandle: brandFormData.socialHandle,
+          website: brandFormData.website,
+          accentColor: brandFormData.accentColor,
+          bannerColor: brandFormData.bannerColor,
+          logoUrl: brandFormData.logoUrl,
+          servicesProvided: servicesList,
+          deliverables: deliverablesList,
+          metrics: metricsList.length > 0 ? metricsList : [{ value: "100%", label: "Strategy Alignment" }]
+        });
+        showNotification("Client brand updated successfully!");
+      } else {
+        await addClientBrand({
+          name: brandFormData.name,
+          slug,
+          tagline: brandFormData.tagline,
+          industry: brandFormData.industry,
+          overview: brandFormData.overview,
+          socialHandle: brandFormData.socialHandle,
+          website: brandFormData.website,
+          accentColor: brandFormData.accentColor,
+          bannerColor: brandFormData.bannerColor,
+          logoUrl: brandFormData.logoUrl,
+          servicesProvided: servicesList,
+          deliverables: deliverablesList,
+          metrics: metricsList.length > 0 ? metricsList : [{ value: "100%", label: "Strategy Alignment" }]
+        });
+        showNotification("New client brand added to showcase!");
+      }
+    } catch (err: any) {
+      alert("Failed to save this client brand: " + (err?.message || "Unknown error") + "\n\nYour changes were NOT saved. Please check you're still logged in and try again.");
+      return;
     }
 
     setEditingBrand(null);
