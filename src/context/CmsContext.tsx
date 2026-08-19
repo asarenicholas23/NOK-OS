@@ -12,6 +12,7 @@ import {
   INITIAL_CLIENT_BRANDS
 } from "../data/cmsData";
 import {
+  auth,
   subscribeToAgencyInfo,
   subscribeToServices,
   subscribeToBlogPosts,
@@ -20,6 +21,7 @@ import {
   migrateCmsToFirestoreIfEmpty,
   cleanFirestoreData
 } from "../lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface CmsContextType {
   agencyInfo: AgencyInfo;
@@ -106,16 +108,23 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const didMigrateCms = useRef(false);
 
   useEffect(() => {
-    if (!didMigrateCms.current) {
-      didMigrateCms.current = true;
-      migrateCmsToFirestoreIfEmpty(agencyInfo, services, blogPosts, clientBrands, discoveryRequests);
-    }
+    // Seeding Firestore requires a signed-in staff session (write rules deny
+    // anonymous visitors), so only attempt it once auth has confirmed a real
+    // user — never optimistically on page load, where it would silently fail
+    // for every public visitor and never actually seed anything.
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      if (user && !didMigrateCms.current) {
+        didMigrateCms.current = true;
+        migrateCmsToFirestoreIfEmpty(agencyInfo, services, blogPosts, clientBrands, discoveryRequests);
+      }
+    });
     const unsubInfo = subscribeToAgencyInfo(setAgencyInfo);
     const unsubServices = subscribeToServices(setServices);
     const unsubBlogPosts = subscribeToBlogPosts(setBlogPosts);
     const unsubClientBrands = subscribeToClientBrands(setClientBrands);
     const unsubDiscoveryRequests = subscribeToDiscoveryRequests(setDiscoveryRequests);
     return () => {
+      unsubAuth();
       unsubInfo();
       unsubServices();
       unsubBlogPosts();
