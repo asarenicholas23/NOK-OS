@@ -190,6 +190,16 @@ export const BlogPostPage: React.FC = () => {
                 em: ({ children }) => (
                   <em className="italic text-[#E0D8C8]">{children}</em>
                 ),
+                a: ({ href, children }) => (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#C5A065] underline underline-offset-2 hover:text-[#F2F0EB] transition-colors"
+                  >
+                    {children}
+                  </a>
+                ),
                 img: ({ src, alt }) => (
                   <div className="my-6 rounded-2xl overflow-hidden neu-pressed border border-white/5">
                     <img 

@@ -101,6 +101,18 @@ export const CmsPage: React.FC = () => {
     });
   };
 
+  const insertLink = () => {
+    const url = window.prompt("Enter the destination URL:", "https://");
+    if (!url || !url.trim()) return;
+    const linkText = window.prompt("Enter the text readers will see (optional):", "") || "link text";
+    setBlogFormData((prev) => {
+      const current = prev.contentRaw;
+      const addition = `[${linkText}](${url.trim()})`;
+      const updated = current ? `${current} ${addition}` : addition;
+      return { ...prev, contentRaw: updated };
+    });
+  };
+
   // Agency info form state
   const [agencyFormData, setAgencyFormData] = useState({ ...agencyInfo });
 
@@ -1248,6 +1260,16 @@ export const CmsPage: React.FC = () => {
 
                         <button
                           type="button"
+                          onClick={insertLink}
+                          className="px-2 py-1 rounded-lg neu-raised-sm hover:neu-pressed text-[10px] font-mono text-[#F2F0EB] flex items-center space-x-1 border border-white/5"
+                          title="Insert Link"
+                        >
+                          <ExternalLink className="w-3 h-3 text-[#B08D57]" />
+                          <span>Link</span>
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => insertFormatting("> ", "", "Important insight or quote here...")}
                           className="px-2 py-1 rounded-lg neu-raised-sm hover:neu-pressed text-[10px] font-mono text-[#B08D57] flex items-center space-x-1 border border-[#B08D57]/30 bg-[#B08D57]/10"
                           title="Insert Callout / Quote Box"
@@ -1297,7 +1319,7 @@ export const CmsPage: React.FC = () => {
                         className="w-full px-3.5 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57] font-sans leading-relaxed"
                       />
                       <span className="block text-[10px] font-mono text-[#8A8A93]">
-                        Tip: Click any toolbar button above to quickly insert formatted Headings, Callouts, Bold text, Lists, or Local Photos. Click "Live Reader Preview" to inspect!
+                        Tip: Click any toolbar button above to quickly insert formatted Headings, Callouts, Bold text, Links, Lists, or Local Photos. Click "Live Reader Preview" to inspect!
                       </span>
                     </div>
                   ) : (
@@ -1360,6 +1382,16 @@ export const CmsPage: React.FC = () => {
                               ),
                               em: ({ children }) => (
                                 <em className="italic text-[#E0D8C8]">{children}</em>
+                              ),
+                              a: ({ href, children }) => (
+                                <a
+                                  href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[#C5A065] underline underline-offset-2 hover:text-[#F2F0EB]"
+                                >
+                                  {children}
+                                </a>
                               ),
                               img: ({ src, alt }) => (
                                 <div className="my-3 rounded-xl overflow-hidden neu-pressed border border-white/5">
