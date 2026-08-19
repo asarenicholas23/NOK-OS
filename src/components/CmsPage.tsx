@@ -159,51 +159,56 @@ export const CmsPage: React.FC = () => {
     setTimeout(() => setSuccessMsg(null), 3000);
   };
 
-  // Blog posts are stored as Firestore documents (1MiB hard limit per document),
-  // and images are embedded inline as base64 data URLs rather than uploaded to
-  // Storage, so each image is capped well under that limit to leave room for
-  // the article text and other fields in the same document.
-  const MAX_INLINE_IMAGE_BYTES = 700 * 1024;
+  // Blog posts are stored as Firestore documents (1MiB hard limit per
+  // document), so images are uploaded to Cloud Storage and only the download
+  // URL is saved on the post — keeping the document small regardless of
+  // photo size.
+  const MAX_UPLOAD_IMAGE_BYTES = 10 * 1024 * 1024;
+  const [uploadingImage, setUploadingImage] = useState<"cover" | "body" | null>(null);
 
-  const handleCoverFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    if (file.size > MAX_INLINE_IMAGE_BYTES) {
-      alert("Please select an image smaller than 700KB (large images can't fit in a single article record). For bigger photos, use an image URL instead.");
+    if (file.size > MAX_UPLOAD_IMAGE_BYTES) {
+      alert("Please select an image smaller than 10MB.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setBlogFormData((prev) => ({
-          ...prev,
-          coverImage: event.target!.result as string
-        }));
-        showNotification("Local cover image uploaded successfully!");
-      }
-    };
-    reader.readAsDataURL(file);
+    setUploadingImage("cover");
+    try {
+      const { uploadBlogImage } = await import("../lib/firebase");
+      const url = await uploadBlogImage(file);
+      setBlogFormData((prev) => ({ ...prev, coverImage: url }));
+      showNotification("Cover image uploaded successfully!");
+    } catch (err: any) {
+      alert("Failed to upload image: " + (err?.message || "Unknown error"));
+    } finally {
+      setUploadingImage(null);
+    }
   };
 
-  const handleBodyFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBodyFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    if (file.size > MAX_INLINE_IMAGE_BYTES) {
-      alert("Please select an image smaller than 700KB (large images can't fit in a single article record). For bigger photos, use an image URL instead.");
+    if (file.size > MAX_UPLOAD_IMAGE_BYTES) {
+      alert("Please select an image smaller than 10MB.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        const dataUrl = event.target.result as string;
-        setBlogFormData((prev) => ({
-          ...prev,
-          contentRaw: prev.contentRaw ? `${prev.contentRaw}\n\n${dataUrl}` : dataUrl
-        }));
-        showNotification("Local photo inserted into article body!");
-      }
-    };
-    reader.readAsDataURL(file);
+    setUploadingImage("body");
+    try {
+      const { uploadBlogImage } = await import("../lib/firebase");
+      const url = await uploadBlogImage(file);
+      setBlogFormData((prev) => ({
+        ...prev,
+        contentRaw: prev.contentRaw ? `${prev.contentRaw}\n\n${url}` : url
+      }));
+      showNotification("Photo inserted into article body!");
+    } catch (err: any) {
+      alert("Failed to upload image: " + (err?.message || "Unknown error"));
+    } finally {
+      setUploadingImage(null);
+    }
   };
 
   // Substack / Blogger migration importer
@@ -1103,12 +1108,13 @@ export const CmsPage: React.FC = () => {
                     {/* Local File Upload Button */}
                     <label className="flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl neu-raised-sm hover:neu-pressed cursor-pointer border border-[#B08D57]/30 text-xs font-mono text-[#F2F0EB]">
                       <Upload className="w-4 h-4 text-[#B08D57]" />
-                      <span>Upload Local Photo</span>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleCoverFileUpload} 
-                        className="hidden" 
+                      <span>{uploadingImage === "cover" ? "Uploading..." : "Upload Local Photo"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCoverFileUpload}
+                        disabled={uploadingImage !== null}
+                        className="hidden"
                       />
                     </label>
 
@@ -1316,11 +1322,12 @@ export const CmsPage: React.FC = () => {
 
                         <label className="ml-auto inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg neu-raised-sm hover:neu-pressed text-[10px] font-mono text-[#B08D57] cursor-pointer border border-[#B08D57]/30 bg-[#B08D57]/10 font-bold">
                           <Upload className="w-3 h-3 text-[#B08D57]" />
-                          <span>+ Insert Local Photo</span>
+                          <span>{uploadingImage === "body" ? "Uploading..." : "+ Insert Local Photo"}</span>
                           <input
                             type="file"
                             accept="image/*"
                             onChange={handleBodyFileUpload}
+                            disabled={uploadingImage !== null}
                             className="hidden"
                           />
                         </label>
