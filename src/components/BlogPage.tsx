@@ -6,6 +6,7 @@ import { useCms } from "../context/CmsContext";
 import { BlogPost } from "../data/cmsData";
 import { Search, Calendar, Clock, ArrowRight, BookOpen, Share2 } from "lucide-react";
 import { shareArticle } from "../utils/share";
+import { SEO } from "./SEO";
 
 export const BlogPage: React.FC = () => {
   const { blogPosts } = useCms();
@@ -37,6 +38,11 @@ export const BlogPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
+      <SEO
+        title="NOK Social Growth Blog | Sales Funnels, Landing Pages & Social Commerce"
+        description="In-depth tactical guides on sales funnels, email sequences, landing page optimization, and West African social commerce from NOK Social."
+        path="/blog"
+      />
       <PublicNavbar />
 
       <main id="main-content">

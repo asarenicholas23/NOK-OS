@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 import { PublicNavbar } from "./PublicNavbar";
 import { ClientBrandsSection } from "./ClientBrandsSection";
+import { SEO } from "./SEO";
+import { buildFaqJsonLd, truncateDescription } from "../lib/seo";
+import { FAQSection, buildHomeFaqItems } from "./FAQSection";
 
 // Lazy-load modal to reduce initial main-thread JS parse time
 const DiscoveryModal = lazy(() => import("./DiscoveryModal"));
@@ -42,8 +45,18 @@ export const HomePage: React.FC = () => {
     }
   ];
 
+  const faqItems = buildHomeFaqItems(agencyInfo, services);
+
   return (
     <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
+      <SEO
+        title={`${agencyInfo.name} | Digital Marketing Infrastructure & NOK OS`}
+        description={truncateDescription(agencyInfo.heroSubtitle)}
+        path="/home"
+      />
+      <script type="application/ld+json">
+        {JSON.stringify(buildFaqJsonLd(faqItems)).replace(/</g, "\\u003c")}
+      </script>
       <PublicNavbar />
 
       {/* Main Page Landmark */}
@@ -261,6 +274,9 @@ export const HomePage: React.FC = () => {
             </div>
           </Link>
         </section>
+
+        {/* FAQ Section */}
+        <FAQSection items={faqItems} />
 
         {/* CTA Section */}
         <section className="px-4 sm:px-8 py-16 max-w-7xl mx-auto border-t border-[#1C1C22]">

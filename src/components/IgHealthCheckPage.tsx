@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { PublicNavbar } from "./PublicNavbar";
 import { PublicFooter } from "./PublicFooter";
 import { Instagram, Sparkles, Send, CheckCircle2, BarChart3, Radio } from "lucide-react";
+import { SEO } from "./SEO";
 
 export const IgHealthCheckPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -17,6 +18,11 @@ export const IgHealthCheckPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
+      <SEO
+        title="Instagram Account Health Check & Audit Tool | NOK Social"
+        description="An automated audit engine for Ghanaian brands evaluating profile bio conversion, grid visual rhythm, engagement consistency, and hashtag reach."
+        path="/ighealthcheck"
+      />
       <PublicNavbar />
 
       <main id="main-content" className="px-4 sm:px-8 py-16 sm:py-24 max-w-4xl mx-auto">

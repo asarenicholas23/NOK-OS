@@ -5,6 +5,7 @@ import { PublicFooter } from "./PublicFooter";
 import { ResourceCaptureForm } from "./ResourceCaptureForm";
 import { RESOURCES, Resource } from "../data/resourcesData";
 import { Gift, Lock, ExternalLink, X, FileSpreadsheet, Clock } from "lucide-react";
+import { SEO } from "./SEO";
 
 export const ResourcesPage: React.FC = () => {
   const [activeResource, setActiveResource] = useState<Resource | null>(null);
@@ -18,6 +19,11 @@ export const ResourcesPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
+      <SEO
+        title="Free Tools & Templates for Growing Brands | NOK Social"
+        description="Practical, no-fluff resources we use ourselves — unlock free tools and templates for growing your brand's digital marketing."
+        path="/resources"
+      />
       <PublicNavbar />
 
       <main id="main-content" className="px-4 sm:px-8 py-16 sm:py-24 max-w-6xl mx-auto">

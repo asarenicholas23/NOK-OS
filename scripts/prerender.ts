@@ -1,0 +1,94 @@
+/**
+ * Post-build prerender step. Runs after `vite build` (wired up as the npm
+ * "postbuild" script) and turns the public marketing routes into real static
+ * HTML files under dist/, so crawlers that don't execute JS (GPTBot,
+ * ClaudeBot, PerplexityBot) see actual content instead of an empty
+ * <div id="root">.
+ *
+ * Deliberately never visits /os/*, /review/*, or /approve/* — those stay
+ * client-rendered SPA routes, untouched by this script.
+ */
+import { chromium } from "playwright";
+import express from "express";
+import path from "path";
+import fs from "fs/promises";
+import { fileURLToPath } from "url";
+import { fetchBlogPosts } from "./blogData";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const distDir = path.resolve(__dirname, "..", "dist");
+const PORT = 4173;
+const BASE_URL = `http://localhost:${PORT}`;
+
+// Serves dist/ exactly the way Firebase Hosting will: static files first,
+// falling back to the SPA shell for anything else (deep client-only routes).
+function startStaticServer() {
+  const app = express();
+  app.use(express.static(distDir));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(distDir, "index.html"));
+  });
+  return new Promise<import("http").Server>((resolve) => {
+    const server = app.listen(PORT, () => resolve(server));
+  });
+}
+
+async function renderRoute(
+  page: import("playwright").Page,
+  route: string,
+  expectedTitleText?: string
+) {
+  await page.goto(`${BASE_URL}${route}`, { waitUntil: "load" });
+  await page.waitForSelector("footer", { timeout: 15000 });
+  if (expectedTitleText) {
+    await page
+      .waitForFunction(
+        (text) => document.querySelector("h1")?.textContent?.trim() === text,
+        expectedTitleText,
+        { timeout: 15000 }
+      )
+      .catch(() => {
+        // If the post never matches (e.g. removed between fetch and render),
+        // fall through and prerender whatever is on the page rather than
+        // failing the whole build.
+      });
+  }
+  const html = await page.content();
+  const outDir = path.join(distDir, route);
+  await fs.mkdir(outDir, { recursive: true });
+  await fs.writeFile(path.join(outDir, "index.html"), html, "utf-8");
+  console.log(`  prerendered ${route}`);
+}
+
+async function main() {
+  console.log("[prerender] fetching blog post slugs from Firestore...");
+  const posts = await fetchBlogPosts();
+  console.log(`[prerender] found ${posts.length} blog post(s)`);
+
+  console.log("[prerender] starting static server on dist/...");
+  const server = await startStaticServer();
+
+  console.log("[prerender] launching headless Chromium...");
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+
+  try {
+    const staticRoutes = ["/home", "/blog", "/resources", "/ighealthcheck"];
+    for (const route of staticRoutes) {
+      await renderRoute(page, route);
+    }
+    for (const post of posts) {
+      await renderRoute(page, `/blog/${post.slug}`, post.title);
+    }
+  } finally {
+    await browser.close();
+    server.close();
+  }
+
+  console.log("[prerender] done.");
+}
+
+main().catch((err) => {
+  console.error("[prerender] failed:", err);
+  process.exit(1);
+});

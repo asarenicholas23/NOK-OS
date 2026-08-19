@@ -6,4 +6,22 @@ Allow: /
 Disallow: /os/
 Disallow: /api/
 
-Sitemap: https://noksocial.com/sitemap.xml
+# AI crawlers — explicitly allowed. A named User-agent group replaces the
+# wildcard group above for that bot rather than merging with it, so each
+# one repeats the same Allow/Disallow rules rather than relying on "*".
+User-agent: GPTBot
+Allow: /
+Disallow: /os/
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /os/
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /os/
+Disallow: /api/
+
+Sitemap: https://nok-os.web.app/sitemap.xml

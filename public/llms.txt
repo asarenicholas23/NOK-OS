@@ -8,17 +8,19 @@ NOK Social empowers small and medium enterprises, boutique fashion brands, craft
 
 ## Key Public Resources
 
-- [NOK Social Homepage](https://noksocial.com/home): Overview of our 5-tier digital growth infrastructure packages, strategic positioning frameworks, and client portfolio.
-- [NOK Social Growth Blog](https://noksocial.com/blog): In-depth tactical guides on sales funnels, email sequences, landing page optimization, and West African social commerce.
-- [Instagram Health Check Tool](https://noksocial.com/ighealthcheck): Automated profile audit and engagement benchmarking utility tailored for Ghanaian businesses.
-- [NOK OS Control Dashboard](https://noksocial.com/os/dashboard): Operating workspace for brand management, operations queues, content calendars, and AI performance intelligence.
+- [NOK Social Homepage](https://nok-os.web.app/home): Overview of our 5-tier digital growth infrastructure packages, strategic positioning frameworks, and client portfolio.
+- [NOK Social Growth Blog](https://nok-os.web.app/blog): In-depth tactical guides on sales funnels, email sequences, landing page optimization, and West African social commerce.
+- [Instagram Health Check Tool](https://nok-os.web.app/ighealthcheck): Automated profile audit and engagement benchmarking utility tailored for Ghanaian businesses.
+- [Free Resources](https://nok-os.web.app/resources): Free tools and templates for growing brands — lead trackers, audit checklists, and other resources.
 
-## Strategic Service Tiers
-1. Growth & Content Engine: High-volume content creation, grid rhythm curation, and audience building.
-2. Sales Funnel & Conversion Mastery: High-converting landing pages, payment gateway integrations, and lead capture sequences.
-3. Full Agency Infrastructure: End-to-end social media operations, weekly performance reporting, and dedicated growth strategy.
+## Service Tiers
+1. Brand Foundation (one-time): Audience profiles, brand voice, and visual identity — the starting point for every engagement.
+2. Digital Presence Setup (one-time): Get found and get orderable — Google, Instagram/Facebook Shop, and Mobile Money order flow.
+3. Growth Retainer (monthly): Analytics-led content and community management, month over month.
+4. Campaign Package (per campaign): Focused awareness pushes, backed by data.
+5. Custom Infrastructure Build (project-based): Bespoke systems for brands that have outgrown manual workflows, scoped individually.
 
 ## Contact & Location
-- Headquarters: Accra, Ghana
-- Contact Email: contact@noksocial.com
+- Headquarters: Konongo Low Cost, Ghana
+- Contact Email: oseikofi0235@gmail.com
 - Primary Markets: Ghana, Nigeria, and West African digital commerce markets.

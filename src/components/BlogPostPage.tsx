@@ -6,6 +6,8 @@ import { PublicFooter } from "./PublicFooter";
 import { useCms } from "../context/CmsContext";
 import { ArrowLeft, Calendar, Clock, User, Sparkles, Quote, Share2 } from "lucide-react";
 import { shareArticle } from "../utils/share";
+import { SEO } from "./SEO";
+import { buildArticleJsonLd, SITE_URL, toCrawlableImage, toIsoDate, truncateDescription } from "../lib/seo";
 
 export const BlogPostPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -18,6 +20,12 @@ export const BlogPostPage: React.FC = () => {
   if (!post) {
     return (
       <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans">
+        <SEO
+          title="Article Not Found | NOK Social Blog"
+          description="The article you are looking for does not exist or has been moved."
+          path={`/blog/${slug ?? ""}`}
+          noindex
+        />
         <PublicNavbar />
         <main className="max-w-3xl mx-auto px-4 py-24 text-center space-y-4">
           <h1 className="font-display text-3xl font-bold">Article Not Found</h1>
@@ -33,6 +41,16 @@ export const BlogPostPage: React.FC = () => {
   // Combine post content array into single markdown string
   const markdownContent = post.content.join("\n\n");
 
+  const canonicalUrl = `${SITE_URL}/blog/${post.slug}`;
+  const articleJsonLd = buildArticleJsonLd({
+    title: post.title,
+    description: post.excerpt.trim(),
+    datePublished: toIsoDate(post.date),
+    authorName: post.author.name,
+    image: toCrawlableImage(post.coverImage),
+    canonicalUrl,
+  });
+
   const handleShare = async () => {
     const url = `${window.location.origin}/blog/${post.slug}`;
     const result = await shareArticle({ title: post.title, text: post.excerpt, url });
@@ -47,6 +65,16 @@ export const BlogPostPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
+      <SEO
+        title={`${post.title} | NOK Social Blog`}
+        description={truncateDescription(post.excerpt)}
+        path={`/blog/${post.slug}`}
+        image={toCrawlableImage(post.coverImage)}
+        type="article"
+      />
+      <script type="application/ld+json">
+        {JSON.stringify(articleJsonLd).replace(/</g, "\\u003c")}
+      </script>
       <PublicNavbar />
 
       <main id="main-content" className="px-4 sm:px-8 py-12 max-w-4xl mx-auto">
