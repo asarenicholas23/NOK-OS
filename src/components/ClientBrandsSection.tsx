@@ -72,7 +72,7 @@ export const ClientBrandsSection: React.FC = () => {
     if (brand.website) return brand.website;
     if (brand.slug.includes("nkabom")) return "https://nkabomworld-store.web.app";
     if (brand.slug.includes("standout")) return "https://standout-clothing.ai.studio/";
-    if (brand.slug.includes("vividel")) return "https://vividel-inc.ai.studio/";
+    if (brand.slug.includes("vividel")) return "https://vividel-system.vercel.app/";
     return "#";
   };
 

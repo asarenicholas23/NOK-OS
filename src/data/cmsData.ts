@@ -153,7 +153,7 @@ export const INITIAL_CLIENT_BRANDS: ClientBrand[] = [
     ],
     overview: "Vividel Inc. specializes in cutting-edge digital enterprise media, tech platforms, and business systems. NOK Social built their structured content architecture and multi-platform publishing cadence.",
     socialHandle: "@vividelinc",
-    website: "https://vividel-inc.ai.studio/"
+    website: "https://vividel-system.vercel.app/"
   }
 ];
 
@@ -182,7 +182,7 @@ export const INITIAL_DISCOVERY_REQUESTS: DiscoveryRequest[] = [
 
 export const INITIAL_AGENCY_INFO: AgencyInfo = {
   name: "NOK Social",
-  heroTitle: "Marketing systems built to replace guesswork.",
+  heroTitle: "Building Systems to Transform your Marketing",
   heroSubtitle: "We replace guesswork with structured content engines, data-backed campaign workflows, and high-conversion creative brief systems — tailored for startups, fashion, beauty, artisans, and scaling brands.",
   address: "Konongo Low cost",
   whatsapp: "+233235337886",
