@@ -15,7 +15,6 @@ import {
 } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   AgencyInfo,
   ServicePackage,
@@ -86,20 +85,6 @@ export const db = getFirestore(app);
 
 // Initialize Cloud Functions
 export const functions = getFunctions(app, "us-central1");
-
-// Initialize Cloud Storage (blog images live here rather than as inline
-// base64 in Firestore documents, which have a hard 1MiB-per-document limit).
-export const storage = getStorage(app);
-
-// Uploads a blog cover/body image to Storage and returns its public download
-// URL, so the Firestore blog post document only ever stores a short string.
-export const uploadBlogImage = async (file: File): Promise<string> => {
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `blog-images/${Date.now()}-${safeName}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
-};
 
 // Interfaces
 export interface Brand {

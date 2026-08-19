@@ -160,28 +160,87 @@ export const CmsPage: React.FC = () => {
   };
 
   // Blog posts are stored as Firestore documents (1MiB hard limit per
-  // document), so images are uploaded to Cloud Storage and only the download
-  // URL is saved on the post — keeping the document small regardless of
-  // photo size.
-  const MAX_UPLOAD_IMAGE_BYTES = 10 * 1024 * 1024;
+  // document, shared across the cover image, every inline body photo, and
+  // the article text), and there's no Cloud Storage bucket on this project's
+  // free Spark plan to upload to instead — so images stay embedded as base64
+  // data URLs, but are resized/re-compressed client-side first via canvas so
+  // a normal phone/camera photo still fits without the user manually
+  // shrinking it themselves.
+  const MAX_SOURCE_IMAGE_BYTES = 20 * 1024 * 1024;
+  const MAX_INLINE_IMAGE_BYTES = 550 * 1024;
   const [uploadingImage, setUploadingImage] = useState<"cover" | "body" | null>(null);
+
+  const compressImageFile = (file: File, maxDimension: number, quality: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        URL.revokeObjectURL(objectUrl);
+        if (!ctx) {
+          reject(new Error("This browser can't process images."));
+          return;
+        }
+        // Flatten onto white first so transparent PNGs don't turn black once re-encoded as JPEG.
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Could not read that image file."));
+      };
+      img.src = objectUrl;
+    });
+  };
+
+  // Progressively shrinks dimensions/quality until the resulting data URL
+  // fits the per-image budget, so most real photos succeed automatically.
+  const compressImageToFit = async (file: File): Promise<string> => {
+    const attempts: Array<[number, number]> = [
+      [1600, 0.82],
+      [1600, 0.6],
+      [1200, 0.55],
+      [900, 0.5],
+      [640, 0.45]
+    ];
+    let last = "";
+    for (const [maxDimension, quality] of attempts) {
+      last = await compressImageFile(file, maxDimension, quality);
+      if (last.length <= MAX_INLINE_IMAGE_BYTES) return last;
+    }
+    throw new Error("This photo is too detailed to compress under the size limit even after shrinking it. Please try a simpler photo, crop it smaller first, or paste an image URL instead.");
+  };
 
   const handleCoverFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > MAX_UPLOAD_IMAGE_BYTES) {
-      alert("Please select an image smaller than 10MB.");
+    if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+      alert("Please select an image smaller than 20MB.");
       return;
     }
     setUploadingImage("cover");
     try {
-      const { uploadBlogImage } = await import("../lib/firebase");
-      const url = await uploadBlogImage(file);
-      setBlogFormData((prev) => ({ ...prev, coverImage: url }));
-      showNotification("Cover image uploaded successfully!");
+      const dataUrl = await compressImageToFit(file);
+      setBlogFormData((prev) => ({ ...prev, coverImage: dataUrl }));
+      showNotification("Cover image optimized and attached!");
     } catch (err: any) {
-      alert("Failed to upload image: " + (err?.message || "Unknown error"));
+      alert(err?.message || "Failed to process this image.");
     } finally {
       setUploadingImage(null);
     }
@@ -191,21 +250,20 @@ export const CmsPage: React.FC = () => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > MAX_UPLOAD_IMAGE_BYTES) {
-      alert("Please select an image smaller than 10MB.");
+    if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+      alert("Please select an image smaller than 20MB.");
       return;
     }
     setUploadingImage("body");
     try {
-      const { uploadBlogImage } = await import("../lib/firebase");
-      const url = await uploadBlogImage(file);
+      const dataUrl = await compressImageToFit(file);
       setBlogFormData((prev) => ({
         ...prev,
-        contentRaw: prev.contentRaw ? `${prev.contentRaw}\n\n${url}` : url
+        contentRaw: prev.contentRaw ? `${prev.contentRaw}\n\n${dataUrl}` : dataUrl
       }));
-      showNotification("Photo inserted into article body!");
+      showNotification("Photo optimized and inserted into article body!");
     } catch (err: any) {
-      alert("Failed to upload image: " + (err?.message || "Unknown error"));
+      alert(err?.message || "Failed to process this image.");
     } finally {
       setUploadingImage(null);
     }
