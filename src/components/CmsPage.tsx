@@ -159,11 +159,17 @@ export const CmsPage: React.FC = () => {
     setTimeout(() => setSuccessMsg(null), 3000);
   };
 
+  // Blog posts are stored as Firestore documents (1MiB hard limit per document),
+  // and images are embedded inline as base64 data URLs rather than uploaded to
+  // Storage, so each image is capped well under that limit to leave room for
+  // the article text and other fields in the same document.
+  const MAX_INLINE_IMAGE_BYTES = 700 * 1024;
+
   const handleCoverFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Please select an image smaller than 5MB.");
+    if (file.size > MAX_INLINE_IMAGE_BYTES) {
+      alert("Please select an image smaller than 700KB (large images can't fit in a single article record). For bigger photos, use an image URL instead.");
       return;
     }
     const reader = new FileReader();
@@ -182,8 +188,8 @@ export const CmsPage: React.FC = () => {
   const handleBodyFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Please select an image smaller than 5MB.");
+    if (file.size > MAX_INLINE_IMAGE_BYTES) {
+      alert("Please select an image smaller than 700KB (large images can't fit in a single article record). For bigger photos, use an image URL instead.");
       return;
     }
     const reader = new FileReader();

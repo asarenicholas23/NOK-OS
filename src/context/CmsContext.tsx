@@ -11,7 +11,15 @@ import {
   INITIAL_DISCOVERY_REQUESTS,
   INITIAL_CLIENT_BRANDS
 } from "../data/cmsData";
-import { subscribeToAgencyInfo, subscribeToServices, migrateCmsToFirestoreIfEmpty, cleanFirestoreData } from "../lib/firebase";
+import {
+  subscribeToAgencyInfo,
+  subscribeToServices,
+  subscribeToBlogPosts,
+  subscribeToClientBrands,
+  subscribeToDiscoveryRequests,
+  migrateCmsToFirestoreIfEmpty,
+  cleanFirestoreData
+} from "../lib/firebase";
 
 interface CmsContextType {
   agencyInfo: AgencyInfo;
@@ -23,15 +31,15 @@ interface CmsContextType {
   addService: (service: Omit<ServicePackage, "id">) => Promise<void>;
   updateService: (id: string, updated: Partial<ServicePackage>) => Promise<void>;
   deleteService: (id: string) => Promise<void>;
-  addBlogPost: (post: Omit<BlogPost, "id">) => void;
-  updateBlogPost: (id: string, updated: Partial<BlogPost>) => void;
-  deleteBlogPost: (id: string) => void;
-  addDiscoveryRequest: (req: Omit<DiscoveryRequest, "id" | "createdAt" | "status">) => DiscoveryRequest;
-  updateDiscoveryRequestStatus: (id: string, status: DiscoveryRequest["status"]) => void;
-  deleteDiscoveryRequest: (id: string) => void;
-  addClientBrand: (brand: Omit<ClientBrand, "id">) => void;
-  updateClientBrand: (id: string, updated: Partial<ClientBrand>) => void;
-  deleteClientBrand: (id: string) => void;
+  addBlogPost: (post: Omit<BlogPost, "id">) => Promise<void>;
+  updateBlogPost: (id: string, updated: Partial<BlogPost>) => Promise<void>;
+  deleteBlogPost: (id: string) => Promise<void>;
+  addDiscoveryRequest: (req: Omit<DiscoveryRequest, "id" | "createdAt" | "status">) => Promise<void>;
+  updateDiscoveryRequestStatus: (id: string, status: DiscoveryRequest["status"]) => Promise<void>;
+  deleteDiscoveryRequest: (id: string) => Promise<void>;
+  addClientBrand: (brand: Omit<ClientBrand, "id">) => Promise<void>;
+  updateClientBrand: (id: string, updated: Partial<ClientBrand>) => Promise<void>;
+  deleteClientBrand: (id: string) => Promise<void>;
   resetToDefaults: () => Promise<void>;
 }
 
@@ -65,22 +73,9 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  const didMigrateCms = useRef(false);
-
-  useEffect(() => {
-    if (!didMigrateCms.current) {
-      didMigrateCms.current = true;
-      migrateCmsToFirestoreIfEmpty(agencyInfo, services);
-    }
-    const unsubInfo = subscribeToAgencyInfo(setAgencyInfo);
-    const unsubServices = subscribeToServices(setServices);
-    return () => {
-      unsubInfo();
-      unsubServices();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // blogPosts, discoveryRequests & clientBrands also live in Firestore so edits
+  // (new posts, brand updates, inbound call bookings) sync across browsers/devices
+  // instead of being stuck in whichever single browser made the change.
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_BLOG_KEY);
@@ -108,29 +103,27 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_BLOG_KEY, JSON.stringify(blogPosts));
-    } catch (e) {
-      console.error("Failed to save blog posts", e);
-    }
-  }, [blogPosts]);
+  const didMigrateCms = useRef(false);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_REQUESTS_KEY, JSON.stringify(discoveryRequests));
-    } catch (e) {
-      console.error("Failed to save discovery requests", e);
+    if (!didMigrateCms.current) {
+      didMigrateCms.current = true;
+      migrateCmsToFirestoreIfEmpty(agencyInfo, services, blogPosts, clientBrands, discoveryRequests);
     }
-  }, [discoveryRequests]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_BRANDS_KEY, JSON.stringify(clientBrands));
-    } catch (e) {
-      console.error("Failed to save client brands", e);
-    }
-  }, [clientBrands]);
+    const unsubInfo = subscribeToAgencyInfo(setAgencyInfo);
+    const unsubServices = subscribeToServices(setServices);
+    const unsubBlogPosts = subscribeToBlogPosts(setBlogPosts);
+    const unsubClientBrands = subscribeToClientBrands(setClientBrands);
+    const unsubDiscoveryRequests = subscribeToDiscoveryRequests(setDiscoveryRequests);
+    return () => {
+      unsubInfo();
+      unsubServices();
+      unsubBlogPosts();
+      unsubClientBrands();
+      unsubDiscoveryRequests();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateAgencyInfo = async (info: Partial<AgencyInfo>) => {
     const { db } = await import("../lib/firebase");
@@ -158,63 +151,69 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await deleteDoc(doc(db, "services", id));
   };
 
-  const addBlogPost = (post: Omit<BlogPost, "id">) => {
-    const newPost: BlogPost = {
-      ...post,
-      id: "blog-" + Date.now()
-    };
-    setBlogPosts((prev) => [newPost, ...prev]);
+  const addBlogPost = async (post: Omit<BlogPost, "id">) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc } = await import("firebase/firestore");
+    const id = "blog-" + Date.now();
+    await setDoc(doc(db, "blogPosts", id), cleanFirestoreData({ ...post, id, createdAt: new Date().toISOString() }));
   };
 
-  const updateBlogPost = (id: string, updated: Partial<BlogPost>) => {
-    setBlogPosts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updated } : p))
-    );
+  const updateBlogPost = async (id: string, updated: Partial<BlogPost>) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "blogPosts", id), cleanFirestoreData(updated), { merge: true });
   };
 
-  const deleteBlogPost = (id: string) => {
-    setBlogPosts((prev) => prev.filter((p) => p.id !== id));
+  const deleteBlogPost = async (id: string) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(doc(db, "blogPosts", id));
   };
 
-  const addDiscoveryRequest = (req: Omit<DiscoveryRequest, "id" | "createdAt" | "status">): DiscoveryRequest => {
+  const addDiscoveryRequest = async (req: Omit<DiscoveryRequest, "id" | "createdAt" | "status">) => {
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const id = "call-" + Date.now();
     const newReq: DiscoveryRequest = {
       ...req,
-      id: "call-" + Date.now(),
+      id,
       createdAt: formattedDate,
       status: "New"
     };
-    setDiscoveryRequests((prev) => [newReq, ...prev]);
-    return newReq;
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "discoveryRequests", id), cleanFirestoreData(newReq));
   };
 
-  const updateDiscoveryRequestStatus = (id: string, status: DiscoveryRequest["status"]) => {
-    setDiscoveryRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status } : r))
-    );
+  const updateDiscoveryRequestStatus = async (id: string, status: DiscoveryRequest["status"]) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, updateDoc } = await import("firebase/firestore");
+    await updateDoc(doc(db, "discoveryRequests", id), { status });
   };
 
-  const deleteDiscoveryRequest = (id: string) => {
-    setDiscoveryRequests((prev) => prev.filter((r) => r.id !== id));
+  const deleteDiscoveryRequest = async (id: string) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(doc(db, "discoveryRequests", id));
   };
 
-  const addClientBrand = (brand: Omit<ClientBrand, "id">) => {
-    const newBrand: ClientBrand = {
-      ...brand,
-      id: "brand-" + Date.now()
-    };
-    setClientBrands((prev) => [...prev, newBrand]);
+  const addClientBrand = async (brand: Omit<ClientBrand, "id">) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc } = await import("firebase/firestore");
+    const id = "brand-" + Date.now();
+    await setDoc(doc(db, "clientBrands", id), cleanFirestoreData({ ...brand, id }));
   };
 
-  const updateClientBrand = (id: string, updated: Partial<ClientBrand>) => {
-    setClientBrands((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, ...updated } : b))
-    );
+  const updateClientBrand = async (id: string, updated: Partial<ClientBrand>) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "clientBrands", id), cleanFirestoreData(updated), { merge: true });
   };
 
-  const deleteClientBrand = (id: string) => {
-    setClientBrands((prev) => prev.filter((b) => b.id !== id));
+  const deleteClientBrand = async (id: string) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(doc(db, "clientBrands", id));
   };
 
   const resetToDefaults = async () => {
@@ -224,9 +223,17 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await Promise.all(services.map((s) => deleteDoc(doc(db, "services", s.id))));
     await Promise.all(INITIAL_SERVICES.map((s, i) => setDoc(doc(db, "services", s.id), { ...s, order: i })));
 
-    setBlogPosts(INITIAL_BLOG_POSTS);
-    setDiscoveryRequests(INITIAL_DISCOVERY_REQUESTS);
-    setClientBrands(INITIAL_CLIENT_BRANDS);
+    await Promise.all(blogPosts.map((p) => deleteDoc(doc(db, "blogPosts", p.id))));
+    await Promise.all(INITIAL_BLOG_POSTS.map((p, i) =>
+      setDoc(doc(db, "blogPosts", p.id), cleanFirestoreData({ ...p, createdAt: new Date(Date.now() - i * 1000).toISOString() }))
+    ));
+
+    await Promise.all(clientBrands.map((b) => deleteDoc(doc(db, "clientBrands", b.id))));
+    await Promise.all(INITIAL_CLIENT_BRANDS.map((b) => setDoc(doc(db, "clientBrands", b.id), cleanFirestoreData(b))));
+
+    await Promise.all(discoveryRequests.map((r) => deleteDoc(doc(db, "discoveryRequests", r.id))));
+    await Promise.all(INITIAL_DISCOVERY_REQUESTS.map((r) => setDoc(doc(db, "discoveryRequests", r.id), cleanFirestoreData(r))));
+
     localStorage.removeItem(LOCAL_STORAGE_BLOG_KEY);
     localStorage.removeItem(LOCAL_STORAGE_REQUESTS_KEY);
     localStorage.removeItem(LOCAL_STORAGE_BRANDS_KEY);

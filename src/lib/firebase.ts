@@ -15,7 +15,18 @@ import {
 } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { AgencyInfo, ServicePackage, INITIAL_AGENCY_INFO, INITIAL_SERVICES } from "../data/cmsData";
+import {
+  AgencyInfo,
+  ServicePackage,
+  BlogPost,
+  ClientBrand,
+  DiscoveryRequest,
+  INITIAL_AGENCY_INFO,
+  INITIAL_SERVICES,
+  INITIAL_BLOG_POSTS,
+  INITIAL_CLIENT_BRANDS,
+  INITIAL_DISCOVERY_REQUESTS
+} from "../data/cmsData";
 
 // Config parsed from firebase-applet-config.json
 const firebaseConfig = {
@@ -1009,14 +1020,65 @@ export const subscribeToServices = (onUpdate: (services: ServicePackage[]) => vo
   });
 };
 
-// One-time migration: if the "services"/"cms" Firestore data has never been created,
-// seed it from whatever the caller currently has (e.g. this browser's pre-existing
-// localStorage edits) so those edits aren't lost when switching over to Firestore sync.
-export const migrateCmsToFirestoreIfEmpty = async (currentAgencyInfo: AgencyInfo, currentServices: ServicePackage[]) => {
+// Firestore helper: Listen to public blog posts (live streaming).
+export const subscribeToBlogPosts = (onUpdate: (posts: BlogPost[]) => void) => {
+  const q = query(collection(db, "blogPosts"), orderBy("createdAt", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    if (!snapshot.empty) {
+      const list: BlogPost[] = [];
+      snapshot.forEach((d) => list.push({ ...d.data(), id: d.id } as BlogPost));
+      onUpdate(list);
+    }
+  }, (err) => {
+    console.warn("Firestore subscription error on blogPosts:", err);
+  });
+};
+
+// Firestore helper: Listen to public client brand showcase entries (live streaming).
+export const subscribeToClientBrands = (onUpdate: (brands: ClientBrand[]) => void) => {
+  return onSnapshot(collection(db, "clientBrands"), (snapshot) => {
+    if (!snapshot.empty) {
+      const list: ClientBrand[] = [];
+      snapshot.forEach((d) => list.push({ ...d.data(), id: d.id } as ClientBrand));
+      onUpdate(list);
+    }
+  }, (err) => {
+    console.warn("Firestore subscription error on clientBrands:", err);
+  });
+};
+
+// Firestore helper: Listen to Discovery Call bookings submitted from the public
+// homepage modal (live streaming), so staff see them in the CMS inbox regardless
+// of which device the visitor booked from.
+export const subscribeToDiscoveryRequests = (onUpdate: (requests: DiscoveryRequest[]) => void) => {
+  const q = query(collection(db, "discoveryRequests"), orderBy("createdAt", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    const list: DiscoveryRequest[] = [];
+    snapshot.forEach((d) => list.push({ ...d.data(), id: d.id } as DiscoveryRequest));
+    onUpdate(list);
+  }, (err) => {
+    console.warn("Firestore subscription error on discoveryRequests:", err);
+  });
+};
+
+// One-time migration: if the "services"/"cms"/"blogPosts"/"clientBrands"/"discoveryRequests"
+// Firestore data has never been created, seed it from whatever the caller currently has
+// (e.g. this browser's pre-existing localStorage edits) so those edits aren't lost when
+// switching over to Firestore sync.
+export const migrateCmsToFirestoreIfEmpty = async (
+  currentAgencyInfo: AgencyInfo,
+  currentServices: ServicePackage[],
+  currentBlogPosts?: BlogPost[],
+  currentClientBrands?: ClientBrand[],
+  currentDiscoveryRequests?: DiscoveryRequest[]
+) => {
   try {
-    const [agencySnap, servicesSnap] = await Promise.all([
+    const [agencySnap, servicesSnap, blogSnap, brandsSnap, requestsSnap] = await Promise.all([
       getDoc(doc(db, "cms", "agencyInfo")),
-      getDocs(collection(db, "services"))
+      getDocs(collection(db, "services")),
+      getDocs(collection(db, "blogPosts")),
+      getDocs(collection(db, "clientBrands")),
+      getDocs(collection(db, "discoveryRequests"))
     ]);
     if (!agencySnap.exists()) {
       await setDoc(doc(db, "cms", "agencyInfo"), currentAgencyInfo || INITIAL_AGENCY_INFO);
@@ -1025,6 +1087,27 @@ export const migrateCmsToFirestoreIfEmpty = async (currentAgencyInfo: AgencyInfo
       const services = currentServices && currentServices.length > 0 ? currentServices : INITIAL_SERVICES;
       for (let i = 0; i < services.length; i++) {
         await setDoc(doc(db, "services", services[i].id), { ...services[i], order: i });
+      }
+    }
+    if (blogSnap.empty) {
+      const posts = currentBlogPosts && currentBlogPosts.length > 0 ? currentBlogPosts : INITIAL_BLOG_POSTS;
+      for (let i = 0; i < posts.length; i++) {
+        // Descending index gives the first (most recent) post the latest createdAt,
+        // preserving the array's newest-first order under an orderBy("createdAt", "desc") query.
+        const createdAt = new Date(Date.now() - i * 1000).toISOString();
+        await setDoc(doc(db, "blogPosts", posts[i].id), cleanFirestoreData({ ...posts[i], createdAt }));
+      }
+    }
+    if (brandsSnap.empty) {
+      const brands = currentClientBrands && currentClientBrands.length > 0 ? currentClientBrands : INITIAL_CLIENT_BRANDS;
+      for (const b of brands) {
+        await setDoc(doc(db, "clientBrands", b.id), cleanFirestoreData(b));
+      }
+    }
+    if (requestsSnap.empty) {
+      const requests = currentDiscoveryRequests && currentDiscoveryRequests.length > 0 ? currentDiscoveryRequests : INITIAL_DISCOVERY_REQUESTS;
+      for (const r of requests) {
+        await setDoc(doc(db, "discoveryRequests", r.id), cleanFirestoreData(r));
       }
     }
   } catch (error) {

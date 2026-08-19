@@ -56,10 +56,17 @@ service cloud.firestore {
     // visiting the public site; only staff can edit it from the CMS.
     match /cms/{docId} { allow read: if true; allow write: if isStaff(); }
     match /services/{id} { allow read: if true; allow write: if isStaff(); }
+    match /blogPosts/{id} { allow read: if true; allow write: if isStaff(); }
+    match /clientBrands/{id} { allow read: if true; allow write: if isStaff(); }
 
     // Public lead-magnet capture (Resources page). Visitors may only create a
     // lead record for themselves — never read others' leads or edit/delete any.
     match /leads/{id} { allow create: if true; allow read, update, delete: if isStaff(); }
+
+    // Public Discovery Call bookings (homepage modal). Visitors may only create
+    // their own request — never read others' or edit/delete any; staff triage
+    // and update status from the CMS inbox.
+    match /discoveryRequests/{id} { allow create: if true; allow read, update, delete: if isStaff(); }
 
     match /campaignQueues/{id} { allow read, write: if isStaff(); }
     match /calendarEvents/{id} { allow read, write: if isStaff(); }
