@@ -3,12 +3,27 @@ import { Link } from "react-router-dom";
 import { PublicNavbar } from "./PublicNavbar";
 import { PublicFooter } from "./PublicFooter";
 import { useCms } from "../context/CmsContext";
-import { Search, Calendar, Clock, ArrowRight, BookOpen } from "lucide-react";
+import { BlogPost } from "../data/cmsData";
+import { Search, Calendar, Clock, ArrowRight, BookOpen, Share2 } from "lucide-react";
+import { shareArticle } from "../utils/share";
 
 export const BlogPage: React.FC = () => {
   const { blogPosts } = useCms();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [shareToast, setShareToast] = useState<string | null>(null);
+
+  const handleShare = async (post: BlogPost) => {
+    const url = `${window.location.origin}/blog/${post.slug}`;
+    const result = await shareArticle({ title: post.title, text: post.excerpt, url });
+    if (result === "copied") {
+      setShareToast("Link copied to clipboard!");
+      setTimeout(() => setShareToast(null), 2500);
+    } else if (result === "failed") {
+      setShareToast("Couldn't copy the link — please copy it from the address bar.");
+      setTimeout(() => setShareToast(null), 3000);
+    }
+  };
 
   const categories = ["All", ...Array.from(new Set(blogPosts.map((p) => p.category)))];
 
@@ -148,13 +163,25 @@ export const BlogPage: React.FC = () => {
                       <div className="text-[10px] text-zinc-200 font-mono">{post.author.role}</div>
                     </div>
 
-                    <Link
-                      to={`/blog/${post.slug}`}
-                      className="neu-gold-btn px-4 py-2 rounded-xl text-xs font-mono font-semibold flex items-center space-x-1.5"
-                    >
-                      <span>Read Article</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => handleShare(post)}
+                        title="Share this article"
+                        aria-label="Share this article"
+                        className="neu-raised-sm hover:neu-pressed p-2 rounded-xl text-zinc-200 hover:text-[#B08D57] transition-all cursor-pointer"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <Link
+                        to={`/blog/${post.slug}`}
+                        className="neu-gold-btn px-4 py-2 rounded-xl text-xs font-mono font-semibold flex items-center space-x-1.5"
+                      >
+                        <span>Read Article</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -165,6 +192,13 @@ export const BlogPage: React.FC = () => {
 
       {/* Footer */}
       <PublicFooter />
+
+      {/* Share Toast */}
+      {shareToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl neu-raised-lg bg-[#111115] border border-[#B08D57]/30 text-xs font-mono text-[#F2F0EB] shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {shareToast}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,15 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { PublicNavbar } from "./PublicNavbar";
 import { PublicFooter } from "./PublicFooter";
 import { useCms } from "../context/CmsContext";
-import { ArrowLeft, Calendar, Clock, User, Sparkles, Quote } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, User, Sparkles, Quote, Share2 } from "lucide-react";
+import { shareArticle } from "../utils/share";
 
 export const BlogPostPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { blogPosts } = useCms();
+  const [shareToast, setShareToast] = useState<string | null>(null);
 
   const post = blogPosts.find((p) => p.slug === slug);
 
@@ -30,6 +32,18 @@ export const BlogPostPage: React.FC = () => {
 
   // Combine post content array into single markdown string
   const markdownContent = post.content.join("\n\n");
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/blog/${post.slug}`;
+    const result = await shareArticle({ title: post.title, text: post.excerpt, url });
+    if (result === "copied") {
+      setShareToast("Link copied to clipboard!");
+      setTimeout(() => setShareToast(null), 2500);
+    } else if (result === "failed") {
+      setShareToast("Couldn't copy the link — please copy it from the address bar.");
+      setTimeout(() => setShareToast(null), 3000);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
@@ -227,6 +241,19 @@ export const BlogPostPage: React.FC = () => {
           </div>
         </article>
 
+        {/* Share This Article */}
+        <div className="max-w-3xl mx-auto flex items-center justify-between flex-wrap gap-3 py-6 border-t border-b border-[#1C1C22]">
+          <span className="text-xs font-mono text-zinc-200 uppercase tracking-wide">Found this useful?</span>
+          <button
+            type="button"
+            onClick={handleShare}
+            className="neu-raised px-5 py-2.5 rounded-xl text-xs font-mono font-semibold text-[#F2F0EB] hover:text-[#B08D57] inline-flex items-center space-x-2 transition-all cursor-pointer"
+          >
+            <Share2 className="w-3.5 h-3.5 text-[#B08D57]" />
+            <span>Share This Article</span>
+          </button>
+        </div>
+
         {/* Footer Author & CTA Banner */}
         <div className="mt-12 p-8 rounded-3xl neu-raised space-y-6 max-w-3xl mx-auto">
           <div className="flex items-center space-x-3 text-[#C5A065]">
@@ -251,6 +278,13 @@ export const BlogPostPage: React.FC = () => {
       </main>
 
       <PublicFooter />
+
+      {/* Share Toast */}
+      {shareToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl neu-raised-lg bg-[#111115] border border-[#B08D57]/30 text-xs font-mono text-[#F2F0EB] shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {shareToast}
+        </div>
+      )}
     </div>
   );
 };
