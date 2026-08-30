@@ -11,11 +11,26 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 // Origins allowed to call this API. Firebase Hosting serves the frontend on a
-// different origin than this server, so CORS must be explicit.
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:3000")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+// different origin than this server, so CORS must be explicit. The production
+// web origins are always allowed; ALLOWED_ORIGINS adds any extras (local dev,
+// preview channels) on top.
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://noksocial.com",
+  "https://www.noksocial.com",
+  "https://nok-os.web.app",
+  "https://nok-os.firebaseapp.com",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+const allowedOrigins = Array.from(
+  new Set([
+    ...DEFAULT_ALLOWED_ORIGINS,
+    ...(process.env.ALLOWED_ORIGINS || "")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean),
+  ]),
+);
 
 app.use(cors({
   origin: (origin, callback) => {

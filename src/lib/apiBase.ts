@@ -1,8 +1,12 @@
 import { auth } from "./firebase";
 
-// Set VITE_API_URL to the deployed backend origin (e.g. Render service URL).
-// Left empty for local dev, where the Express server serves the SPA and API from the same origin.
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+// Backend origin for our /api/* routes. Production builds default to the Render
+// service; override with VITE_API_URL at build time if that ever changes. Local
+// dev stays same-origin (empty), where `tsx server.ts` serves the SPA and API
+// together.
+const PROD_API_URL = "https://nok-os-api.onrender.com";
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL || (import.meta.env.PROD ? PROD_API_URL : "");
 
 // Wraps fetch() for our own /api/* routes: prefixes the API host and attaches
 // the signed-in staff member's Firebase ID token so the server can verify the caller.
