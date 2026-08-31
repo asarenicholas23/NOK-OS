@@ -106,6 +106,7 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const didMigrateCms = useRef(false);
+  const [staffUser, setStaffUser] = useState<import("firebase/auth").User | null>(null);
 
   useEffect(() => {
     // Seeding Firestore requires a signed-in staff session (write rules deny
@@ -113,6 +114,7 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // user — never optimistically on page load, where it would silently fail
     // for every public visitor and never actually seed anything.
     const unsubAuth = onAuthStateChanged(auth, (user) => {
+      setStaffUser(user);
       if (user && !didMigrateCms.current) {
         didMigrateCms.current = true;
         migrateCmsToFirestoreIfEmpty(agencyInfo, services, blogPosts, clientBrands, discoveryRequests);
@@ -122,17 +124,24 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubServices = subscribeToServices(setServices);
     const unsubBlogPosts = subscribeToBlogPosts(setBlogPosts);
     const unsubClientBrands = subscribeToClientBrands(setClientBrands);
-    const unsubDiscoveryRequests = subscribeToDiscoveryRequests(setDiscoveryRequests);
     return () => {
       unsubAuth();
       unsubInfo();
       unsubServices();
       unsubBlogPosts();
       unsubClientBrands();
-      unsubDiscoveryRequests();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Discovery requests (inbound lead/CRM data) are admin-only reads — public
+  // visitors can still submit new ones via addDiscoveryRequest, they just
+  // never subscribe to the live list.
+  useEffect(() => {
+    if (!staffUser) return;
+    const unsubDiscoveryRequests = subscribeToDiscoveryRequests(setDiscoveryRequests);
+    return () => unsubDiscoveryRequests();
+  }, [staffUser]);
 
   const updateAgencyInfo = async (info: Partial<AgencyInfo>) => {
     const { db } = await import("../lib/firebase");

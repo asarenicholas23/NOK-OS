@@ -21,7 +21,6 @@ import {
   subscribeToDirections,
   subscribeToIdeas,
   subscribeToLeads,
-  seedDatabaseIfEmpty,
   auth,
   signInWithGoogleGmail,
   signInWithGoogleCalendar
@@ -29,6 +28,7 @@ import {
 
 export type { Brand };
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { useTheme } from "./ThemeContext";
 
 export interface AppNotification {
   id: string;
@@ -106,6 +106,7 @@ interface BrandContextType {
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
 
 export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { theme, setTheme } = useTheme();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [activeBrandId, setActiveBrandId] = useState<string>(() => {
     return localStorage.getItem("nok-os-active-brand-id") || "acme-corp";
@@ -128,10 +129,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [googleCalendarToken, setGoogleCalendarToken] = useState<string | null>(null);
   const [googleCalendarUser, setGoogleCalendarUser] = useState<any | null>(null);
 
-  // NEW STATES: N.O.K Os Theme, Notifications & Accent Color
-  const [theme, setThemeState] = useState<"dark" | "light">(() => {
-    return (localStorage.getItem("nok-os-theme") as "dark" | "light") || "dark";
-  });
+  // NEW STATES: N.O.K Os Notifications & Accent Color
   const [accentColor, setAccentColorState] = useState<"violet" | "emerald" | "amber" | "rose">(() => {
     return (localStorage.getItem("nok-os-accent") as "violet" | "emerald" | "amber" | "rose") || "violet";
   });
@@ -159,20 +157,6 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     ];
   });
-
-  // Sync theme class with HTML element on initial mount and theme changes
-  useEffect(() => {
-    if (theme === "light") {
-      document.documentElement.classList.add("light");
-    } else {
-      document.documentElement.classList.remove("light");
-    }
-  }, [theme]);
-
-  const setTheme = (newTheme: "dark" | "light") => {
-    setThemeState(newTheme);
-    localStorage.setItem("nok-os-theme", newTheme);
-  };
 
   const setAccentColor = (newAccent: "violet" | "emerald" | "amber" | "rose") => {
     setAccentColorState(newAccent);
@@ -209,15 +193,10 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem("nok-os-notifications", JSON.stringify([]));
   };
 
-  // Listen to Auth State changes & Seed Database
+  // Listen to Auth State changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        await seedDatabaseIfEmpty();
-      } else {
-        setUser(null);
-      }
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser || null);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -315,6 +294,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Listen to Brands (Live)
   useEffect(() => {
+    if (!user) return;
     const unsubscribe = subscribeToBrands((updatedBrands) => {
       setBrands(updatedBrands);
       // If activeBrandId is not in updatedBrands, default to first or stay
@@ -323,7 +303,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     });
     return () => unsubscribe();
-  }, [activeBrandId]);
+  }, [user, activeBrandId]);
 
   // Sync Active Brand Object
   useEffect(() => {
@@ -345,57 +325,57 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Listen to Campaign Queues for active Brand
   useEffect(() => {
-    if (!activeBrandId) return;
+    if (!user || !activeBrandId) return;
     const unsubscribe = subscribeToCampaignQueues(activeBrandId, (updatedQueues) => {
       setQueues(updatedQueues);
     });
     return () => unsubscribe();
-  }, [activeBrandId]);
+  }, [user, activeBrandId]);
 
   // Listen to Calendar Events for active Brand
   useEffect(() => {
-    if (!activeBrandId) return;
+    if (!user || !activeBrandId) return;
     const unsubscribe = subscribeToCalendarEvents(activeBrandId, (updatedEvents) => {
       setCalendarEvents(updatedEvents);
     });
     return () => unsubscribe();
-  }, [activeBrandId]);
+  }, [user, activeBrandId]);
 
   // Listen to Briefs for active Brand
   useEffect(() => {
-    if (!activeBrandId) return;
+    if (!user || !activeBrandId) return;
     const unsubscribe = subscribeToBriefs(activeBrandId, (updatedBriefs) => {
       setBriefs(updatedBriefs);
     });
     return () => unsubscribe();
-  }, [activeBrandId]);
+  }, [user, activeBrandId]);
 
   // Listen to Metrics for active Brand
   useEffect(() => {
-    if (!activeBrandId) return;
+    if (!user || !activeBrandId) return;
     const unsubscribe = subscribeToMetrics(activeBrandId, (updatedMetrics) => {
       setMetrics(updatedMetrics);
     });
     return () => unsubscribe();
-  }, [activeBrandId]);
+  }, [user, activeBrandId]);
 
   // Listen to Strategic Insights for active Brand
   useEffect(() => {
-    if (!activeBrandId) return;
+    if (!user || !activeBrandId) return;
     const unsubscribe = subscribeToInsights(activeBrandId, (updated) => {
       setInsights(updated);
     });
     return () => unsubscribe();
-  }, [activeBrandId]);
+  }, [user, activeBrandId]);
 
   // Listen to Raw Analytics Rows for active Brand
   useEffect(() => {
-    if (!activeBrandId) return;
+    if (!user || !activeBrandId) return;
     const unsubscribe = subscribeToRawAnalytics(activeBrandId, (updated) => {
       setRawAnalytics(updated);
     });
     return () => unsubscribe();
-  }, [activeBrandId]);
+  }, [user, activeBrandId]);
 
   // Auto-correct "LinkedIn" platform to "Instagram" for Peculiar Foods uploaded data
   useEffect(() => {
@@ -431,21 +411,21 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Listen to Brand Positioning Directions for active Brand
   useEffect(() => {
-    if (!activeBrandId) return;
+    if (!user || !activeBrandId) return;
     const unsubscribe = subscribeToDirections(activeBrandId, (updated) => {
       setDirections(updated);
     });
     return () => unsubscribe();
-  }, [activeBrandId]);
+  }, [user, activeBrandId]);
 
   // Listen to Creative Ideas (sandbox) for active Brand
   useEffect(() => {
-    if (!activeBrandId) return;
+    if (!user || !activeBrandId) return;
     const unsubscribe = subscribeToIdeas(activeBrandId, (updated) => {
       setIdeas(updated);
     });
     return () => unsubscribe();
-  }, [activeBrandId]);
+  }, [user, activeBrandId]);
 
   // Listen to Leads captured from the public /resources page. Not brand-scoped
   // (agency-wide), so this is gated on staff auth rather than activeBrandId.

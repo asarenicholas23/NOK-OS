@@ -3,12 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useState, useEffect, Suspense, lazy } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { BrandProvider, useBrand } from "./context/BrandContext";
 import { CmsProvider } from "./context/CmsContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
+import { logAnalyticsEvent } from "./lib/firebase";
 
 // Lazy-loaded route & view components for code splitting & ~1.4MB bundle reduction
 const LoginScreen = lazy(() => import("./components/LoginScreen").then(m => ({ default: m.LoginScreen })));
@@ -30,6 +32,20 @@ const BlogPostPage = lazy(() => import("./components/BlogPostPage").then(m => ({
 const IgHealthCheckPage = lazy(() => import("./components/IgHealthCheckPage").then(m => ({ default: m.IgHealthCheckPage })));
 const ResourcesPage = lazy(() => import("./components/ResourcesPage").then(m => ({ default: m.ResourcesPage })));
 const ClientCalendarApprovalView = lazy(() => import("./components/ClientCalendarApprovalView").then(m => ({ default: m.ClientCalendarApprovalView })));
+
+// GA4 has no automatic pageview tracking for client-side route changes in an
+// SPA, so this fires one on every path change instead.
+const AnalyticsPageViewTracker: React.FC = () => {
+  const location = useLocation();
+  useEffect(() => {
+    logAnalyticsEvent("page_view", {
+      page_path: location.pathname + location.search,
+      page_location: window.location.href,
+      page_title: document.title
+    });
+  }, [location.pathname, location.search]);
+  return null;
+};
 
 // Loading Spinner Component for Suspense Fallback
 const PageLoadingFallback: React.FC = () => (
@@ -137,9 +153,10 @@ const OsAppShell: React.FC = () => {
 
 export default function App() {
   return (
-    <BrandProvider>
+    <ThemeProvider>
       <CmsProvider>
         <BrowserRouter>
+          <AnalyticsPageViewTracker />
           <Suspense fallback={<PageLoadingFallback />}>
             <Routes>
               <Route path="/" element={<Navigate to="/home" replace />} />
@@ -152,12 +169,19 @@ export default function App() {
               <Route path="/review" element={<ClientCalendarApprovalView />} />
               <Route path="/approve/:token" element={<ClientCalendarApprovalView />} />
               <Route path="/approve" element={<ClientCalendarApprovalView />} />
-              <Route path="/os/*" element={<OsAppShell />} />
+              <Route
+                path="/os/*"
+                element={
+                  <BrandProvider>
+                    <OsAppShell />
+                  </BrandProvider>
+                }
+              />
               <Route path="*" element={<Navigate to="/home" replace />} />
             </Routes>
           </Suspense>
         </BrowserRouter>
       </CmsProvider>
-    </BrandProvider>
+    </ThemeProvider>
   );
 }

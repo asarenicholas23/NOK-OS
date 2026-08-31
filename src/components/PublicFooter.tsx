@@ -1,12 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useCms } from "../context/CmsContext";
-import { useBrand } from "../context/BrandContext";
+import { useTheme } from "../context/ThemeContext";
 import { Mail, Phone, MapPin, Sun, Moon } from "lucide-react";
 
 export const PublicFooter: React.FC = () => {
   const { agencyInfo } = useCms();
-  const { theme, setTheme } = useBrand();
+  const { theme, setTheme } = useTheme();
   const cleanWhatsapp = agencyInfo.whatsapp.replace(/[^0-9+]/g, "");
 
   const toggleTheme = () => {
@@ -22,8 +22,8 @@ export const PublicFooter: React.FC = () => {
             <div className="w-10 h-10 rounded-xl neu-pressed flex items-center justify-center text-[#B08D57]">
               <svg width="24" height="24" viewBox="0 0 46 46" aria-hidden="true">
                 <circle cx="12" cy="23" r="5" fill="#B08D57" />
-                <circle cx="32" cy="11" r="currentColor" />
-                <circle cx="32" cy="35" r="currentColor" />
+                <circle cx="32" cy="11" r="5" fill="currentColor" />
+                <circle cx="32" cy="35" r="5" fill="currentColor" />
                 <line x1="12" y1="23" x2="32" y2="11" stroke="#B08D57" strokeWidth="2" />
                 <line x1="12" y1="23" x2="32" y2="35" stroke="#B08D57" strokeWidth="2" />
               </svg>

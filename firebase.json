@@ -3,6 +3,7 @@
     {
       "target": "main",
       "public": "dist",
+      "cleanUrls": true,
       "ignore": [
         "firebase.json",
         "**/.*",
@@ -40,7 +41,7 @@
       "redirects": [
         {
           "source": "**",
-          "destination": "https://nok-os.web.app",
+          "destination": "https://noksocial.com",
           "type": 301
         }
       ]

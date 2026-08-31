@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { getAnalytics, isSupported as isAnalyticsSupported, logEvent } from "firebase/analytics";
 import {
   AgencyInfo,
   ServicePackage,
@@ -35,11 +36,28 @@ const firebaseConfig = {
   projectId: "nok-os-prod",
   storageBucket: "nok-os-prod.firebasestorage.app",
   messagingSenderId: "288873586116",
-  appId: "1:288873586116:web:cc3186e62ecaf45e185891"
+  appId: "1:288873586116:web:cc3186e62ecaf45e185891",
+  measurementId: "G-ZRVPPR8X6Z"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Analytics only works in a real browser (needs window/IndexedDB), so it's
+// initialized lazily behind isSupported() rather than at module load — this
+// keeps this module safe to import from the Node build/prerender scripts too.
+let analyticsInstance: import("firebase/analytics").Analytics | null = null;
+isAnalyticsSupported().then((supported) => {
+  if (supported) {
+    analyticsInstance = getAnalytics(app);
+  }
+});
+
+export const logAnalyticsEvent = (eventName: string, params?: Record<string, unknown>) => {
+  if (analyticsInstance) {
+    logEvent(analyticsInstance, eventName, params);
+  }
+};
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);

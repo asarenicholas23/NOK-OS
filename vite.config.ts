@@ -22,6 +22,20 @@ export default defineConfig(() => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
+              // jsPDF is only ever reached via already-lazy /os routes
+              // (CalendarPage, brief/PDF export modals). Forcing it into its
+              // own named vendor chunk backfired: Vite also places its shared
+              // dynamic-import() runtime helper inside whichever chunk a
+              // manualChunks rule creates, and every React.lazy() call in the
+              // app — including on the public homepage — needs that helper,
+              // so the whole ~94KB chunk ended up in the main entry's static
+              // import graph regardless of route. Returning undefined here
+              // lets Rollup's automatic splitting keep jsPDF inside the async
+              // chunk(s) that actually import it, with no name of its own for
+              // an unrelated shared helper to be co-located in.
+              if (id.includes('jspdf')) {
+                return undefined;
+              }
               if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
                 return 'react-vendor';
               }
@@ -30,9 +44,6 @@ export default defineConfig(() => {
               }
               if (id.includes('lucide-react') || id.includes('motion')) {
                 return 'ui-vendor';
-              }
-              if (id.includes('jspdf')) {
-                return 'pdf-vendor';
               }
               if (id.includes('react-markdown')) {
                 return 'markdown-vendor';

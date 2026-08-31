@@ -1,7 +1,7 @@
-// TODO: swap to "https://noksocial.com" once that domain is acquired and
-// pointed at this Firebase Hosting site.
-export const SITE_URL = "https://nok-os.web.app";
-export const DEFAULT_OG_IMAGE = "https://nok-os.web.app/og-cover.jpg";
+// Canonical production domain. Firebase Hosting still serves the site on
+// nok-os.web.app; that host 301s here once the custom domain is connected.
+export const SITE_URL = "https://noksocial.com";
+export const DEFAULT_OG_IMAGE = "https://noksocial.com/og-cover.jpg";
 export const SITE_NAME = "NOK Social";
 export const SITE_LOGO = { url: `${SITE_URL}/nok-social-logo.png`, width: 2000, height: 2000 };
 

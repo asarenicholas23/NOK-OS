@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, Menu, X, Sun, Moon } from "lucide-react";
-import { useBrand } from "../context/BrandContext";
+import { useTheme } from "../context/ThemeContext";
 
 export const PublicNavbar: React.FC = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { theme, setTheme } = useBrand();
+  const { theme, setTheme } = useTheme();
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");

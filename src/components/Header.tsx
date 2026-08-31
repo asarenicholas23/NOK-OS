@@ -21,11 +21,11 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ viewLabel }) => {
-  const { 
-    brands, 
-    activeBrand, 
-    activeBrandId, 
-    setActiveBrandId, 
+  const {
+    brands,
+    activeBrand,
+    activeBrandId,
+    setActiveBrandId,
     loading,
     notifications,
     markNotificationAsRead,

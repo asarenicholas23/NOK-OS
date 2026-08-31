@@ -54,9 +54,14 @@ async function renderRoute(
       });
   }
   const html = await page.content();
-  const outDir = path.join(distDir, route);
-  await fs.mkdir(outDir, { recursive: true });
-  await fs.writeFile(path.join(outDir, "index.html"), html, "utf-8");
+  // Written as a flat "{route}.html" file (paired with "cleanUrls": true in
+  // firebase.json) rather than "{route}/index.html" — the directory+index
+  // form makes Firebase Hosting 301-redirect bare "/home" to "/home/" before
+  // serving content, which doesn't match the no-trailing-slash URLs used in
+  // sitemap.xml and the page's own canonical/og:url tags.
+  const outFile = path.join(distDir, `${route}.html`);
+  await fs.mkdir(path.dirname(outFile), { recursive: true });
+  await fs.writeFile(outFile, html, "utf-8");
   console.log(`  prerendered ${route}`);
 }
 
