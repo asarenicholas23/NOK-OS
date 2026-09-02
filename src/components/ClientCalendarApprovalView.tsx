@@ -41,6 +41,7 @@ import {
   writeBatch
 } from "firebase/firestore";
 import { WeeklyContentPlannerGrid } from "./WeeklyContentPlannerGrid";
+import { getWeekAnchorMonday, addDays } from "../utils/weekSchedule";
 import { RequestChangesModal } from "./RequestChangesModal";
 import { BriefDetailModal } from "./BriefDetailModal";
 import { downloadCalendarPDF } from "../utils/pdfGenerator";
@@ -56,8 +57,10 @@ export const ClientCalendarApprovalView: React.FC = () => {
   const [briefs, setBriefs] = useState<CreativeBrief[]>([]);
   const [errorStatus, setErrorStatus] = useState<"not_found" | "revoked" | null>(null);
 
-  // Active view filters
+  // Active view filters. activeWeekTab drives the pill highlight; weekAnchor is
+  // the real Monday-anchored date the week-view calendar renders.
   const [activeWeekTab, setActiveWeekTab] = useState<number | "all">("all");
+  const [weekAnchor, setWeekAnchor] = useState<Date | null>(null);
 
   // Interaction Modals
   const [selectedBriefForChanges, setSelectedBriefForChanges] = useState<CreativeBrief | null>(null);
@@ -69,6 +72,16 @@ export const ClientCalendarApprovalView: React.FC = () => {
     setToastMessage({ title, desc, type });
     setTimeout(() => setToastMessage(null), 4000);
   };
+
+  // Once the share link resolves, point the week-view calendar at the shared
+  // period: the specific week for a "week" link, otherwise the month's first week.
+  useEffect(() => {
+    if (!shareLink) return;
+    const monthStart = getWeekAnchorMonday(shareLink.year, shareLink.month);
+    const wk = shareLink.periodType === "week" && shareLink.weekNumber ? shareLink.weekNumber : 1;
+    setWeekAnchor(addDays(monthStart, (wk - 1) * 7));
+    setActiveWeekTab(shareLink.periodType === "week" && shareLink.weekNumber ? shareLink.weekNumber : "all");
+  }, [shareLink]);
 
   // 1. Fetch and Validate Share Token Link
   useEffect(() => {
@@ -445,10 +458,19 @@ export const ClientCalendarApprovalView: React.FC = () => {
   const activeMonthName = shareLink ? monthNames[shareLink.month] : "Calendar";
   const activeYear = shareLink ? shareLink.year : new Date().getFullYear();
 
-  // Filter briefs based on active week tab
-  const displayedBriefs = activeWeekTab === "all" 
-    ? briefs 
-    : briefs.filter((b) => (b.weekNumber || 1) === activeWeekTab);
+  // Monday of the month the link covers — base for the week pills.
+  const monthWeekStart = getWeekAnchorMonday(
+    shareLink ? shareLink.year : new Date().getFullYear(),
+    shareLink ? shareLink.month : new Date().getMonth()
+  );
+  const effectiveAnchor = weekAnchor || monthWeekStart;
+  // Which "Week 0N" pill (1-based) a given Monday corresponds to within the month.
+  const weekIndexOf = (d: Date) =>
+    Math.round((d.getTime() - monthWeekStart.getTime()) / (7 * 86400000)) + 1;
+  const goToWeek = (anchor: Date) => {
+    setWeekAnchor(anchor);
+    setActiveWeekTab(weekIndexOf(anchor));
+  };
 
   return (
     <div 
@@ -571,23 +593,14 @@ export const ClientCalendarApprovalView: React.FC = () => {
         {/* Filter Week Tabs */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center space-x-1.5 bg-[#14151b] p-1 rounded-xl border border-slate-800 text-xs font-mono">
-            <button
-              onClick={() => setActiveWeekTab("all")}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                activeWeekTab === "all"
-                  ? "bg-violet-600 text-white shadow-xs"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-              }`}
-            >
-              All Weeks ({briefs.length})
-            </button>
+            <span className="px-2 text-[10px] uppercase tracking-wider text-slate-500">Jump to</span>
             {[1, 2, 3, 4].map((w) => {
               const count = briefs.filter((b) => (b.weekNumber || 1) === w).length;
               if (count === 0 && activeWeekTab !== w) return null;
               return (
                 <button
                   key={w}
-                  onClick={() => setActiveWeekTab(w)}
+                  onClick={() => goToWeek(addDays(monthWeekStart, (w - 1) * 7))}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
                     activeWeekTab === w
                       ? "bg-violet-600 text-white shadow-xs"
@@ -606,14 +619,15 @@ export const ClientCalendarApprovalView: React.FC = () => {
           </div>
         </div>
 
-        {/* The Full Weekly Content Planner Matrix */}
+        {/* Week-view content calendar */}
         <WeeklyContentPlannerGrid
-          briefs={displayedBriefs}
+          briefs={briefs}
           activeBrand={brand}
           theme="dark"
           activeColor="violet"
-          monthName={activeMonthName}
-          year={activeYear}
+          weekAnchorDate={effectiveAnchor}
+          onPrevWeek={() => goToWeek(addDays(effectiveAnchor, -7))}
+          onNextWeek={() => goToWeek(addDays(effectiveAnchor, 7))}
           onApproveDay={handleApproveBrief}
           onRequestChanges={(brief) => setSelectedBriefForChanges(brief)}
           onApproveAllWeek={handleApproveAllWeek}

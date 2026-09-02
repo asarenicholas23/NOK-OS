@@ -22,6 +22,33 @@ export function getWeekAnchorMonday(year: number, monthIndex: number): Date {
   return new Date(year, monthIndex, 1 - daysSinceMonday);
 }
 
+// Monday (00:00, local) of the week that contains an arbitrary date. Used by the
+// week-view calendar, which navigates a real date rather than a month grid.
+export function getMondayOfWeek(d: Date): Date {
+  const base = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const daysSinceMonday = (base.getDay() + 6) % 7;
+  base.setDate(base.getDate() - daysSinceMonday);
+  return base;
+}
+
+export function addDays(d: Date, n: number): Date {
+  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+// ISO-8601 week number (weeks start Monday; week 1 contains the first Thursday).
+// Only used for human-readable "Week N" labels.
+export function getISOWeek(d: Date): number {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - dayNum + 3); // nearest Thursday
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+  const firstThursdayDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstThursdayDayNum + 3);
+  return 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 86400000));
+}
+
 export function formatDateYMD(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");

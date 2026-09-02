@@ -8,7 +8,6 @@ import {
   INITIAL_AGENCY_INFO,
   INITIAL_SERVICES,
   INITIAL_BLOG_POSTS,
-  INITIAL_DISCOVERY_REQUESTS,
   INITIAL_CLIENT_BRANDS
 } from "../data/cmsData";
 import {
@@ -87,14 +86,10 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  const [discoveryRequests, setDiscoveryRequests] = useState<DiscoveryRequest[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_REQUESTS_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_DISCOVERY_REQUESTS;
-    } catch (e) {
-      return INITIAL_DISCOVERY_REQUESTS;
-    }
-  });
+  // Inbound Discovery Call bookings are live lead data — never mock-seeded.
+  // Starts empty and is populated purely by the Firestore subscription below
+  // (staff sessions only), so deleting a call actually deletes it.
+  const [discoveryRequests, setDiscoveryRequests] = useState<DiscoveryRequest[]>([]);
 
   const [clientBrands, setClientBrands] = useState<ClientBrand[]>(() => {
     try {
@@ -117,7 +112,7 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setStaffUser(user);
       if (user && !didMigrateCms.current) {
         didMigrateCms.current = true;
-        migrateCmsToFirestoreIfEmpty(agencyInfo, services, blogPosts, clientBrands, discoveryRequests);
+        migrateCmsToFirestoreIfEmpty(agencyInfo, services, blogPosts, clientBrands);
       }
     });
     const unsubInfo = subscribeToAgencyInfo(setAgencyInfo);
@@ -249,8 +244,8 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await Promise.all(clientBrands.map((b) => deleteDoc(doc(db, "clientBrands", b.id))));
     await Promise.all(INITIAL_CLIENT_BRANDS.map((b) => setDoc(doc(db, "clientBrands", b.id), cleanFirestoreData(b))));
 
+    // Discovery requests are live leads, not CMS defaults — "reset" just clears them.
     await Promise.all(discoveryRequests.map((r) => deleteDoc(doc(db, "discoveryRequests", r.id))));
-    await Promise.all(INITIAL_DISCOVERY_REQUESTS.map((r) => setDoc(doc(db, "discoveryRequests", r.id), cleanFirestoreData(r))));
 
     localStorage.removeItem(LOCAL_STORAGE_BLOG_KEY);
     localStorage.removeItem(LOCAL_STORAGE_REQUESTS_KEY);

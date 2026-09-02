@@ -25,8 +25,7 @@ import {
   INITIAL_AGENCY_INFO,
   INITIAL_SERVICES,
   INITIAL_BLOG_POSTS,
-  INITIAL_CLIENT_BRANDS,
-  INITIAL_DISCOVERY_REQUESTS
+  INITIAL_CLIENT_BRANDS
 } from "../data/cmsData";
 
 // Config parsed from firebase-applet-config.json
@@ -1079,24 +1078,27 @@ export const subscribeToDiscoveryRequests = (onUpdate: (requests: DiscoveryReque
   });
 };
 
-// One-time migration: if the "services"/"cms"/"blogPosts"/"clientBrands"/"discoveryRequests"
+// One-time migration: if the "services"/"cms"/"blogPosts"/"clientBrands"
 // Firestore data has never been created, seed it from whatever the caller currently has
 // (e.g. this browser's pre-existing localStorage edits) so those edits aren't lost when
 // switching over to Firestore sync.
+//
+// discoveryRequests are deliberately NOT seeded here: they're real inbound leads
+// from the live site, so "collection is empty" legitimately means "no bookings yet"
+// (or "staff cleared them") — never "needs placeholder data". Seeding them here made
+// deleted calls reappear on the next staff sign-in.
 export const migrateCmsToFirestoreIfEmpty = async (
   currentAgencyInfo: AgencyInfo,
   currentServices: ServicePackage[],
   currentBlogPosts?: BlogPost[],
-  currentClientBrands?: ClientBrand[],
-  currentDiscoveryRequests?: DiscoveryRequest[]
+  currentClientBrands?: ClientBrand[]
 ) => {
   try {
-    const [agencySnap, servicesSnap, blogSnap, brandsSnap, requestsSnap] = await Promise.all([
+    const [agencySnap, servicesSnap, blogSnap, brandsSnap] = await Promise.all([
       getDoc(doc(db, "cms", "agencyInfo")),
       getDocs(collection(db, "services")),
       getDocs(collection(db, "blogPosts")),
-      getDocs(collection(db, "clientBrands")),
-      getDocs(collection(db, "discoveryRequests"))
+      getDocs(collection(db, "clientBrands"))
     ]);
     if (!agencySnap.exists()) {
       await setDoc(doc(db, "cms", "agencyInfo"), currentAgencyInfo || INITIAL_AGENCY_INFO);
@@ -1120,12 +1122,6 @@ export const migrateCmsToFirestoreIfEmpty = async (
       const brands = currentClientBrands && currentClientBrands.length > 0 ? currentClientBrands : INITIAL_CLIENT_BRANDS;
       for (const b of brands) {
         await setDoc(doc(db, "clientBrands", b.id), cleanFirestoreData(b));
-      }
-    }
-    if (requestsSnap.empty) {
-      const requests = currentDiscoveryRequests && currentDiscoveryRequests.length > 0 ? currentDiscoveryRequests : INITIAL_DISCOVERY_REQUESTS;
-      for (const r of requests) {
-        await setDoc(doc(db, "discoveryRequests", r.id), cleanFirestoreData(r));
       }
     }
   } catch (error) {

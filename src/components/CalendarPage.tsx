@@ -33,6 +33,7 @@ import { downloadCalendarExcel, downloadCalendarCSV } from "../utils/calendarExp
 import { downloadCalendarPDF } from "../utils/pdfGenerator";
 import { CalendarEmailModal } from "./CalendarEmailModal";
 import { WeeklyContentPlannerGrid } from "./WeeklyContentPlannerGrid";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { RequestChangesModal } from "./RequestChangesModal";
 import { ShareCalendarReviewModal } from "./ShareCalendarReviewModal";
 import { BriefDetailModal } from "./BriefDetailModal";
@@ -112,13 +113,21 @@ export const CalendarPage: React.FC = () => {
     setTimeout(() => setSyncingNow(false), 800);
   };
 
-  // Navigate Months
-  const handlePrevMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  // Navigate the week-view planner one week at a time.
+  const handlePrevWeek = () => {
+    setCurrentDate(prev => {
+      const d = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate());
+      d.setDate(d.getDate() - 7);
+      return d;
+    });
   };
 
-  const handleNextMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  const handleNextWeek = () => {
+    setCurrentDate(prev => {
+      const d = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate());
+      d.setDate(d.getDate() + 7);
+      return d;
+    });
   };
 
   // Month rendering constants
@@ -498,20 +507,17 @@ export const CalendarPage: React.FC = () => {
       />
 
       {/* Weekly Content Planner (single source of truth for scheduling) */}
+      <ErrorBoundary label="content planner" isDark={isDark}>
       <WeeklyContentPlannerGrid
           briefs={briefs}
           activeBrand={activeBrand}
           theme={theme}
           activeColor={activeColor}
-          monthName={months[month]}
-          monthIndex={month}
-          year={year}
+          weekAnchorDate={currentDate}
           queues={queues}
           updateCampaign={updateCampaign}
-          onPrevMonth={handlePrevMonth}
-          onNextMonth={handleNextMonth}
-          onSelectMonth={(mIdx) => setCurrentDate(new Date(year, mIdx, 1))}
-          onSelectYear={(y) => setCurrentDate(new Date(y, month, 1))}
+          onPrevWeek={handlePrevWeek}
+          onNextWeek={handleNextWeek}
           onJumpToday={() => setCurrentDate(new Date())}
           onApproveDay={async (brief) => {
             await updateCreativeBrief(brief.id, { status: "Approved" });
@@ -543,6 +549,7 @@ export const CalendarPage: React.FC = () => {
           addCalendarEvent={addCalendarEvent}
           addNotification={addNotification}
         />
+      </ErrorBoundary>
 
       {/* Request Changes Modal */}
       {selectedBriefForChanges && (

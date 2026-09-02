@@ -157,29 +157,6 @@ export const INITIAL_CLIENT_BRANDS: ClientBrand[] = [
   }
 ];
 
-export const INITIAL_DISCOVERY_REQUESTS: DiscoveryRequest[] = [
-  {
-    id: "call-101",
-    name: "Akua Mensah",
-    email: "akua@osuvintage.com",
-    businessName: "Osu Vintage & Apparel",
-    serviceTier: "Growth Retainer",
-    notes: "Looking to scale our Instagram catalog and automate WhatsApp order intake for our Osu boutique.",
-    createdAt: "2026-08-07 10:15",
-    status: "New"
-  },
-  {
-    id: "call-102",
-    name: "Kwame Asante",
-    email: "kwame@accraglow.com",
-    businessName: "Accra Glow Skincare",
-    serviceTier: "Digital Presence Setup",
-    notes: "Need Google Business Profile and Instagram/Facebook Shop setup with Mobile Money order flow.",
-    createdAt: "2026-08-06 14:30",
-    status: "Contacted"
-  }
-];
-
 export const INITIAL_AGENCY_INFO: AgencyInfo = {
   name: "NOK Social",
   heroTitle: "Building Systems to Transform your Marketing",
