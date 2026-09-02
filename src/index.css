@@ -288,5 +288,493 @@ html.light .blueprint-grid-bg {
   }
 }
 
+/* ==========================================================================
+   "AIRY INDIGO" OS DESIGN SYSTEM  (Quixotic / Finnova inspired)
+   Light-first, flat, generously rounded, soft ambient shadow.
+   Scoped to the /os workspace via .fin-* utilities so it renders the same
+   regardless of the legacy light/dark toggle. Legacy .neu-* is left intact
+   for surfaces not yet migrated.
+   Page  #EDEEF3 | Card #FFFFFF | Ink #111827 | Sub #667085 | Faint #98A2B3
+   Accent indigo #4F46E5 / hover #4338CA / wash rgba(79,70,229,.10)
+   Up #15803D on #E7F6EC | Down #DC2626 on #FDECEC
+   Dark feature panel #1B1830
+   ========================================================================== */
+.fin-scope {
+  --fin-page: #edecf5;
+  --fin-card: #ffffff;
+  --fin-ink: #16151f;
+  --fin-sub: #6b6880;
+  --fin-faint: #9d9ab0;
+  --fin-line: rgba(22, 21, 31, 0.08);
+  --fin-accent: #5b50e3;
+  --fin-accent-hover: #4a3fd0;
+  --fin-accent-wash: rgba(91, 80, 227, 0.1);
+  --fin-track: #f0eff7;
+  --fin-nav-dark: #1c1830;
+  --fin-shadow: 0 1px 2px rgba(20, 18, 40, 0.05), 0 20px 44px -20px rgba(20, 18, 40, 0.2);
+  --fin-shadow-sm: 0 1px 2px rgba(20, 18, 40, 0.04), 0 10px 24px -14px rgba(20, 18, 40, 0.16);
+}
+
+.fin-page { background-color: var(--fin-page); color: var(--fin-ink); }
+
+.fin-card {
+  background-color: var(--fin-card);
+  border-radius: 1.5rem;
+  box-shadow: var(--fin-shadow);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.fin-card-sm {
+  background-color: var(--fin-card);
+  border-radius: 1.125rem;
+  box-shadow: var(--fin-shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.fin-card-hover:hover { transform: translateY(-2px); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 26px 50px -20px rgba(16, 24, 40, 0.28); }
+
+.fin-inset { background-color: var(--fin-track); border-radius: 1.125rem; }
+
+/* Pill navigation / segmented control */
+.fin-pill-group { background-color: var(--fin-track); border-radius: 9999px; padding: 0.3rem; }
+.fin-tab {
+  border-radius: 9999px;
+  color: var(--fin-sub);
+  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+.fin-tab:hover { color: var(--fin-ink); }
+.fin-tab-active {
+  background-color: var(--fin-card);
+  color: var(--fin-ink);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 6px 16px -8px rgba(16, 24, 40, 0.2);
+}
+.fin-tab-active-solid { background-color: var(--fin-accent); color: #fff; }
+
+/* Buttons */
+.fin-btn-primary {
+  background-color: var(--fin-accent);
+  color: #fff;
+  border-radius: 9999px;
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 8px 20px -8px rgba(79, 70, 229, 0.55);
+}
+.fin-btn-primary:hover { background-color: var(--fin-accent-hover); }
+.fin-btn-primary:active { transform: translateY(1px); }
+.fin-btn-ghost {
+  background-color: var(--fin-track);
+  color: #374151;
+  border-radius: 9999px;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+.fin-btn-ghost:hover { background-color: #e6e7ee; color: var(--fin-ink); }
+.fin-btn-danger { background-color: #dc2626; color: #fff; border-radius: 9999px; }
+.fin-btn-danger:hover { background-color: #b91c1c; }
+
+/* Nav item (sidebar, expanded panel) */
+.fin-nav-item {
+  border-radius: 0.9rem;
+  color: var(--fin-sub);
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+.fin-nav-item:hover { background-color: var(--fin-track); color: var(--fin-ink); }
+.fin-nav-item-active { background-color: var(--fin-accent); color: #fff; box-shadow: 0 10px 22px -10px rgba(79, 70, 229, 0.6); }
+.fin-nav-item-active:hover { background-color: var(--fin-accent); color: #fff; }
+
+/* Icon rail (collapsed sidebar) */
+.fin-rail-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fin-faint);
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+.fin-rail-icon:hover { background-color: var(--fin-track); color: var(--fin-ink); }
+.fin-rail-icon-active,
+.fin-rail-icon-active:hover {
+  color: #fff;
+  background-color: var(--fin-accent);
+  box-shadow: 0 10px 22px -10px rgba(91, 80, 227, 0.6);
+}
+
+/* Top navigation bar (Finnova-style) */
+.fin-topbar { background-color: var(--fin-page); }
+.fin-topnav { background-color: var(--fin-nav-dark); border-radius: 9999px; padding: 0.3rem; }
+.fin-topnav-pill {
+  border-radius: 9999px;
+  color: #a09dbd;
+  white-space: nowrap;
+  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+.fin-topnav-pill:hover { color: #ffffff; }
+.fin-topnav-pill-active,
+.fin-topnav-pill-active:hover {
+  background-color: var(--fin-accent);
+  color: #ffffff;
+  box-shadow: 0 8px 20px -8px rgba(91, 80, 227, 0.75);
+}
+
+/* Circular white icon button */
+.fin-iconbtn {
+  background-color: var(--fin-card);
+  color: var(--fin-sub);
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--fin-shadow-sm);
+  transition: color 0.16s ease, transform 0.16s ease;
+}
+.fin-iconbtn:hover { color: var(--fin-accent); transform: translateY(-1px); }
+.fin-iconbtn-active,
+.fin-iconbtn-active:hover {
+  background-color: var(--fin-accent);
+  color: #ffffff;
+  box-shadow: 0 10px 22px -8px rgba(91, 80, 227, 0.7);
+  transform: none;
+}
+.fin-iconbtn-dark {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #cbc9e0;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.16s ease, background-color 0.16s ease;
+}
+.fin-iconbtn-dark:hover { color: #ffffff; background-color: rgba(255, 255, 255, 0.14); }
+
+/* Gradient feature card inside dark panels */
+.fin-grad-card {
+  background: linear-gradient(150deg, #6b5ff0 0%, #5b50e3 45%, #4a3fd0 100%);
+  border-radius: 1.25rem;
+  color: #ffffff;
+}
+.fin-grad-card .fin-grad-sub { color: rgba(255, 255, 255, 0.72); }
+
+/* Status pills */
+.fin-badge { border-radius: 9999px; font-weight: 600; }
+.fin-badge-up { background-color: #e7f6ec; color: #15803d; }
+.fin-badge-down { background-color: #fdecec; color: #dc2626; }
+.fin-badge-neutral { background-color: var(--fin-track); color: var(--fin-sub); }
+.fin-badge-accent { background-color: var(--fin-accent-wash); color: var(--fin-accent); }
+
+/* Icon chip */
+.fin-icon-chip { background-color: var(--fin-accent-wash); color: var(--fin-accent); border-radius: 0.85rem; }
+
+/* Dark feature panel (the "content side when a tab is selected" accent) */
+.fin-panel-dark { background-color: #1b1830; color: #eae8f4; border-radius: 1.5rem; }
+.fin-panel-dark .fin-panel-sub { color: #a7a3c4; }
+.fin-panel-card { background-color: rgba(255, 255, 255, 0.06); border-radius: 1.05rem; }
+
+/* Inputs */
+.fin-input {
+  background-color: var(--fin-track);
+  border: 1px solid transparent;
+  border-radius: 0.9rem;
+  color: var(--fin-ink);
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+.fin-input::placeholder { color: var(--fin-faint); }
+.fin-input:focus { outline: none; border-color: var(--fin-accent); background-color: var(--fin-card); }
+.fin-input option { background-color: #fff; color: var(--fin-ink); }
+
+.fin-divider { background-color: var(--fin-line); }
+
+.fin-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.fin-scrollbar::-webkit-scrollbar-thumb { background-color: #d5d7e0; border-radius: 9999px; }
+.fin-scrollbar::-webkit-scrollbar-track { background-color: transparent; }
 
 
+
+
+/* ==========================================================================
+   SYSTEM-WIDE COMPAT LAYER
+   Neutralizes the legacy neumorphic / dark-gold system for every /os surface
+   that hasn't been hand-migrated yet, mapping it onto the airy-indigo tokens.
+   Scoped to .fin-scope so the public marketing site is untouched. Uses
+   !important to win over the html.light day-mode overrides.
+   ========================================================================== */
+.fin-scope .blueprint-grid-bg { background-image: none !important; }
+.fin-scope .font-mono { font-family: var(--font-sans) !important; letter-spacing: 0 !important; }
+
+/* Raised surfaces -> flat cards */
+.fin-scope .neu-raised,
+.fin-scope .neu-raised-sm,
+.fin-scope .neu-raised-lg {
+  background-color: var(--fin-card) !important;
+  box-shadow: var(--fin-shadow-sm) !important;
+  border-radius: 1rem;
+}
+.fin-scope .neu-raised:hover,
+.fin-scope .neu-raised-sm:hover,
+.fin-scope .neu-raised-lg:hover { box-shadow: var(--fin-shadow) !important; }
+.fin-scope .neu-raised:active,
+.fin-scope .neu-raised-sm:active,
+.fin-scope .neu-button:active { box-shadow: var(--fin-shadow-sm) !important; transform: none !important; }
+
+/* Pressed / inset -> light track */
+.fin-scope .neu-pressed,
+.fin-scope .neu-pressed-deep {
+  background-color: var(--fin-track) !important;
+  box-shadow: none !important;
+  border-radius: 0.9rem;
+}
+
+/* Gold buttons -> indigo */
+.fin-scope .neu-gold-filled {
+  background: var(--fin-accent) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px -8px rgba(91, 80, 227, 0.55) !important;
+  border: none !important;
+  border-radius: 9999px;
+}
+.fin-scope .neu-gold-filled:hover { background: var(--fin-accent-hover) !important; }
+.fin-scope .neu-gold-btn {
+  background-color: var(--fin-track) !important;
+  color: var(--fin-accent) !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  border-radius: 9999px;
+}
+.fin-scope .neu-gold-btn:hover { background-color: #e6e4f4 !important; color: var(--fin-ink) !important; }
+
+/* @theme alias utilities */
+.fin-scope .bg-card,
+.fin-scope .bg-paper { background-color: var(--fin-card) !important; }
+.fin-scope .bg-card-inner,
+.fin-scope .bg-bg,
+.fin-scope .bg-sidebar,
+.fin-scope .bg-ink { background-color: var(--fin-track) !important; }
+.fin-scope .text-text,
+.fin-scope .text-graphite { color: var(--fin-ink) !important; }
+.fin-scope .text-muted,
+.fin-scope .text-slate { color: var(--fin-sub) !important; }
+.fin-scope .text-accent,
+.fin-scope .text-cyanotype,
+.fin-scope .text-amber,
+.fin-scope .text-gold { color: var(--fin-accent) !important; }
+.fin-scope .bg-accent,
+.fin-scope .bg-amber,
+.fin-scope .bg-cyanotype { background-color: var(--fin-accent) !important; color: #fff !important; }
+.fin-scope .border-border,
+.fin-scope .border-line { border-color: var(--fin-line) !important; }
+
+/* Legacy hardcoded dark hexes -> surfaces */
+.fin-scope [class*="bg-[#15151A]"],
+.fin-scope [class*="bg-[#15161A]"],
+.fin-scope [class*="bg-[#1B1C22]"],
+.fin-scope [class*="bg-[#1C1C22]"],
+.fin-scope [class*="bg-[#18181F]"],
+.fin-scope [class*="bg-[#18191E]"],
+.fin-scope [class*="bg-[#18191e]"],
+.fin-scope [class*="bg-[#faf9f5]"],
+.fin-scope [class*="bg-[#f0ede6]"],
+.fin-scope [class*="bg-[#f7f5ee]"] { background-color: var(--fin-card) !important; }
+
+.fin-scope [class*="bg-[#111115]"],
+.fin-scope [class*="bg-[#111111]"],
+.fin-scope [class*="bg-[#111113]"],
+.fin-scope [class*="bg-[#111117]"],
+.fin-scope [class*="bg-[#121216]"],
+.fin-scope [class*="bg-[#121316]"],
+.fin-scope [class*="bg-[#121117]"],
+.fin-scope [class*="bg-[#13141a]"],
+.fin-scope [class*="bg-[#141519]"],
+.fin-scope [class*="bg-[#141518]"],
+.fin-scope [class*="bg-[#141416]"],
+.fin-scope [class*="bg-[#141418]"],
+.fin-scope [class*="bg-[#16171d]"],
+.fin-scope [class*="bg-[#101115]"],
+.fin-scope [class*="bg-[#101014]"],
+.fin-scope [class*="bg-[#101513]"],
+.fin-scope [class*="bg-[#0b0b0f]"],
+.fin-scope [class*="bg-[#090a0f]"],
+.fin-scope [class*="bg-[#090909]"],
+.fin-scope [class*="bg-[#0a0a0c]"] { background-color: var(--fin-track) !important; }
+
+/* Legacy text / border / fill accents */
+.fin-scope [class*="text-[#F2F0EB]"],
+.fin-scope [class*="text-[#E0D8C8]"],
+.fin-scope [class*="text-[#F5F3EC]"] { color: var(--fin-ink) !important; }
+.fin-scope [class*="text-[#8A8A93]"],
+.fin-scope [class*="text-[#C5C3B8]"],
+.fin-scope [class*="text-[#9A9AA3]"] { color: var(--fin-sub) !important; }
+.fin-scope [class*="text-[#B08D57]"],
+.fin-scope [class*="text-[#C5A065]"],
+.fin-scope [class*="text-[#8C6428]"] { color: var(--fin-accent) !important; }
+.fin-scope [class*="border-[#B08D57]"],
+.fin-scope [class*="border-[#1C1C22]"],
+.fin-scope [class*="border-[#23232C]"] { border-color: var(--fin-line) !important; }
+.fin-scope [class*="bg-[#B08D57]"],
+.fin-scope [class*="bg-[#C5A065]"] { background-color: var(--fin-accent) !important; color: #fff !important; }
+
+/* Legacy inputs */
+.fin-scope input,
+.fin-scope textarea,
+.fin-scope select {
+  color: var(--fin-ink) !important;
+}
+.fin-scope input::placeholder,
+.fin-scope textarea::placeholder { color: var(--fin-faint) !important; }
+
+/* ---- Compat: Tailwind neutral + accent palette remap (inside /os) ---- */
+/* Light neutral text -> readable ink/sub */
+.fin-scope [class*="text-white"],
+.fin-scope [class*="text-slate-50"],
+.fin-scope [class*="text-slate-100"],
+.fin-scope [class*="text-slate-200"],
+.fin-scope [class*="text-zinc-50"],
+.fin-scope [class*="text-zinc-100"],
+.fin-scope [class*="text-zinc-200"],
+.fin-scope [class*="text-gray-50"],
+.fin-scope [class*="text-gray-100"],
+.fin-scope [class*="text-gray-200"],
+.fin-scope [class*="text-neutral-100"],
+.fin-scope [class*="text-neutral-200"],
+.fin-scope [class*="text-stone-100"],
+.fin-scope [class*="text-stone-200"] { color: var(--fin-ink) !important; }
+
+.fin-scope [class*="text-slate-300"],
+.fin-scope [class*="text-slate-400"],
+.fin-scope [class*="text-slate-500"],
+.fin-scope [class*="text-zinc-300"],
+.fin-scope [class*="text-zinc-400"],
+.fin-scope [class*="text-gray-300"],
+.fin-scope [class*="text-gray-400"],
+.fin-scope [class*="text-neutral-300"],
+.fin-scope [class*="text-neutral-400"] { color: var(--fin-sub) !important; }
+
+/* Dark neutral backgrounds -> light surfaces */
+.fin-scope [class*="bg-black"],
+.fin-scope [class*="bg-slate-950"],
+.fin-scope [class*="bg-slate-900"],
+.fin-scope [class*="bg-zinc-950"],
+.fin-scope [class*="bg-zinc-900"],
+.fin-scope [class*="bg-gray-950"],
+.fin-scope [class*="bg-gray-900"],
+.fin-scope [class*="bg-neutral-950"],
+.fin-scope [class*="bg-neutral-900"] { background-color: var(--fin-card) !important; }
+.fin-scope [class*="bg-slate-800"],
+.fin-scope [class*="bg-slate-700"],
+.fin-scope [class*="bg-zinc-800"],
+.fin-scope [class*="bg-gray-800"],
+.fin-scope [class*="bg-neutral-800"] { background-color: var(--fin-track) !important; }
+
+/* Neutral borders -> hairline */
+.fin-scope [class*="border-slate-700"],
+.fin-scope [class*="border-slate-800"],
+.fin-scope [class*="border-slate-900"],
+.fin-scope [class*="border-zinc-700"],
+.fin-scope [class*="border-zinc-800"],
+.fin-scope [class*="border-gray-700"],
+.fin-scope [class*="border-gray-800"],
+.fin-scope [class*="border-slate-200"],
+.fin-scope [class*="border-slate-300"] { border-color: var(--fin-line) !important; }
+
+/* Indigo-family accents (buttons, tints, text, dots) -> brand indigo */
+.fin-scope [class*="bg-violet-6"],
+.fin-scope [class*="bg-violet-7"],
+.fin-scope [class*="bg-violet-5"],
+.fin-scope [class*="bg-purple-6"],
+.fin-scope [class*="bg-purple-7"],
+.fin-scope [class*="bg-indigo-6"],
+.fin-scope [class*="bg-indigo-7"],
+.fin-scope [class*="bg-blue-6"],
+.fin-scope [class*="bg-blue-7"],
+.fin-scope [class*="bg-fuchsia-6"],
+.fin-scope [class*="bg-sky-6"] { background-color: var(--fin-accent) !important; color: #fff !important; }
+.fin-scope [class*="bg-violet-6"] *,
+.fin-scope [class*="bg-purple-6"] *,
+.fin-scope [class*="bg-indigo-6"] *,
+.fin-scope [class*="bg-blue-6"] * { color: #fff !important; }
+
+.fin-scope [class*="bg-violet-500/1"],
+.fin-scope [class*="bg-violet-500/2"],
+.fin-scope [class*="bg-purple-500/1"],
+.fin-scope [class*="bg-indigo-500/1"],
+.fin-scope [class*="bg-blue-500/1"],
+.fin-scope [class*="bg-sky-500/1"] { background-color: var(--fin-accent-wash) !important; }
+
+.fin-scope [class*="text-violet-"],
+.fin-scope [class*="text-purple-"],
+.fin-scope [class*="text-indigo-"],
+.fin-scope [class*="text-fuchsia-"],
+.fin-scope [class*="text-sky-"] { color: var(--fin-accent) !important; }
+.fin-scope [class*="border-violet-"],
+.fin-scope [class*="border-purple-"],
+.fin-scope [class*="border-indigo-"],
+.fin-scope [class*="border-blue-4"],
+.fin-scope [class*="border-blue-5"] { border-color: var(--fin-accent) !important; }
+
+/* Gradient stops in the indigo family -> flat indigo */
+.fin-scope [class*="from-violet-"],
+.fin-scope [class*="from-purple-"],
+.fin-scope [class*="from-indigo-"],
+.fin-scope [class*="from-blue-"],
+.fin-scope [class*="from-fuchsia-"],
+.fin-scope [class*="from-sky-"] { --tw-gradient-from: var(--fin-accent) !important; }
+.fin-scope [class*="via-violet-"],
+.fin-scope [class*="via-purple-"],
+.fin-scope [class*="via-indigo-"],
+.fin-scope [class*="via-fuchsia-"] { --tw-gradient-via: var(--fin-accent) !important; }
+.fin-scope [class*="to-violet-"],
+.fin-scope [class*="to-purple-"],
+.fin-scope [class*="to-indigo-"],
+.fin-scope [class*="to-blue-"],
+.fin-scope [class*="to-fuchsia-"],
+.fin-scope [class*="to-sky-"] { --tw-gradient-to: var(--fin-accent) !important; }
+
+/* Any gradient-clipped heading text -> solid ink */
+.fin-scope .text-transparent[class*="bg-clip-text"],
+.fin-scope [class*="bg-clip-text"].text-transparent {
+  color: var(--fin-ink) !important;
+  -webkit-text-fill-color: var(--fin-ink) !important;
+  background-image: none !important;
+}
+
+/* Solid accent buttons in any hue -> brand indigo (keep /10 /20 tints + rose/red destructive) */
+.fin-scope [class*="bg-emerald-6"],
+.fin-scope [class*="bg-emerald-7"],
+.fin-scope [class*="bg-green-6"],
+.fin-scope [class*="bg-green-7"],
+.fin-scope [class*="bg-teal-6"],
+.fin-scope [class*="bg-teal-7"],
+.fin-scope [class*="bg-amber-5"],
+.fin-scope [class*="bg-amber-6"],
+.fin-scope [class*="bg-orange-5"],
+.fin-scope [class*="bg-orange-6"],
+.fin-scope [class*="bg-cyan-6"] {
+  background-color: var(--fin-accent) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+.fin-scope [class*="bg-emerald-6"] *,
+.fin-scope [class*="bg-green-6"] *,
+.fin-scope [class*="bg-amber-5"] *,
+.fin-scope [class*="bg-amber-6"] *,
+.fin-scope [class*="bg-orange-5"] * { color: #fff !important; }
+
+/* Legacy hardcoded near-black hexes not caught above -> track */
+.fin-scope [class*="bg-[#09"],
+.fin-scope [class*="bg-[#0a"],
+.fin-scope [class*="bg-[#0b"],
+.fin-scope [class*="bg-[#0c"],
+.fin-scope [class*="bg-[#0d"],
+.fin-scope [class*="bg-[#10"],
+.fin-scope [class*="bg-[#12"],
+.fin-scope [class*="bg-[#13"],
+.fin-scope [class*="bg-[#14"],
+.fin-scope [class*="bg-[#16"],
+.fin-scope [class*="bg-[#17"],
+.fin-scope [class*="bg-[#18"],
+.fin-scope [class*="bg-[#19"],
+.fin-scope [class*="bg-[#1a"],
+.fin-scope [class*="bg-[#1b"],
+.fin-scope [class*="bg-[#1c"],
+.fin-scope [class*="bg-[#1C"],
+.fin-scope [class*="bg-[#1d"],
+.fin-scope [class*="bg-[#20"],
+.fin-scope [class*="bg-[#21"],
+.fin-scope [class*="bg-[#22"],
+.fin-scope [class*="bg-[#23"] { background-color: var(--fin-track) !important; }

@@ -166,7 +166,7 @@ export const PerformanceIntelligencePage: React.FC = () => {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const isDark = theme === "dark";
+  const isDark = false; // FIN: force light-mode branch
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   // Determine if we are utilizing sandbox fallback data
@@ -570,16 +570,7 @@ export const PerformanceIntelligencePage: React.FC = () => {
       className={`space-y-6 pb-12 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
     >
       {/* Header Panel */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-slate-100" : "text-slate-900"}`}>
-            Performance AI Cockpit
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Real-time multi-channel analytics aggregation, audience engagement loops, and predictive schedule insights.
-          </p>
-        </div>
-
+      <div className="flex flex-wrap items-center justify-end gap-4">
         <div className="flex flex-wrap items-center gap-3">
           {isSandboxData && (
             <button

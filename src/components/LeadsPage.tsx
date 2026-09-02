@@ -15,7 +15,7 @@ const formatTimestamp = (timestamp: any): string => {
 
 export const LeadsPage: React.FC = () => {
   const { leads, theme, accentColor, addNotification } = useBrand();
-  const isDark = theme === "dark";
+  const isDark = false; // FIN: force light-mode branch
   const activeColor = accentColor || "violet";
   const [search, setSearch] = useState("");
   const [copiedAll, setCopiedAll] = useState(false);
@@ -60,17 +60,9 @@ export const LeadsPage: React.FC = () => {
       id="leads-view"
       className={`space-y-8 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
     >
-      {/* Title block */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-        <div>
-          <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-slate-100" : "text-slate-900"}`}>
-            Resource Leads
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Everyone who unlocked a free resource on the public <strong className={getBrandTextColor()}>/resources</strong> page.
-          </p>
-        </div>
-        <span className="bg-emerald-600/15 text-emerald-500 border border-emerald-500/20 text-[10px] font-mono px-2.5 py-1 rounded-full self-start md:self-auto font-bold uppercase shrink-0">
+      {/* Action row */}
+      <div className="flex items-center justify-end">
+        <span className="fin-badge-up text-[10px] px-2.5 py-1 rounded-full font-bold uppercase shrink-0">
           {leads.length} Total Leads
         </span>
       </div>

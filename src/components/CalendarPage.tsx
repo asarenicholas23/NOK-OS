@@ -83,7 +83,7 @@ export const CalendarPage: React.FC = () => {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [syncingNow, setSyncingNow] = useState(false);
 
-  const isDark = theme === "dark";
+  const isDark = false; // FIN: force light-mode branch
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   // Fetch Google Calendar events when token changes
@@ -239,22 +239,14 @@ export const CalendarPage: React.FC = () => {
       id="calendar-view" 
       className={`space-y-6 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
     >
-      {/* Header title & Action Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-        <div>
-          <div className="flex items-center space-x-2.5">
-            <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-slate-100" : "text-slate-900"}`}>
-              Interactive Content Calendar
-            </h2>
-            {approvedBriefs.length > 0 && (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                {approvedBriefs.length} Approved Briefs
-              </span>
-            )}
-          </div>
-          <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Navigate months, export styled Excel / Google Sheets workbooks, email schedules, and audit delivery states.
-          </p>
+      {/* Action Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {approvedBriefs.length > 0 && (
+            <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full fin-badge-up">
+              {approvedBriefs.length} Approved Briefs
+            </span>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

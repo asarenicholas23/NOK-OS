@@ -33,7 +33,7 @@ export const BrandGuidePage: React.FC = () => {
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [generatingBox, setGeneratingBox] = useState<string | null>(null);
 
-  const isDark = theme === "dark";
+  const isDark = false; // FIN: force light-mode branch
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   // Predefined high-value Campaign Objectives
@@ -260,18 +260,8 @@ export const BrandGuidePage: React.FC = () => {
       id="style-guide-view" 
       className={`space-y-8 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
     >
-      {/* Title Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h2 className={`text-2xl font-bold tracking-tight flex items-center ${isDark ? "text-slate-100" : "text-slate-900"}`}>
-            <Palette className={`w-6 h-6 mr-2 ${getBrandTextColor()}`} />
-            Brand positioning, objectives & guide Spec Sheets
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Configure brand-safety coordinates, core pillars, campaign objectives and use Gemini AI to generate custom directions.
-          </p>
-        </div>
-
+      {/* Control Row */}
+      <div className="flex flex-wrap items-center justify-end gap-4">
         <div className="flex flex-wrap items-center gap-3">
           {activeBrand && (
             <>

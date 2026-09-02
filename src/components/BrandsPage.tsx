@@ -25,7 +25,7 @@ export const BrandsPage: React.FC = () => {
   const [tagline, setTagline] = useState("");
   const [voiceTone, setVoiceTone] = useState("");
 
-  const isDark = theme === "dark";
+  const isDark = false; // FIN: force light-mode branch
   const activeColor = accentColor || "violet";
 
   const resetForm = () => {
@@ -112,20 +112,12 @@ export const BrandsPage: React.FC = () => {
       id="brands-view" 
       className={`space-y-8 animate-in fade-in duration-200 ${isDark ? "text-text" : "text-slate-800"}`}
     >
-      {/* Title section */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-        <div>
-          <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-text" : "text-slate-900"}`}>
-            Brand Workspace Console
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? "text-muted" : "text-slate-500"}`}>
-            Configure and register individual brand workspace identities or toggle operational contexts instantly.
-          </p>
-        </div>
+      {/* Action row */}
+      <div className="flex items-center justify-end">
         <button
           id="btn-trigger-add-brand"
           onClick={handleToggleForm}
-          className="flex items-center space-x-2 px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-md shadow-md transition-colors font-mono cursor-pointer self-start md:self-auto"
+          className="fin-btn-primary flex items-center space-x-2 px-4 py-2 text-xs font-semibold cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>{showAddForm ? "Cancel" : "Register New Brand"}</span>

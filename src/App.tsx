@@ -8,8 +8,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { BrandProvider, useBrand } from "./context/BrandContext";
 import { CmsProvider } from "./context/CmsContext";
 import { ThemeProvider } from "./context/ThemeContext";
-import { Sidebar } from "./components/Sidebar";
-import { Header } from "./components/Header";
+import { TopNav } from "./components/TopNav";
+import { PageHeader } from "./components/PageHeader";
 import { logAnalyticsEvent } from "./lib/firebase";
 
 // Lazy-loaded route & view components for code splitting & ~1.4MB bundle reduction
@@ -49,35 +49,33 @@ const AnalyticsPageViewTracker: React.FC = () => {
 
 // Loading Spinner Component for Suspense Fallback
 const PageLoadingFallback: React.FC = () => (
-  <div className="min-h-[60vh] flex flex-col items-center justify-center font-mono text-xs text-[#B08D57] space-y-4">
-    <div className="w-8 h-8 rounded-full border-2 border-t-[#B08D57] border-[#1C1C22] animate-spin" />
-    <div className="animate-pulse">Loading view assets...</div>
+  <div className="min-h-[60vh] flex flex-col items-center justify-center text-xs text-[#667085] space-y-4">
+    <div className="w-8 h-8 rounded-full border-2 border-t-[#4F46E5] border-[#E4E6EE] animate-spin" />
+    <div className="animate-pulse font-medium">Loading view…</div>
   </div>
 );
+
+// Per-view title + subtitle for the Finnova-style page header.
+const VIEW_META: Record<string, { title: string; subtitle: string }> = {
+  dashboard: { title: "Overview", subtitle: "Your live brand workspace at a glance." },
+  cms: { title: "Blog & CMS", subtitle: "Write, manage and publish all your content." },
+  brands: { title: "Brand Registry", subtitle: "Every client brand workspace you operate." },
+  leads: { title: "Resource Leads", subtitle: "Inbound leads captured from your resources." },
+  calendar: { title: "Content Calendar", subtitle: "Plan, brief and schedule everything in one place." },
+  sandbox: { title: "Creative Sandbox", subtitle: "Experiment with creative concepts freely." },
+  performance: { title: "AI Intelligence", subtitle: "Automated performance analysis and signals." },
+  insights: { title: "Strategic Insights", subtitle: "Deep-dive intelligence across your brands." },
+  chatbot: { title: "AI Creative Partner", subtitle: "Your always-on creative collaborator." },
+  import: { title: "Analytics Import", subtitle: "Bring performance exports into the OS." },
+  directions: { title: "Brand Directions", subtitle: "Creative and strategic direction sets." },
+  guide: { title: "Style & Guides", subtitle: "Brand rules, tokens and visual standards." }
+};
 
 // NOK OS Dashboard Shell (Auth-gated specifically for /os/*)
 const OsAppShell: React.FC = () => {
   const [activeView, setActiveView] = useState("dashboard");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { loading, user } = useBrand();
-
-  const getPageLabel = () => {
-    switch (activeView) {
-      case "dashboard": return "Control Dashboard";
-      case "cms": return "Blog & CMS Manager";
-      case "brands": return "Brand Registry";
-      case "leads": return "Resource Leads";
-      case "calendar": return "Content Calendar & Briefs";
-      case "performance": return "Performance AI";
-      case "import": return "Analytics Import";
-      case "directions": return "Brand Directions";
-      case "insights": return "Strategic Insights";
-      case "guide": return "Style Guides";
-      case "chatbot": return "AI Creative Partner";
-      case "sandbox": return "Creative Sandbox";
-      default: return "Dashboard";
-    }
-  };
+  const meta = VIEW_META[activeView] || VIEW_META.dashboard;
 
   const renderActiveView = () => {
     switch (activeView) {
@@ -99,9 +97,9 @@ const OsAppShell: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#15151A] flex flex-col items-center justify-center font-mono text-xs text-[#B08D57] space-y-4">
-        <div className="w-8 h-8 rounded-full border-2 border-t-[#B08D57] border-[#1C1C22] animate-spin" />
-        <div className="animate-pulse">Mounting NOK OS Brand Workspace...</div>
+      <div className="fin-scope fin-page min-h-screen flex flex-col items-center justify-center text-xs text-[#667085] space-y-4">
+        <div className="w-8 h-8 rounded-full border-2 border-t-[#4F46E5] border-[#E4E6EE] animate-spin" />
+        <div className="animate-pulse font-medium">Mounting NOK OS Brand Workspace…</div>
       </div>
     );
   }
@@ -116,37 +114,30 @@ const OsAppShell: React.FC = () => {
   }
 
   return (
-    <div 
-      id="app-shell" 
-      className="min-h-screen flex font-sans select-none overflow-hidden bg-[#15151A] text-[#F2F0EB]"
+    <div
+      id="app-shell"
+      className="fin-scope fin-page min-h-screen flex flex-col font-sans select-none"
     >
-      {/* Persistent left sidebar navigation */}
-      <Sidebar 
-        activeView={activeView} 
-        setActiveView={setActiveView} 
-        isCollapsed={sidebarCollapsed}
-        setIsCollapsed={setSidebarCollapsed}
-      />
+      {/* Finnova-style top bar: logo · centered pill nav · icon actions */}
+      <TopNav activeView={activeView} setActiveView={setActiveView} />
 
-      {/* Main dashboard control stage */}
-      <div 
-        id="main-content-stage" 
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
-          sidebarCollapsed ? "pl-16" : "pl-64"
-        }`}
+      {/* Dynamic page container with semantic <main> landmark */}
+      <main
+        id="main-view-container"
+        className="flex-1 overflow-y-auto fin-scrollbar px-4 sm:px-8 pb-12 pt-2"
       >
-        {/* Global sticky header with Brand Switcher */}
-        <Header viewLabel={getPageLabel()} />
-
-        {/* Dynamic page container with semantic <main> landmark */}
-        <main id="main-view-container" className="flex-1 overflow-y-auto p-6 sm:p-8 max-h-[calc(100vh-4rem)] scrollbar-thin">
-          <div className="max-w-7xl mx-auto">
-            <Suspense fallback={<PageLoadingFallback />}>
-              {renderActiveView()}
-            </Suspense>
-          </div>
-        </main>
-      </div>
+        <div className="max-w-[1400px] mx-auto w-full">
+          <PageHeader
+            title={meta.title}
+            subtitle={meta.subtitle}
+            showFilter
+            onBack={activeView === "dashboard" ? undefined : () => setActiveView("dashboard")}
+          />
+          <Suspense fallback={<PageLoadingFallback />}>
+            {renderActiveView()}
+          </Suspense>
+        </div>
+      </main>
     </div>
   );
 };

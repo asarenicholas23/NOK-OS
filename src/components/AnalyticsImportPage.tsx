@@ -39,7 +39,7 @@ export const AnalyticsImportPage: React.FC = () => {
   const [activePreviewTab, setActivePreviewTab] = useState<"raw" | "cleaned">("raw");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isDark = theme === "dark";
+  const isDark = false; // FIN: force light-mode branch
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   const getAccentClass = () => {
@@ -239,18 +239,6 @@ export const AnalyticsImportPage: React.FC = () => {
       id="analytics-import-view" 
       className={`space-y-8 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
     >
-      {/* Welcome Title */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-slate-100" : "text-slate-900"}`}>
-            Analytics Import Console
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Import standard client performance spreadsheets or JSON files into the brand database.
-          </p>
-        </div>
-      </div>
-
       {/* Active Database Overview */}
       <div className={`border p-5 rounded-xl ${isDark ? "bg-card/90 border-border" : "bg-white border-slate-200 shadow-sm"} space-y-4`}>
         <div className="flex items-center justify-between">

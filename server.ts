@@ -57,13 +57,30 @@ const ai = new GoogleGenAI({
 
 // Initialize Firebase Admin (service account credentials) so this server can
 // verify staff ID tokens and validate calendar-review share tokens with trusted access.
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
-  }),
-});
+// When the service-account env vars are absent (common for local frontend-only
+// dev), skip cert init so the Vite dev middleware can still boot and serve the
+// SPA — the Admin-backed API routes below will 500 until real creds are set.
+const hasAdminCreds =
+  !!process.env.FIREBASE_PROJECT_ID &&
+  !!process.env.FIREBASE_CLIENT_EMAIL &&
+  !!process.env.FIREBASE_PRIVATE_KEY;
+
+if (hasAdminCreds) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+    }),
+  });
+} else {
+  console.warn(
+    "[server] Firebase Admin service-account env vars not set — starting without " +
+      "Admin SDK. Frontend/dev server works; Admin-backed API routes will fail until " +
+      "FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY are provided."
+  );
+  admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || "nok-os-prod" });
+}
 const adminDb = admin.firestore();
 
 // Gate: only signed-in staff (real Firebase email/password accounts) may call

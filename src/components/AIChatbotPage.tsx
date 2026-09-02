@@ -41,7 +41,7 @@ export const AIChatbotPage: React.FC = () => {
     accentColor 
   } = useBrand();
 
-  const isDark = theme === "dark";
+  const isDark = false; // FIN: force light-mode branch
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
   const brandName = activeBrand?.name || "Active Client Brand";
 
@@ -339,18 +339,8 @@ How can I help you today? You can:
 
   return (
     <div className={`space-y-6 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}>
-      {/* Title & Top Panel */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className={`text-2xl font-bold tracking-tight flex items-center ${isDark ? "text-slate-100" : "text-slate-900"}`}>
-            <MessageSquare className={`w-6 h-6 mr-2 ${getBrandTextColor()}`} />
-            AI Creative Partner
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Chat with your custom CMO to brainstorm copy concepts and instantly generate campaign briefs for <strong className={getBrandTextColor()}>{brandName}</strong>.
-          </p>
-        </div>
-
+      {/* Top Panel */}
+      <div className="flex items-center justify-end gap-4">
         {/* Dynamic Context Settings */}
         <div className="flex items-center gap-3 shrink-0 flex-wrap">
           <div className={`flex items-center space-x-2.5 px-3 py-1.5 rounded-lg border text-[10px] font-mono font-bold ${isDark ? "bg-slate-950 border-border" : "bg-slate-100 border-slate-200"}`}>

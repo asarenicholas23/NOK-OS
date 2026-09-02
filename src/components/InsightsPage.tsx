@@ -41,7 +41,7 @@ export const InsightsPage: React.FC = () => {
     rawAnalytics
   } = useBrand();
 
-  const [isDark] = useState(theme === "dark");
+  const [isDark] = useState(false); // FIN: force light-mode branch
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   // Filter states
@@ -351,18 +351,8 @@ export const InsightsPage: React.FC = () => {
       id="insights-view" 
       className={`space-y-8 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
     >
-      {/* Title & Top Panel */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className={`text-2xl font-bold tracking-tight flex items-center ${isDark ? "text-slate-100" : "text-slate-900"}`}>
-            <Lightbulb className={`w-6 h-6 mr-2 ${getBrandTextColor()}`} />
-            Strategic Insights Board
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Audited analytics highlights and operational recommendations for <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "active client brand"}</strong>.
-          </p>
-        </div>
-
+      {/* Top Panel */}
+      <div className="flex flex-wrap items-center justify-end gap-4">
         <div className="flex flex-wrap items-center gap-3 shrink-0">
           <div className="flex items-center space-x-1.5 border border-border bg-slate-950/40 px-2 py-1.5 rounded-lg">
             <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold">Count</span>

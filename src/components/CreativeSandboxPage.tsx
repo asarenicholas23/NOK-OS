@@ -36,7 +36,7 @@ export const CreativeSandboxPage: React.FC = () => {
     accentColor 
   } = useBrand();
 
-  const isDark = theme === "dark";
+  const isDark = false; // FIN: force light-mode branch
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   // Filter & Search states
@@ -285,17 +285,11 @@ export const CreativeSandboxPage: React.FC = () => {
   const uniqueTags = Array.from(new Set(ideas.flatMap(i => i.tags || [])));
 
   return (
-    <div className={`p-6 min-h-screen font-sans ${isDark ? "bg-[#090909] text-slate-100" : "bg-slate-50 text-slate-900"}`}>
-      
-      {/* Page Header */}
-      <div id="sandbox-header" className="flex flex-col md:flex-row md:items-center justify-between border-b pb-6 mb-8 border-slate-200 dark:border-border">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Creative Idea Sandbox</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            A frictionless repository to dump and refine brand notes, caption drafts, visual concepts, and hashtags. Spark concepts instantly using Gemini or manually capture workspace inspiration.
-          </p>
-        </div>
-        <div className="mt-4 md:mt-0 flex space-x-3">
+    <div className="font-sans text-[#16151F] space-y-6">
+
+      {/* Action row */}
+      <div id="sandbox-header" className="flex items-center justify-end mb-2">
+        <div className="flex space-x-3">
           <button
             id="toggle-manual-form"
             onClick={() => {

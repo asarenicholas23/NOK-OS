@@ -644,33 +644,20 @@ export const CmsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 text-[#F2F0EB]">
+    <div className="space-y-6 text-[#16151F]">
       {/* Toast Notification */}
       {successMsg && (
-        <div className="fixed top-20 right-8 z-50 p-4 rounded-2xl neu-raised bg-[#15151A] text-emerald-400 border border-emerald-500/30 flex items-center space-x-2 text-xs font-mono shadow-2xl animate-in fade-in slide-in-from-top-2">
-          <Check className="w-4 h-4 text-emerald-400" />
+        <div className="fixed top-20 right-8 z-50 p-4 rounded-2xl fin-card text-emerald-600 border border-emerald-200 flex items-center space-x-2 text-xs shadow-2xl animate-in fade-in slide-in-from-top-2">
+          <Check className="w-4 h-4 text-emerald-500" />
           <span>{successMsg}</span>
         </div>
       )}
 
-      {/* Header Banner */}
-      <div className="p-6 sm:p-8 rounded-3xl neu-raised flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full neu-pressed text-[#B08D57] text-[10px] font-mono mb-2 uppercase tracking-wider font-bold">
-            <Sparkles className="w-3 h-3 text-[#B08D57]" />
-            <span>NOK OS Content Management System</span>
-          </div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#F2F0EB]">
-            CMS & Public Website Editor
-          </h1>
-          <p className="text-xs text-[#8A8A93] mt-1 max-w-xl">
-            Update blog articles migrated from noksocials.blogspot.com, customize agency pricing & packages, and modify address/contact details live without code changes.
-          </p>
-        </div>
-
+      {/* Action row */}
+      <div className="flex items-center justify-end">
         <button
           onClick={resetToDefaults}
-          className="neu-raised-sm px-3.5 py-2 rounded-xl text-xs font-mono text-[#8A8A93] hover:text-rose-400 flex items-center space-x-1.5 shrink-0 cursor-pointer"
+          className="fin-btn-ghost px-3.5 py-2 text-xs text-[#6B6880] hover:text-rose-500 flex items-center space-x-1.5 shrink-0 cursor-pointer"
           title="Reset CMS data back to initial defaults"
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -679,13 +666,13 @@ export const CmsPage: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 p-2 rounded-2xl neu-pressed">
+      <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-full fin-pill-group w-fit max-w-full overflow-x-auto">
         <button
           onClick={() => setActiveTab("leads")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2 transition-all cursor-pointer relative ${
             activeTab === "leads"
-              ? "neu-pressed text-[#B08D57] border-l-2 border-[#B08D57]"
-              : "text-[#8A8A93] hover:text-[#F2F0EB]"
+              ? "fin-tab-active-solid"
+              : "fin-tab"
           }`}
         >
           <PhoneCall className="w-3.5 h-3.5" />
@@ -699,8 +686,8 @@ export const CmsPage: React.FC = () => {
           onClick={() => setActiveTab("blog")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2 transition-all cursor-pointer ${
             activeTab === "blog"
-              ? "neu-pressed text-[#B08D57] border-l-2 border-[#B08D57]"
-              : "text-[#8A8A93] hover:text-[#F2F0EB]"
+              ? "fin-tab-active-solid"
+              : "fin-tab"
           }`}
         >
           <FileText className="w-3.5 h-3.5" />
@@ -711,8 +698,8 @@ export const CmsPage: React.FC = () => {
           onClick={() => setActiveTab("agency")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2 transition-all cursor-pointer ${
             activeTab === "agency"
-              ? "neu-pressed text-[#B08D57] border-l-2 border-[#B08D57]"
-              : "text-[#8A8A93] hover:text-[#F2F0EB]"
+              ? "fin-tab-active-solid"
+              : "fin-tab"
           }`}
         >
           <Globe className="w-3.5 h-3.5" />
@@ -723,8 +710,8 @@ export const CmsPage: React.FC = () => {
           onClick={() => setActiveTab("services")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2 transition-all cursor-pointer ${
             activeTab === "services"
-              ? "neu-pressed text-[#B08D57] border-l-2 border-[#B08D57]"
-              : "text-[#8A8A93] hover:text-[#F2F0EB]"
+              ? "fin-tab-active-solid"
+              : "fin-tab"
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
@@ -735,8 +722,8 @@ export const CmsPage: React.FC = () => {
           onClick={() => setActiveTab("brands")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2 transition-all cursor-pointer ${
             activeTab === "brands"
-              ? "neu-pressed text-[#B08D57] border-l-2 border-[#B08D57]"
-              : "text-[#8A8A93] hover:text-[#F2F0EB]"
+              ? "fin-tab-active-solid"
+              : "fin-tab"
           }`}
         >
           <ShieldCheck className="w-3.5 h-3.5" />
@@ -796,7 +783,7 @@ export const CmsPage: React.FC = () => {
                   className={`px-3 py-1 rounded-lg text-[10px] font-mono font-semibold transition-all shrink-0 cursor-pointer ${
                     leadStatusFilter === status
                       ? "bg-[#B08D57] text-[#111115]"
-                      : "neu-raised text-[#8A8A93] hover:text-[#F2F0EB]"
+                      : "neu-raised fin-tab"
                   }`}
                 >
                   {status}
@@ -994,7 +981,7 @@ export const CmsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsImportModalOpen(false)}
-                  className="p-1 rounded-lg text-[#8A8A93] hover:text-[#F2F0EB]"
+                  className="p-1 rounded-lg fin-tab"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1040,7 +1027,7 @@ export const CmsPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsImportModalOpen(false)}
-                      className="px-4 py-2 rounded-xl neu-raised text-xs font-mono text-[#8A8A93] hover:text-[#F2F0EB]"
+                      className="px-4 py-2 rounded-xl neu-raised text-xs font-mono fin-tab"
                     >
                       Cancel
                     </button>
@@ -1068,7 +1055,7 @@ export const CmsPage: React.FC = () => {
                 </h3>
                 <button
                   onClick={() => setIsAddingBlog(false)}
-                  className="p-1 rounded-lg text-[#8A8A93] hover:text-[#F2F0EB]"
+                  className="p-1 rounded-lg fin-tab"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1269,7 +1256,7 @@ export const CmsPage: React.FC = () => {
                         className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
                           editorMode === "write"
                             ? "bg-[#B08D57] text-[#111115]"
-                            : "text-[#8A8A93] hover:text-[#F2F0EB]"
+                            : "fin-tab"
                         }`}
                       >
                         <Edit3 className="w-3 h-3" />
@@ -1281,7 +1268,7 @@ export const CmsPage: React.FC = () => {
                         className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
                           editorMode === "preview"
                             ? "bg-[#B08D57] text-[#111115]"
-                            : "text-[#8A8A93] hover:text-[#F2F0EB]"
+                            : "fin-tab"
                         }`}
                       >
                         <Eye className="w-3 h-3" />
@@ -1726,7 +1713,7 @@ export const CmsPage: React.FC = () => {
                 </h3>
                 <button
                   onClick={() => setIsAddingService(false)}
-                  className="p-1 rounded-lg text-[#8A8A93] hover:text-[#F2F0EB]"
+                  className="p-1 rounded-lg fin-tab"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1989,7 +1976,7 @@ export const CmsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsAddingBrand(false)}
-                  className="p-1.5 rounded-lg neu-pressed text-[#8A8A93] hover:text-[#F2F0EB] cursor-pointer"
+                  className="p-1.5 rounded-lg neu-pressed fin-tab cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2184,7 +2171,7 @@ export const CmsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsAddingBrand(false)}
-                    className="neu-raised-sm px-4 py-2 rounded-xl text-xs font-mono text-[#8A8A93] hover:text-[#F2F0EB] cursor-pointer"
+                    className="neu-raised-sm px-4 py-2 rounded-xl text-xs font-mono fin-tab cursor-pointer"
                   >
                     Cancel
                   </button>

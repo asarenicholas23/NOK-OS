@@ -40,7 +40,7 @@ export const DirectionsPage: React.FC = () => {
     addNotification 
   } = useBrand();
 
-  const [isDark] = useState(theme === "dark");
+  const [isDark] = useState(false); // FIN: force light-mode branch
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   // Filter & selection states
@@ -329,18 +329,8 @@ export const DirectionsPage: React.FC = () => {
       id="directions-view" 
       className={`space-y-8 animate-in fade-in duration-200 ${isDark ? "text-slate-100" : "text-slate-800"}`}
     >
-      {/* Header and Control Row */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className={`text-2xl font-bold tracking-tight flex items-center ${isDark ? "text-slate-100" : "text-slate-900"}`}>
-            <Waypoints className={`w-6 h-6 mr-2 ${getBrandTextColor()}`} />
-            Brand Positioning & Directions
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Strategic positioning pillars, targeting focuses, and pre-authorized communication pathways for <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "active client brand"}</strong>.
-          </p>
-        </div>
-
+      {/* Control Row */}
+      <div className="flex flex-wrap items-center justify-end gap-4">
         <div className="flex flex-wrap items-center gap-3 shrink-0">
           <div className="flex items-center space-x-1.5 border border-border bg-slate-950/40 px-2 py-1.5 rounded-lg">
             <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold">Count</span>
