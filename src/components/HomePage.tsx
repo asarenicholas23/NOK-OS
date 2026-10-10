@@ -2,6 +2,7 @@ import React, { useState, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { PublicFooter } from "./PublicFooter";
 import { useCms } from "../context/CmsContext";
+import { isWebsiteBuild } from "../data/cmsData";
 import { 
   ArrowRight, 
   PhoneCall, 
@@ -9,6 +10,7 @@ import {
   MapPin
 } from "lucide-react";
 import { PublicNavbar } from "./PublicNavbar";
+import { WebsiteBuildsSection } from "./WebsiteBuildsSection";
 import { ClientBrandsSection } from "./ClientBrandsSection";
 import { SEO } from "./SEO";
 import { buildFaqJsonLd, truncateDescription } from "../lib/seo";
@@ -46,6 +48,8 @@ export const HomePage: React.FC = () => {
   ];
 
   const faqItems = buildHomeFaqItems(agencyInfo, services);
+  const socialServices = services.filter((s) => !isWebsiteBuild(s));
+
 
   return (
     <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
@@ -167,16 +171,16 @@ export const HomePage: React.FC = () => {
         <section id="services" className="px-4 sm:px-8 py-20 max-w-7xl mx-auto border-t border-[#1C1C22]">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
             <h2 className="font-display text-2xl sm:text-4xl font-bold text-[#F2F0EB] tracking-tight">
-              5-Tier Service Structure
+              Social & Growth Services
             </h2>
             <p className="text-sm sm:text-base text-zinc-200">
-              Structured solutions for every stage of your business — from brand foundation to monthly growth retainers.
+              Structured support for every stage of your brand, from foundation to monthly growth retainers. Every engagement starts with a free discovery call and a proposal tailored to you.
             </p>
           </div>
 
           {/* Pressed Tile Service Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {services.map((service, sIdx) => {
+            {socialServices.map((service, sIdx) => {
               return (
                 <div
                   key={service.id}
@@ -240,7 +244,7 @@ export const HomePage: React.FC = () => {
                     }}
                     className="w-full py-3 px-4 rounded-xl neu-raised-sm hover:neu-pressed text-xs font-bold text-[#F2F0EB] hover:text-[#B08D57] transition-all flex items-center justify-center space-x-2 cursor-pointer border border-[#B08D57]/30"
                   >
-                    <span>Select {service.title}</span>
+                    <span>Discuss {service.title}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -248,6 +252,15 @@ export const HomePage: React.FC = () => {
             })}
           </div>
         </section>
+
+        {/* Website & Systems Builds: standalone projects, separate from the social services */}
+        <WebsiteBuildsSection
+          onBook={(serviceTitle) => {
+            setSelectedServiceTier(serviceTitle);
+            setIsModalOpen(true);
+          }}
+          learnMoreLink
+        />
 
         {/* Free Resources Banner */}
         <section className="px-4 sm:px-8 py-20 max-w-7xl mx-auto">

@@ -78,7 +78,7 @@ async function main() {
   const page = await browser.newPage();
 
   try {
-    const staticRoutes = ["/home", "/blog", "/resources", "/ighealthcheck"];
+    const staticRoutes = ["/home", "/blog", "/resources", "/ighealthcheck", "/website-builds"];
     for (const route of staticRoutes) {
       await renderRoute(page, route);
     }

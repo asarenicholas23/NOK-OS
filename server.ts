@@ -894,6 +894,130 @@ app.post("/api/calendar-review/exchange", async (req, res) => {
   }
 });
 
+// ── Client proposals ─────────────────────────────────────────────────────────
+// Clients open /proposal/:token. The token is checked here with the Admin SDK
+// and only the latest *sent* snapshot is returned, never the staff working
+// copy. The proposals collection itself stays staff-only in firestore.rules.
+
+const PROPOSAL_TOKEN_RE = /^[a-f0-9]{32}$/;
+const MAX_CLIENT_COMMENTS = 200;
+const MAX_COMMENT_LENGTH = 2000;
+
+// Small in-memory limiter for the public proposal endpoints (one Render instance).
+const proposalHits = new Map<string, { count: number; resetAt: number }>();
+function proposalRateLimit(limit: number) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+    const key = `${req.path}|${ip}`;
+    const now = Date.now();
+    const entry = proposalHits.get(key);
+    if (!entry || entry.resetAt < now) {
+      proposalHits.set(key, { count: 1, resetAt: now + 60_000 });
+    } else if (++entry.count > limit) {
+      return res.status(429).json({ error: "too_many_requests" });
+    }
+    if (proposalHits.size > 10_000) {
+      for (const [k, v] of proposalHits) if (v.resetAt < now) proposalHits.delete(k);
+    }
+    next();
+  };
+}
+
+async function findSentProposal(token: unknown) {
+  if (typeof token !== "string" || !PROPOSAL_TOKEN_RE.test(token)) return null;
+  const snap = await adminDb.collection("proposals").where("token", "==", token).limit(1).get();
+  if (snap.empty) return null;
+  const ref = snap.docs[0].ref;
+  const data = snap.docs[0].data();
+  if (!data.sentVersion) return null; // drafts are never visible to clients
+  return { ref, data };
+}
+
+const publicComment = (id: string, c: FirebaseFirestore.DocumentData) => ({
+  id,
+  author: c.author,
+  name: c.name,
+  message: c.message,
+  section: c.section || null,
+  kind: c.kind,
+  version: c.version,
+  createdAt: c.createdAt,
+});
+
+app.post("/api/proposals/view", proposalRateLimit(60), async (req, res) => {
+  try {
+    const found = await findSentProposal(req.body?.token);
+    if (!found) return res.status(404).json({ error: "not_found" });
+    const { ref, data } = found;
+
+    const [versionSnap, commentsSnap] = await Promise.all([
+      ref.collection("versions").doc(String(data.sentVersion)).get(),
+      ref.collection("comments").orderBy("createdAt", "asc").limit(500).get(),
+    ]);
+    if (!versionSnap.exists) return res.status(404).json({ error: "not_found" });
+
+    await ref.update({ lastViewedAt: new Date().toISOString() });
+
+    res.json({
+      proposal: versionSnap.data(),
+      status: data.status,
+      comments: commentsSnap.docs.map((d) => publicComment(d.id, d.data())),
+    });
+  } catch (error: any) {
+    console.error("Proposal view error:", error);
+    res.status(500).json({ error: "Failed to load proposal." });
+  }
+});
+
+app.post("/api/proposals/comment", proposalRateLimit(10), async (req, res) => {
+  try {
+    const found = await findSentProposal(req.body?.token);
+    if (!found) return res.status(404).json({ error: "not_found" });
+    const { ref, data } = found;
+
+    const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    const section = typeof req.body?.section === "string" ? req.body.section.trim().slice(0, 120) : "";
+    const requestChanges = req.body?.requestChanges === true;
+
+    if (!message || message.length > MAX_COMMENT_LENGTH) {
+      return res.status(400).json({ error: "invalid_message" });
+    }
+    if (data.status === "declined" || (requestChanges && data.status === "accepted")) {
+      return res.status(409).json({ error: "proposal_closed" });
+    }
+    if ((data.clientCommentCount || 0) >= MAX_CLIENT_COMMENTS) {
+      return res.status(429).json({ error: "comment_limit" });
+    }
+
+    const now = new Date().toISOString();
+    const comment = {
+      author: "client",
+      name: data.clientName || "Client",
+      message,
+      ...(section ? { section } : {}),
+      kind: requestChanges ? "change_request" : "comment",
+      version: data.sentVersion,
+      createdAt: now,
+    };
+    const commentRef = ref.collection("comments").doc(`c-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
+    const nextStatus = requestChanges && data.status === "sent" ? "changes_requested" : data.status;
+
+    const batch = adminDb.batch();
+    batch.set(commentRef, comment);
+    batch.update(ref, {
+      lastClientCommentAt: now,
+      clientCommentCount: admin.firestore.FieldValue.increment(1),
+      status: nextStatus,
+    });
+    await batch.commit();
+
+    res.json({ comment: publicComment(commentRef.id, comment), status: nextStatus });
+  } catch (error: any) {
+    console.error("Proposal comment error:", error);
+    res.status(500).json({ error: "Failed to save comment." });
+  }
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });

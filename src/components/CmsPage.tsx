@@ -2,7 +2,10 @@ import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useCms } from "../context/CmsContext";
 import { apiFetch } from "../lib/apiBase";
-import { BlogPost, ServicePackage, DiscoveryRequest, ClientBrand } from "../data/cmsData";
+import { BlogPost, ServicePackage, DiscoveryRequest, ClientBrand, isWebsiteBuild } from "../data/cmsData";
+import { CallAvailabilityPanel } from "./CallAvailabilityPanel";
+import { ProposalsTab } from "./ProposalsTab";
+import { formatSlotFull, slotIdFromDate } from "../utils/discoverySlots";
 import { 
   FileText, 
   Plus, 
@@ -38,7 +41,9 @@ import {
   Filter,
   UserCheck,
   ShieldCheck,
-  Building2
+  Building2,
+  CalendarClock,
+  FileSignature
 } from "lucide-react";
 
 export const CmsPage: React.FC = () => {
@@ -56,6 +61,7 @@ export const CmsPage: React.FC = () => {
     updateBlogPost, 
     deleteBlogPost,
     updateDiscoveryRequestStatus,
+    releaseDiscoverySlot,
     deleteDiscoveryRequest,
     addClientBrand,
     updateClientBrand,
@@ -63,13 +69,16 @@ export const CmsPage: React.FC = () => {
     resetToDefaults
   } = useCms();
 
-  const [activeTab, setActiveTab] = useState<"leads" | "blog" | "agency" | "services" | "brands">("leads");
+  const [activeTab, setActiveTab] = useState<"leads" | "proposals" | "blog" | "agency" | "services" | "brands">("leads");
+  const [proposalSeedLead, setProposalSeedLead] = useState<DiscoveryRequest | null>(null);
+  const clearProposalSeed = React.useCallback(() => setProposalSeedLead(null), []);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Leads tab state
   const [leadSearch, setLeadSearch] = useState("");
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>("All");
   const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
+  const [cancellingLeadId, setCancellingLeadId] = useState<string | null>(null);
 
   // Blog editing state
   const [editingBlog, setEditingBlog] = useState<BlogPost | null>(null);
@@ -126,7 +135,8 @@ export const CmsPage: React.FC = () => {
     period: "per month",
     desc: "",
     featuresRaw: "",
-    featured: false
+    featured: false,
+    category: "social" as "social" | "website"
   });
 
   // Brand editing state
@@ -479,6 +489,7 @@ export const CmsPage: React.FC = () => {
         period: serviceFormData.period,
         desc: serviceFormData.desc,
         featured: serviceFormData.featured,
+        category: serviceFormData.category,
         features: featuresList
       });
       showNotification("Service package updated!");
@@ -490,6 +501,7 @@ export const CmsPage: React.FC = () => {
         period: serviceFormData.period,
         desc: serviceFormData.desc,
         featured: serviceFormData.featured,
+        category: serviceFormData.category,
         features: featuresList
       });
       showNotification("New service package created!");
@@ -508,7 +520,8 @@ export const CmsPage: React.FC = () => {
       period: service.period,
       desc: service.desc,
       featured: !!service.featured,
-      featuresRaw: service.features.join("\n")
+      featuresRaw: service.features.join("\n"),
+      category: isWebsiteBuild(service) ? "website" : "social"
     });
     setIsAddingService(true);
   };
@@ -522,7 +535,8 @@ export const CmsPage: React.FC = () => {
       period: "per month",
       desc: "",
       featured: false,
-      featuresRaw: ""
+      featuresRaw: "",
+      category: "social"
     });
     setIsAddingService(true);
   };
@@ -683,6 +697,18 @@ export const CmsPage: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab("proposals")}
+          className={`px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2 transition-all cursor-pointer ${
+            activeTab === "proposals"
+              ? "fin-tab-active-solid"
+              : "fin-tab"
+          }`}
+        >
+          <FileSignature className="w-3.5 h-3.5" />
+          <span>Proposals</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab("blog")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2 transition-all cursor-pointer ${
             activeTab === "blog"
@@ -760,6 +786,8 @@ export const CmsPage: React.FC = () => {
             </div>
           </div>
 
+          <CallAvailabilityPanel onSaved={showNotification} />
+
           {/* Search & Filter Bar */}
           <div className="p-4 rounded-2xl neu-pressed flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative w-full sm:w-72">
@@ -813,9 +841,10 @@ export const CmsPage: React.FC = () => {
                   Closed: "bg-white/5 text-zinc-400 border-white/10"
                 }[req.status];
 
-                const whatsappMsg = `Hello ${req.name}! Thank you for booking a Discovery Call for ${req.businessName} with NOK Social.\n\nRegarding your interest in the *${req.serviceTier}* tier...`;
+                const callTimeLine = req.slotStart && !req.slotReleased ? `\n\nYour call is booked for *${formatSlotFull(req.slotStart)}*.` : "";
+                const whatsappMsg = `Hello ${req.name}! Thank you for booking a Discovery Call for ${req.businessName} with NOK Social.${callTimeLine}\n\nRegarding your interest in the *${req.serviceTier}* tier...`;
                 const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMsg)}`;
-                const mailtoUrl = `mailto:${req.email}?subject=${encodeURIComponent(`NOK Social — Discovery Call for ${req.businessName}`)}&body=${encodeURIComponent(`Hello ${req.name},\n\nThank you for booking a Discovery Call with NOK Social regarding ${req.businessName}.\n\nWhen would be the best time for our strategy team to connect?`)}`;
+                const mailtoUrl = `mailto:${req.email}?subject=${encodeURIComponent(`NOK Social — Discovery Call for ${req.businessName}`)}&body=${encodeURIComponent(`Hello ${req.name},\n\nThank you for booking a Discovery Call with NOK Social regarding ${req.businessName}.\n\n${req.slotStart && !req.slotReleased ? `This confirms your call on ${formatSlotFull(req.slotStart)}.` : "When would be the best time for our strategy team to connect?"}`)}`;
 
                 return (
                   <div
@@ -851,6 +880,55 @@ export const CmsPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
+
+                    {req.slotStart && (() => {
+                      const isUpcoming = !req.slotReleased && req.slotStart > slotIdFromDate(new Date());
+                      return (
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl neu-pressed text-xs">
+                          <div className="flex items-center space-x-2">
+                            <CalendarClock className="w-4 h-4 text-[#B08D57]" />
+                            <span className="text-[10px] font-mono text-[#8A8A93] uppercase">Call time:</span>
+                            <span className={`font-semibold ${req.slotReleased ? "line-through text-[#6B6880]" : "text-[#F2F0EB]"}`}>
+                              {formatSlotFull(req.slotStart)}
+                            </span>
+                            {req.slotReleased && <span className="text-[10px] font-mono text-[#8A8A93]">(cancelled)</span>}
+                          </div>
+                          {isUpcoming && (cancellingLeadId === req.id ? (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-[10px] font-mono text-amber-300">Cancel call & free this time?</span>
+                              <button
+                                onClick={() => setCancellingLeadId(null)}
+                                className="px-2 py-1 rounded neu-raised text-[10px] font-mono text-zinc-400 cursor-pointer"
+                              >
+                                Keep
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await releaseDiscoverySlot(req.id);
+                                    showNotification("Call cancelled — time slot is open again");
+                                  } catch (err) {
+                                    console.error("Releasing slot failed:", err);
+                                    showNotification("Couldn't cancel the call. Please try again.");
+                                  }
+                                  setCancellingLeadId(null);
+                                }}
+                                className="px-2 py-1 rounded bg-amber-600 text-white text-[10px] font-mono font-bold cursor-pointer"
+                              >
+                                Cancel Call
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setCancellingLeadId(req.id)}
+                              className="px-2.5 py-1 rounded-lg neu-raised text-[10px] font-mono text-amber-300 hover:text-amber-200 cursor-pointer"
+                            >
+                              Cancel & free slot
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
 
                     {/* Details Row */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3.5 rounded-xl neu-pressed bg-[#111115] text-xs">
@@ -897,6 +975,17 @@ export const CmsPage: React.FC = () => {
                           <Mail className="w-3.5 h-3.5 text-[#B08D57]" />
                           <span>Email Invitation</span>
                         </a>
+
+                        <button
+                          onClick={() => {
+                            setProposalSeedLead(req);
+                            setActiveTab("proposals");
+                          }}
+                          className="px-3 py-1.5 rounded-xl neu-raised text-[#B08D57] font-mono text-[11px] font-semibold flex items-center space-x-1.5 cursor-pointer"
+                        >
+                          <FileSignature className="w-3.5 h-3.5" />
+                          <span>Proposal</span>
+                        </button>
                       </div>
 
                       {deletingLeadId === req.id ? (
@@ -909,8 +998,13 @@ export const CmsPage: React.FC = () => {
                             Cancel
                           </button>
                           <button
-                            onClick={() => {
-                              deleteDiscoveryRequest(req.id);
+                            onClick={async () => {
+                              try {
+                                await deleteDiscoveryRequest(req.id);
+                              } catch (err) {
+                                console.error("Deleting request failed:", err);
+                                showNotification("Couldn't delete the request. Please try again.");
+                              }
                               setDeletingLeadId(null);
                             }}
                             className="px-2 py-1 rounded bg-rose-600 text-white text-[10px] font-mono font-bold"
@@ -940,6 +1034,10 @@ export const CmsPage: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === "proposals" && (
+        <ProposalsTab seedLead={proposalSeedLead} onSeedConsumed={clearProposalSeed} onNotify={showNotification} />
       )}
 
       {/* TAB 1: BLOG ARTICLES MANAGER */}
@@ -1790,6 +1888,20 @@ export const CmsPage: React.FC = () => {
                     <label htmlFor="featured-check" className="text-xs font-mono text-[#F2F0EB] cursor-pointer">
                       Highlight as Featured
                     </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
+                      Site Section
+                    </label>
+                    <select
+                      value={serviceFormData.category}
+                      onChange={(e) => setServiceFormData({ ...serviceFormData, category: e.target.value as "social" | "website" })}
+                      className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] bg-[#121216] outline-none focus:ring-1 focus:ring-[#B08D57]"
+                    >
+                      <option value="social">Social & Growth (gets a NOK OS brand workspace)</option>
+                      <option value="website">Website & Systems Builds (standalone project)</option>
+                    </select>
                   </div>
                 </div>
 

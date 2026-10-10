@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ChevronDown, HelpCircle } from "lucide-react";
-import { AgencyInfo, ServicePackage } from "../data/cmsData";
+import { AgencyInfo, ServicePackage, isWebsiteBuild, DEFAULT_DEPOSIT_PERCENT } from "../data/cmsData";
 import { FAQItem } from "../lib/seo";
 
 // Every answer here is derived directly from live agencyInfo/services data —
@@ -14,16 +14,17 @@ export function buildHomeFaqItems(agencyInfo: AgencyInfo, services: ServicePacka
     },
   ];
 
-  if (services.length > 0) {
-    const tierList = services
-      .map((s) => `${s.title} (${s.ghsPrice}, ${s.period})`)
-      .join("; ");
+  const socialServices = services.filter((s) => !isWebsiteBuild(s));
+  const websiteServices = services.filter(isWebsiteBuild);
+  const describe = (list: ServicePackage[]) => list.map((s) => `${s.title} (${s.ghsPrice}, ${s.period})`).join("; ");
+
+  if (socialServices.length > 0) {
     items.push({
-      question: "What service tiers do you offer, and what do they cost?",
-      answer: `We offer ${services.length} service tiers: ${tierList}.`,
+      question: "What social media services do you offer, and what do they cost?",
+      answer: `We offer ${socialServices.length} social & growth services: ${describe(socialServices)}. Final pricing is confirmed in a proposal tailored to your brand.`,
     });
 
-    const periods = new Set(services.map((s) => s.period.toLowerCase()));
+    const periods = new Set(socialServices.map((s) => s.period.toLowerCase()));
     const hasOneTime = [...periods].some((p) => p.includes("one-time") || p.includes("project"));
     const hasOngoing = [...periods].some((p) => p.includes("per month") || p.includes("per campaign"));
     if (hasOneTime && hasOngoing) {
@@ -34,6 +35,13 @@ export function buildHomeFaqItems(agencyInfo: AgencyInfo, services: ServicePacka
     }
   }
 
+  if (websiteServices.length > 0) {
+    items.push({
+      question: "Do I need a monthly social media plan to get a website built?",
+      answer: `No. Website and systems builds are a separate, standalone service: ${describe(websiteServices)}. Each build is scoped and priced for your business after a free discovery call.`,
+    });
+  }
+
   items.push({
     question: `Where is ${agencyInfo.name} based?`,
     answer: `${agencyInfo.name} is based in ${agencyInfo.address}, Ghana.`,
@@ -41,7 +49,7 @@ export function buildHomeFaqItems(agencyInfo: AgencyInfo, services: ServicePacka
 
   items.push({
     question: "How do I get started?",
-    answer: `Book a free discovery call using the button on this page, or reach us directly on WhatsApp at ${agencyInfo.whatsapp}.`,
+    answer: `Book a free discovery call using the button on this page, or reach us directly on WhatsApp at ${agencyInfo.whatsapp}. After the call we send you a tailored proposal with a project plan and price, and a ${DEFAULT_DEPOSIT_PERCENT}% deposit accepts it and starts the work.`,
   });
 
   return items;

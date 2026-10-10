@@ -1,0 +1,205 @@
+import React, { useEffect, useState } from "react";
+import { Send, Copy, Mail, MessageSquare, Eye, Loader2, PenLine } from "lucide-react";
+import { auth } from "../lib/firebase";
+import { Proposal, ProposalComment, PROPOSAL_CONTENT_FIELDS, proposalTotals } from "../data/cmsData";
+import {
+  sendProposal,
+  nextSendVersion,
+  proposalLink,
+  subscribeToProposalComments,
+  addStaffReply
+} from "../lib/proposals";
+
+const input = "w-full px-3 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]";
+
+const contentKey = (p: Proposal) =>
+  JSON.stringify([...PROPOSAL_CONTENT_FIELDS.filter((k) => k !== "version").map((k) => p[k]), p.clientEmail]);
+
+const formatWhen = (iso?: string) =>
+  iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : null;
+
+// Send / send-update controls and the client's private link.
+export const ProposalSendPanel: React.FC<{
+  editing: Proposal;
+  live?: Proposal; // the saved copy, including server-side updates
+  onSent: (sent: Proposal) => void;
+  onNotify: (msg: string) => void;
+}> = ({ editing, live, onSent, onNotify }) => {
+  const [changeNote, setChangeNote] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const sentVersion = live?.sentVersion;
+  const dirty = !live || contentKey(editing) !== contentKey(live);
+  const needsSend = !sentVersion || !!live?.hasUnsentChanges || dirty;
+  const link = proposalLink(editing);
+
+  const handleSend = async () => {
+    const { total } = proposalTotals(editing);
+    if (!editing.clientName.trim() || !editing.clientEmail.trim() || !editing.title.trim()) {
+      onNotify("Add the client's name, email and a proposal title before sending.");
+      return;
+    }
+    if (total <= 0) {
+      onNotify("Add pricing before sending: the total is GH¢ 0.");
+      return;
+    }
+    setSending(true);
+    try {
+      const sent = await sendProposal(editing, sentVersion ? changeNote : undefined);
+      onSent(sent);
+      setChangeNote("");
+      onNotify(sentVersion ? `Update sent: the client now sees v${sent.version}` : "Proposal sent. Share the link with your client.");
+    } catch (err) {
+      console.error("Sending proposal failed:", err);
+      onNotify("Couldn't send the proposal. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const shareText = `Hello ${editing.clientName}! Here's your proposal from NOK Social: ${link}\n\nYou can leave comments or request changes right on the page.`;
+
+  return (
+    <div className="space-y-3 pt-3 border-t border-white/5">
+      {needsSend && (
+        <div className="space-y-2">
+          {sentVersion && (
+            <textarea
+              rows={2}
+              placeholder="What changed? (shown to the client, optional)"
+              value={changeNote}
+              onChange={(e) => setChangeNote(e.target.value)}
+              className={input}
+            />
+          )}
+          <button
+            onClick={handleSend}
+            disabled={sending}
+            className="w-full py-2.5 rounded-xl neu-gold-filled text-xs font-bold flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-60"
+          >
+            {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            <span>{sentVersion ? `Send update (v${nextSendVersion(editing)})` : "Send to client"}</span>
+          </button>
+          <p className="text-[11px] text-[#8A8A93] leading-relaxed">
+            {sentVersion
+              ? `The client still sees v${sentVersion} until you send this update.`
+              : "Saves this version and creates the client's private link."}
+          </p>
+        </div>
+      )}
+
+      {sentVersion && (
+        <div className="space-y-2">
+          <div className="text-[10px] font-mono uppercase text-[#8A8A93]">Client link (v{sentVersion})</div>
+          <div className="flex items-center gap-1.5">
+            <input readOnly value={link} className={`${input} font-mono text-[10px]`} onFocus={(e) => e.target.select()} />
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(link);
+                  onNotify("Link copied");
+                } catch {
+                  onNotify("Couldn't copy. Select the link and copy it manually.");
+                }
+              }}
+              className="p-2 rounded-lg neu-raised text-[#B08D57] cursor-pointer shrink-0"
+              title="Copy link"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center justify-center space-x-1.5"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>WhatsApp</span>
+            </a>
+            <a
+              href={`mailto:${editing.clientEmail}?subject=${encodeURIComponent(`Your proposal: ${editing.title}`)}&body=${encodeURIComponent(shareText)}`}
+              className="flex-1 py-2 rounded-lg neu-raised text-[11px] font-semibold text-[#F2F0EB] flex items-center justify-center space-x-1.5"
+            >
+              <Mail className="w-3.5 h-3.5 text-[#B08D57]" />
+              <span>Email</span>
+            </a>
+          </div>
+          <p className="text-[11px] font-mono text-[#8A8A93] flex items-center space-x-1.5">
+            <Eye className="w-3 h-3" />
+            <span>{live?.lastViewedAt ? `Client last viewed ${formatWhen(live.lastViewedAt)}` : "Not opened by the client yet"}</span>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// The comment thread with the client, with staff replies.
+export const ProposalComments: React.FC<{ proposal: Proposal; onNotify: (msg: string) => void }> = ({ proposal, onNotify }) => {
+  const [comments, setComments] = useState<ProposalComment[]>([]);
+  const [reply, setReply] = useState("");
+  const [posting, setPosting] = useState(false);
+
+  useEffect(() => subscribeToProposalComments(proposal.id, setComments), [proposal.id]);
+
+  const handleReply = async () => {
+    if (!reply.trim()) return;
+    setPosting(true);
+    try {
+      const user = auth.currentUser;
+      const name = user?.displayName || user?.email?.split("@")[0] || "NOK Social team";
+      await addStaffReply(proposal, name, reply.trim());
+      setReply("");
+    } catch (err) {
+      console.error("Posting reply failed:", err);
+      onNotify("Couldn't post your reply. Please try again.");
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  return (
+    <section className="p-5 rounded-2xl neu-raised space-y-4 max-w-3xl">
+      <h3 className="text-sm font-bold text-[#F2F0EB]">Conversation with {proposal.clientName}</h3>
+      {comments.length === 0 && <p className="text-xs text-[#8A8A93]">No comments yet. The client can comment from their proposal page.</p>}
+      <ul className="space-y-2.5">
+        {comments.map((c) => (
+          <li key={c.id} className={`p-3 rounded-xl neu-pressed text-xs space-y-1 ${c.author === "staff" ? "border-l-2 border-[#B08D57]" : ""}`}>
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono text-[#8A8A93]">
+              <span className={c.author === "staff" ? "text-[#C5A065] font-semibold" : "text-[#F2F0EB] font-semibold"}>{c.name}</span>
+              <span>{formatWhen(c.createdAt)}</span>
+              <span>· v{c.version}</span>
+              {c.kind === "change_request" && (
+                <span className="flex items-center space-x-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                  <PenLine className="w-3 h-3" />
+                  <span>Change request</span>
+                </span>
+              )}
+              {c.section && <span className="px-2 py-0.5 rounded-full bg-white/5 text-zinc-300">{c.section}</span>}
+            </div>
+            <p className="text-zinc-200 whitespace-pre-wrap leading-relaxed">{c.message}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="space-y-2">
+        <textarea
+          rows={3}
+          placeholder="Reply to the client (they'll see it on their proposal page)…"
+          value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          className={input}
+        />
+        <button
+          onClick={handleReply}
+          disabled={posting || !reply.trim()}
+          className="px-4 py-2 rounded-xl neu-raised text-xs font-bold text-[#B08D57] flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+        >
+          {posting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+          <span>Post reply</span>
+        </button>
+      </div>
+    </section>
+  );
+};

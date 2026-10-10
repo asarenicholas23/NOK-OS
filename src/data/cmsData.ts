@@ -23,7 +23,15 @@ export interface ServicePackage {
   featured?: boolean;
   desc: string;
   features: string[];
+  // "social" services (Stages 1–4) run through a NOK OS brand workspace;
+  // "website" builds are standalone projects with their own page.
+  category?: "social" | "website";
 }
+
+// Services saved before categories existed have no category; the original
+// Stage 5 build is the website/systems offer.
+export const isWebsiteBuild = (service: Pick<ServicePackage, "id" | "category">) =>
+  service.category ? service.category === "website" : service.id === "custom-infrastructure-build";
 
 export interface AgencyInfo {
   name: string;
@@ -42,9 +50,46 @@ export interface DiscoveryRequest {
   businessName: string;
   serviceTier: string;
   notes?: string;
+  // Booked call time as a UTC slot id ("YYYY-MM-DDTHH:mm"), which is also the
+  // discoverySlots doc id that reserves it. Ghana is UTC+0 with no DST, so this
+  // reads directly as Accra time.
+  slotStart?: string;
+  // Set when staff cancel the call and free the slot for someone else.
+  slotReleased?: boolean;
   createdAt: string;
   status: "New" | "Contacted" | "Scheduled" | "Converted" | "Closed";
 }
+
+export interface WeekdayHours {
+  enabled: boolean;
+  start: string; // "HH:mm", Accra time
+  end: string;   // "HH:mm", Accra time
+}
+
+// Discovery call availability, edited in the CMS and read by the public booking modal.
+export interface CallAvailability {
+  slotMinutes: number;
+  minNoticeHours: number;
+  daysAhead: number;
+  weekly: WeekdayHours[]; // index 0 = Sunday … 6 = Saturday
+  blockedDates: string[]; // "YYYY-MM-DD"
+}
+
+export const INITIAL_CALL_AVAILABILITY: CallAvailability = {
+  slotMinutes: 30,
+  minNoticeHours: 24,
+  daysAhead: 21,
+  weekly: [
+    { enabled: false, start: "10:00", end: "16:00" },
+    { enabled: true, start: "10:00", end: "16:00" },
+    { enabled: true, start: "10:00", end: "16:00" },
+    { enabled: true, start: "10:00", end: "16:00" },
+    { enabled: true, start: "10:00", end: "16:00" },
+    { enabled: true, start: "10:00", end: "16:00" },
+    { enabled: false, start: "10:00", end: "16:00" }
+  ],
+  blockedDates: []
+};
 
 export interface ClientBrand {
   id: string;
@@ -226,11 +271,12 @@ export const INITIAL_SERVICES: ServicePackage[] = [
   },
   {
     id: "custom-infrastructure-build",
-    title: "Custom Infrastructure Build",
-    tier: "STAGE 5 · CUSTOM",
+    title: "Website & Systems Build",
+    tier: "WEBSITE BUILDS",
     ghsPrice: "GH¢ 2,500+",
     period: "Project-based",
-    desc: "Bespoke systems for brands that have outgrown manual workflows. Scoped individually.",
+    category: "website",
+    desc: "Websites and bespoke booking, ordering or client systems for brands that have outgrown manual workflows. Scoped individually.",
     features: [
       "Firebase-backed system architecture",
       "Booking, contracts & e-signature",
@@ -424,3 +470,99 @@ export const INITIAL_BLOG_POSTS: BlogPost[] = [
     ]
   }
 ];
+
+// ── Proposals ──────────────────────────────────────────────────────────────
+// A tailored proposal (project build plan + price) sent to a client after their
+// discovery call. The client reviews it at /proposal/:token and accepts it by
+// paying the deposit.
+
+export interface ProposalPhase {
+  id: string;
+  title: string;
+  duration: string; // free text, e.g. "Week 1–2"
+  deliverables: string[];
+}
+
+export interface ProposalLineItem {
+  id: string;
+  title: string;
+  description?: string;
+  amount: number; // GH¢
+}
+
+export type ProposalStatus = "draft" | "sent" | "changes_requested" | "accepted" | "declined";
+
+export interface Proposal {
+  id: string;
+  token: string; // unguessable id for the client's private link
+  requestId?: string; // discovery request this came from
+  clientName: string;
+  clientEmail: string;
+  businessName: string;
+  serviceTier: string;
+  isWebsiteBuild: boolean; // website builds don't get a NOK OS brand workspace
+  title: string;
+  overview: string; // markdown
+  phases: ProposalPhase[];
+  lineItems: ProposalLineItem[];
+  depositPercent: number;
+  terms: string; // markdown
+  validUntil?: string; // "YYYY-MM-DD"
+  status: ProposalStatus;
+  version: number; // version the client has (or will get on next send)
+  sentVersion?: number; // latest version sent to the client; unset while a draft
+  hasUnsentChanges?: boolean; // edited since the last send
+  createdAt: string;
+  updatedAt: string;
+  sentAt?: string;
+  lastViewedAt?: string; // client last opened the link
+  lastClientCommentAt?: string;
+  clientCommentCount?: number;
+  staffSeenAt?: string; // staff last opened this proposal in the CMS
+}
+
+// What the client sees. Each send freezes one of these in
+// proposals/{id}/versions/{version}, so later CMS edits don't reach the client
+// until staff send an update.
+export const PROPOSAL_CONTENT_FIELDS = [
+  "title", "clientName", "businessName", "overview", "phases",
+  "lineItems", "depositPercent", "terms", "validUntil", "version"
+] as const;
+
+export type ProposalContent = Pick<Proposal, typeof PROPOSAL_CONTENT_FIELDS[number]>;
+
+export interface ProposalSnapshot extends ProposalContent {
+  sentAt: string;
+  changeNote?: string; // "what changed" note shown to the client on updates
+}
+
+export interface ProposalComment {
+  id: string;
+  author: "client" | "staff";
+  name: string;
+  message: string;
+  section?: string; // part of the proposal the comment is about
+  kind: "comment" | "change_request";
+  version: number;
+  createdAt: string;
+}
+
+export const DEFAULT_DEPOSIT_PERCENT = 40;
+
+export const DEFAULT_PROPOSAL_TERMS = `- Work begins once the ${DEFAULT_DEPOSIT_PERCENT}% deposit is paid. Paying the deposit confirms you accept this proposal.
+- The remaining balance is due on delivery, before final handover.
+- Each phase includes up to two rounds of revisions. Extra changes or new scope are quoted separately.
+- Third-party costs (ad spend, domains, hosting, paid tools) are billed separately unless listed above.
+- This proposal is valid until the date shown.`;
+
+export const hasNewClientComments = (p: Proposal) =>
+  !!p.lastClientCommentAt && (!p.staffSeenAt || p.lastClientCommentAt > p.staffSeenAt);
+
+export const proposalTotals = (p: Pick<Proposal, "lineItems" | "depositPercent">) => {
+  const total = Math.round(p.lineItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0) * 100) / 100;
+  const deposit = Math.round(total * (p.depositPercent / 100) * 100) / 100;
+  return { total, deposit, balance: Math.round((total - deposit) * 100) / 100 };
+};
+
+export const formatGhs = (amount: number) =>
+  `GH¢ ${amount.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

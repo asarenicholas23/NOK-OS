@@ -22,6 +22,8 @@ import {
   BlogPost,
   ClientBrand,
   DiscoveryRequest,
+  CallAvailability,
+  INITIAL_CALL_AVAILABILITY,
   INITIAL_AGENCY_INFO,
   INITIAL_SERVICES,
   INITIAL_BLOG_POSTS,
@@ -1075,6 +1077,29 @@ export const subscribeToDiscoveryRequests = (onUpdate: (requests: DiscoveryReque
     onUpdate(list);
   }, (err) => {
     console.warn("Firestore subscription error on discoveryRequests:", err);
+  });
+};
+
+// Firestore helper: Discovery call availability (public read, staff write).
+// Falls back to the defaults until staff save their own settings.
+export const subscribeToCallAvailability = (onUpdate: (availability: CallAvailability) => void) => {
+  return onSnapshot(doc(db, "cms", "callAvailability"), (snap) => {
+    onUpdate(snap.exists() ? { ...INITIAL_CALL_AVAILABILITY, ...(snap.data() as CallAvailability) } : INITIAL_CALL_AVAILABILITY);
+  }, (err) => {
+    console.warn("Firestore subscription error on callAvailability:", err);
+  });
+};
+
+// Firestore helper: Upcoming taken discovery call slots. Each doc only holds the
+// slot time and the request id that claimed it — no visitor details — so the
+// public booking modal can grey out taken times.
+export const subscribeToTakenSlots = (onUpdate: (slotIds: Set<string>) => void) => {
+  const fromId = new Date().toISOString().slice(0, 16);
+  const q = query(collection(db, "discoverySlots"), where("start", ">=", fromId));
+  return onSnapshot(q, (snapshot) => {
+    onUpdate(new Set(snapshot.docs.map((d) => d.id)));
+  }, (err) => {
+    console.warn("Firestore subscription error on discoverySlots:", err);
   });
 };
 

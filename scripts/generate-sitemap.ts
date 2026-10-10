@@ -51,6 +51,7 @@ async function main() {
     { loc: `${SITE_URL}/blog`, changefreq: "daily", priority: "0.9" },
     { loc: `${SITE_URL}/resources`, changefreq: "monthly", priority: "0.7" },
     { loc: `${SITE_URL}/ighealthcheck`, changefreq: "monthly", priority: "0.8" },
+    { loc: `${SITE_URL}/website-builds`, changefreq: "monthly", priority: "0.8" },
     ...posts.map((post) => ({
       loc: `${SITE_URL}/blog/${post.slug}`,
       changefreq: "monthly",

@@ -66,6 +66,16 @@ export const PublicNavbar: React.FC = () => {
             Services
           </a>
           <Link
+            to="/website-builds"
+            className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${
+              isActive("/website-builds")
+                ? "neu-pressed text-[#C5A065] font-semibold"
+                : "text-zinc-200 hover:text-[#F2F0EB]"
+            }`}
+          >
+            Website Builds
+          </Link>
+          <Link
             to="/blog"
             className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${
               isActive("/blog")
@@ -171,6 +181,15 @@ export const PublicNavbar: React.FC = () => {
             >
               Services & Packages
             </a>
+            <Link
+              to="/website-builds"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`block px-4 py-2.5 rounded-xl text-xs font-medium ${
+                isActive("/website-builds") ? "neu-pressed text-[#C5A065] font-semibold" : "text-zinc-200 hover:text-[#F2F0EB]"
+              }`}
+            >
+              Website Builds
+            </Link>
             <Link
               to="/blog"
               onClick={() => setMobileMenuOpen(false)}

@@ -5,6 +5,8 @@ import {
   AgencyInfo,
   DiscoveryRequest,
   ClientBrand,
+  CallAvailability,
+  INITIAL_CALL_AVAILABILITY,
   INITIAL_AGENCY_INFO,
   INITIAL_SERVICES,
   INITIAL_BLOG_POSTS,
@@ -17,6 +19,7 @@ import {
   subscribeToBlogPosts,
   subscribeToClientBrands,
   subscribeToDiscoveryRequests,
+  subscribeToCallAvailability,
   migrateCmsToFirestoreIfEmpty,
   cleanFirestoreData
 } from "../lib/firebase";
@@ -28,6 +31,8 @@ interface CmsContextType {
   blogPosts: BlogPost[];
   discoveryRequests: DiscoveryRequest[];
   clientBrands: ClientBrand[];
+  callAvailability: CallAvailability;
+  updateCallAvailability: (availability: CallAvailability) => Promise<void>;
   updateAgencyInfo: (info: Partial<AgencyInfo>) => Promise<void>;
   addService: (service: Omit<ServicePackage, "id">) => Promise<void>;
   updateService: (id: string, updated: Partial<ServicePackage>) => Promise<void>;
@@ -35,8 +40,9 @@ interface CmsContextType {
   addBlogPost: (post: Omit<BlogPost, "id">) => Promise<void>;
   updateBlogPost: (id: string, updated: Partial<BlogPost>) => Promise<void>;
   deleteBlogPost: (id: string) => Promise<void>;
-  addDiscoveryRequest: (req: Omit<DiscoveryRequest, "id" | "createdAt" | "status">) => Promise<void>;
+  addDiscoveryRequest: (req: Omit<DiscoveryRequest, "id" | "createdAt" | "status" | "slotReleased">) => Promise<void>;
   updateDiscoveryRequestStatus: (id: string, status: DiscoveryRequest["status"]) => Promise<void>;
+  releaseDiscoverySlot: (id: string) => Promise<void>;
   deleteDiscoveryRequest: (id: string) => Promise<void>;
   addClientBrand: (brand: Omit<ClientBrand, "id">) => Promise<void>;
   updateClientBrand: (id: string, updated: Partial<ClientBrand>) => Promise<void>;
@@ -100,6 +106,8 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [callAvailability, setCallAvailability] = useState<CallAvailability>(INITIAL_CALL_AVAILABILITY);
+
   const didMigrateCms = useRef(false);
   const [staffUser, setStaffUser] = useState<import("firebase/auth").User | null>(null);
 
@@ -119,7 +127,9 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubServices = subscribeToServices(setServices);
     const unsubBlogPosts = subscribeToBlogPosts(setBlogPosts);
     const unsubClientBrands = subscribeToClientBrands(setClientBrands);
+    const unsubCallAvailability = subscribeToCallAvailability(setCallAvailability);
     return () => {
+      unsubCallAvailability();
       unsubAuth();
       unsubInfo();
       unsubServices();
@@ -183,7 +193,17 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await deleteDoc(doc(db, "blogPosts", id));
   };
 
-  const addDiscoveryRequest = async (req: Omit<DiscoveryRequest, "id" | "createdAt" | "status">) => {
+  const updateCallAvailability = async (availability: CallAvailability) => {
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "cms", "callAvailability"), cleanFirestoreData(availability));
+  };
+
+  // The request and its slot reservation are written in one batch. If the slot
+  // doc already exists (someone else just took that time), the rules reject the
+  // whole batch, so a request can never be saved against a double-booked slot.
+  // Errors are re-thrown so the booking modal can tell the visitor.
+  const addDiscoveryRequest = async (req: Omit<DiscoveryRequest, "id" | "createdAt" | "status" | "slotReleased">) => {
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const id = "call-" + Date.now();
@@ -194,8 +214,13 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: "New"
     };
     const { db } = await import("../lib/firebase");
-    const { doc, setDoc } = await import("firebase/firestore");
-    await setDoc(doc(db, "discoveryRequests", id), cleanFirestoreData(newReq));
+    const { doc, writeBatch } = await import("firebase/firestore");
+    const batch = writeBatch(db);
+    batch.set(doc(db, "discoveryRequests", id), cleanFirestoreData(newReq));
+    if (req.slotStart) {
+      batch.set(doc(db, "discoverySlots", req.slotStart), { start: req.slotStart, requestId: id });
+    }
+    await batch.commit();
   };
 
   const updateDiscoveryRequestStatus = async (id: string, status: DiscoveryRequest["status"]) => {
@@ -204,10 +229,30 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await updateDoc(doc(db, "discoveryRequests", id), { status });
   };
 
-  const deleteDiscoveryRequest = async (id: string) => {
+  // Frees the call time for other visitors while keeping the request (and the
+  // time it was booked for) on record as a closed lead.
+  const releaseDiscoverySlot = async (id: string) => {
+    const req = discoveryRequests.find((r) => r.id === id);
     const { db } = await import("../lib/firebase");
-    const { doc, deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(doc(db, "discoveryRequests", id));
+    const { doc, writeBatch } = await import("firebase/firestore");
+    const batch = writeBatch(db);
+    if (req?.slotStart && !req.slotReleased) {
+      batch.delete(doc(db, "discoverySlots", req.slotStart));
+    }
+    batch.update(doc(db, "discoveryRequests", id), { status: "Closed", slotReleased: true });
+    await batch.commit();
+  };
+
+  const deleteDiscoveryRequest = async (id: string) => {
+    const req = discoveryRequests.find((r) => r.id === id);
+    const { db } = await import("../lib/firebase");
+    const { doc, writeBatch } = await import("firebase/firestore");
+    const batch = writeBatch(db);
+    if (req?.slotStart && !req.slotReleased) {
+      batch.delete(doc(db, "discoverySlots", req.slotStart));
+    }
+    batch.delete(doc(db, "discoveryRequests", id));
+    await batch.commit();
   };
 
   const addClientBrand = async (brand: Omit<ClientBrand, "id">) => {
@@ -245,7 +290,7 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await Promise.all(INITIAL_CLIENT_BRANDS.map((b) => setDoc(doc(db, "clientBrands", b.id), cleanFirestoreData(b))));
 
     // Discovery requests are live leads, not CMS defaults — "reset" just clears them.
-    await Promise.all(discoveryRequests.map((r) => deleteDoc(doc(db, "discoveryRequests", r.id))));
+    await Promise.all(discoveryRequests.map((r) => deleteDiscoveryRequest(r.id)));
 
     localStorage.removeItem(LOCAL_STORAGE_BLOG_KEY);
     localStorage.removeItem(LOCAL_STORAGE_REQUESTS_KEY);
@@ -260,6 +305,8 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         blogPosts,
         discoveryRequests,
         clientBrands,
+        callAvailability,
+        updateCallAvailability,
         updateAgencyInfo,
         addService,
         updateService,
@@ -269,6 +316,7 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteBlogPost,
         addDiscoveryRequest,
         updateDiscoveryRequestStatus,
+        releaseDiscoverySlot,
         deleteDiscoveryRequest,
         addClientBrand,
         updateClientBrand,

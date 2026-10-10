@@ -30,6 +30,8 @@ const HomePage = lazy(() => import("./components/HomePage").then(m => ({ default
 const BlogPage = lazy(() => import("./components/BlogPage").then(m => ({ default: m.BlogPage })));
 const BlogPostPage = lazy(() => import("./components/BlogPostPage").then(m => ({ default: m.BlogPostPage })));
 const IgHealthCheckPage = lazy(() => import("./components/IgHealthCheckPage").then(m => ({ default: m.IgHealthCheckPage })));
+const WebsiteBuildsPage = lazy(() => import("./components/WebsiteBuildsPage").then(m => ({ default: m.WebsiteBuildsPage })));
+const ProposalReviewPage = lazy(() => import("./components/ProposalReviewPage").then(m => ({ default: m.ProposalReviewPage })));
 const ResourcesPage = lazy(() => import("./components/ResourcesPage").then(m => ({ default: m.ResourcesPage })));
 const ClientCalendarApprovalView = lazy(() => import("./components/ClientCalendarApprovalView").then(m => ({ default: m.ClientCalendarApprovalView })));
 
@@ -156,6 +158,8 @@ export default function App() {
               <Route path="/blog/:slug" element={<BlogPostPage />} />
               <Route path="/ighealthcheck" element={<IgHealthCheckPage />} />
               <Route path="/resources" element={<ResourcesPage />} />
+              <Route path="/website-builds" element={<WebsiteBuildsPage />} />
+              <Route path="/proposal/:token" element={<ProposalReviewPage />} />
               <Route path="/review/:token" element={<ClientCalendarApprovalView />} />
               <Route path="/review" element={<ClientCalendarApprovalView />} />
               <Route path="/approve/:token" element={<ClientCalendarApprovalView />} />

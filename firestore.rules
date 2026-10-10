@@ -66,7 +66,35 @@ service cloud.firestore {
     // Public Discovery Call bookings (homepage modal). Visitors may only create
     // their own request — never read others' or edit/delete any; staff triage
     // and update status from the CMS inbox.
-    match /discoveryRequests/{id} { allow create: if true; allow read, update, delete: if isStaff(); }
+    // A request that books a call time must create its discoverySlots reservation
+    // in the same batch, and that reservation must point back at this request.
+    match /discoveryRequests/{id} {
+      allow create: if !('slotStart' in request.resource.data)
+        || getAfter(/databases/$(database)/documents/discoverySlots/$(request.resource.data.slotStart)).data.requestId == id;
+      allow read, update, delete: if isStaff();
+    }
+
+    // Discovery call time reservations, one doc per slot (doc id = slot time).
+    // Public read so the booking modal can hide taken times; docs hold no
+    // visitor details. Visitors can only create a free slot (an existing doc
+    // makes the write an update, which they can't do) and only alongside the
+    // request that claims it. Staff delete a doc to free the time again.
+    match /discoverySlots/{slotId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['start', 'requestId'])
+        && request.resource.data.start == slotId
+        && getAfter(/databases/$(database)/documents/discoveryRequests/$(request.resource.data.requestId)).data.slotStart == slotId;
+      allow update, delete: if isStaff();
+    }
+
+    // Client proposals. Staff only; clients view theirs via the private
+    // /proposal/:token link, which is served through the API, not direct reads.
+    // Sent version snapshots and the comment thread live in subcollections,
+    // also staff only (the API writes client comments with the Admin SDK).
+    match /proposals/{id} {
+      allow read, write: if isStaff();
+      match /{sub=**} { allow read, write: if isStaff(); }
+    }
 
     match /campaignQueues/{id} { allow read, write: if isStaff(); }
     match /calendarEvents/{id} { allow read, write: if isStaff(); }
