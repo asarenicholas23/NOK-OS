@@ -8,7 +8,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { BrandProvider, useBrand } from "./context/BrandContext";
 import { CmsProvider } from "./context/CmsContext";
 import { ThemeProvider } from "./context/ThemeContext";
-import { TopNav } from "./components/TopNav";
+import { OsSidebar, groupOfView } from "./components/OsSidebar";
+import { OsTopBar } from "./components/OsTopBar";
 import { PageHeader } from "./components/PageHeader";
 import { logAnalyticsEvent } from "./lib/firebase";
 
@@ -51,16 +52,16 @@ const AnalyticsPageViewTracker: React.FC = () => {
 
 // Loading Spinner Component for Suspense Fallback
 const PageLoadingFallback: React.FC = () => (
-  <div className="min-h-[60vh] flex flex-col items-center justify-center text-xs text-[#667085] space-y-4">
-    <div className="w-8 h-8 rounded-full border-2 border-t-[#4F46E5] border-[#E4E6EE] animate-spin" />
+  <div className="min-h-[60vh] flex flex-col items-center justify-center text-xs text-[var(--fin-sub)] space-y-4">
+    <div className="w-8 h-8 rounded-full border-2 border-t-[var(--fin-accent)] border-[var(--fin-track)] animate-spin" />
     <div className="animate-pulse font-medium">Loading view…</div>
   </div>
 );
 
-// Per-view title + subtitle for the Finnova-style page header.
+// Per-view title + subtitle for the page header.
 const VIEW_META: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: "Overview", subtitle: "Your live brand workspace at a glance." },
-  cms: { title: "Blog & CMS", subtitle: "Write, manage and publish all your content." },
+  cms: { title: "CMS & Sales", subtitle: "Discovery calls, proposals and payments, blog, services and site content." },
   brands: { title: "Brand Registry", subtitle: "Every client brand workspace you operate." },
   leads: { title: "Resource Leads", subtitle: "Inbound leads captured from your resources." },
   calendar: { title: "Content Calendar", subtitle: "Plan, brief and schedule everything in one place." },
@@ -77,6 +78,27 @@ const VIEW_META: Record<string, { title: string; subtitle: string }> = {
 const OsAppShell: React.FC = () => {
   const [activeView, setActiveView] = useState("dashboard");
   const { loading, user } = useBrand();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Desktop sidebar collapses to an icon rail; remembered per browser.
+  const [navCollapsed, setNavCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("nok-os-nav-collapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleNav = () => {
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      setNavCollapsed((c) => {
+        try {
+          localStorage.setItem("nok-os-nav-collapsed", c ? "0" : "1");
+        } catch {}
+        return !c;
+      });
+    } else {
+      setMobileNavOpen(true);
+    }
+  };
   const meta = VIEW_META[activeView] || VIEW_META.dashboard;
 
   const renderActiveView = () => {
@@ -99,8 +121,8 @@ const OsAppShell: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="fin-scope fin-page min-h-screen flex flex-col items-center justify-center text-xs text-[#667085] space-y-4">
-        <div className="w-8 h-8 rounded-full border-2 border-t-[#4F46E5] border-[#E4E6EE] animate-spin" />
+      <div className="fin-scope fin-page min-h-screen flex flex-col items-center justify-center text-xs text-[var(--fin-sub)] space-y-4">
+        <div className="w-8 h-8 rounded-full border-2 border-t-[var(--fin-accent)] border-[var(--fin-track)] animate-spin" />
         <div className="animate-pulse font-medium">Mounting NOK OS Brand Workspace…</div>
       </div>
     );
@@ -116,30 +138,27 @@ const OsAppShell: React.FC = () => {
   }
 
   return (
-    <div
-      id="app-shell"
-      className="fin-scope fin-page min-h-screen flex flex-col font-sans select-none"
-    >
-      {/* Finnova-style top bar: logo · centered pill nav · icon actions */}
-      <TopNav activeView={activeView} setActiveView={setActiveView} />
+    <div id="app-shell" className="fin-scope fin-page min-h-screen flex font-sans">
+      <OsSidebar
+        activeView={activeView}
+        onNavigate={setActiveView}
+        collapsed={navCollapsed}
+        mobileOpen={mobileNavOpen}
+        onCloseMobile={() => setMobileNavOpen(false)}
+      />
 
-      {/* Dynamic page container with semantic <main> landmark */}
-      <main
-        id="main-view-container"
-        className="flex-1 overflow-y-auto fin-scrollbar px-4 sm:px-8 pb-12 pt-2"
-      >
-        <div className="max-w-[1400px] mx-auto w-full">
-          <PageHeader
-            title={meta.title}
-            subtitle={meta.subtitle}
-            showFilter
-            onBack={activeView === "dashboard" ? undefined : () => setActiveView("dashboard")}
-          />
-          <Suspense fallback={<PageLoadingFallback />}>
-            {renderActiveView()}
-          </Suspense>
-        </div>
-      </main>
+      <div className="flex-1 min-w-0 flex flex-col">
+        <OsTopBar title={meta.title} onMenu={toggleNav} onNavigate={setActiveView} />
+
+        <main id="main-view-container" className="flex-1 px-4 sm:px-8 pt-7 pb-12">
+          <div className="max-w-[1400px] mx-auto w-full">
+            <PageHeader badge={groupOfView(activeView)} title={meta.title} subtitle={meta.subtitle} />
+            <Suspense fallback={<PageLoadingFallback />}>
+              {renderActiveView()}
+            </Suspense>
+          </div>
+        </main>
+      </div>
     </div>
   );
 };

@@ -250,22 +250,17 @@ html.light .text-\[\#C5A065\] {
    surfaces; on Day Mode and the light /os workspace it needs a deep shade. */
 html.light .text-emerald-200,
 html.light .text-emerald-300,
-.fin-scope .text-emerald-200,
-.fin-scope .text-emerald-300 {
+html.light .text-emerald-400 {
   color: #047857 !important;
 }
 
 html.light .text-amber-200,
-html.light .text-amber-300,
-.fin-scope .text-amber-200,
-.fin-scope .text-amber-300 {
+html.light .text-amber-300 {
   color: #92400E !important;
 }
 
 html.light .text-rose-200,
-html.light .text-rose-300,
-.fin-scope .text-rose-200,
-.fin-scope .text-rose-300 {
+html.light .text-rose-300 {
   color: #BE123C !important;
 }
 
@@ -312,49 +307,83 @@ html.light .blueprint-grid-bg {
 }
 
 /* ==========================================================================
-   "AIRY INDIGO" OS DESIGN SYSTEM  (Quixotic / Finnova inspired)
-   Light-first, flat, generously rounded, soft ambient shadow.
-   Scoped to the /os workspace via .fin-* utilities so it renders the same
-   regardless of the legacy light/dark toggle. Legacy .neu-* is left intact
-   for surfaces not yet migrated.
-   Page  #EDEEF3 | Card #FFFFFF | Ink #111827 | Sub #667085 | Faint #98A2B3
-   Accent indigo #4F46E5 / hover #4338CA / wash rgba(79,70,229,.10)
-   Up #15803D on #E7F6EC | Down #DC2626 on #FDECEC
-   Dark feature panel #1B1830
+   NOK OS DESIGN SYSTEM: charcoal + gold
+   Dark-first workspace in the NOK brand colours (charcoal #15151A, gold
+   #B08D57), with a cream Day Mode variant under html.light. Scoped to the
+   /os workspace via .fin-* utilities; every surface reads these tokens, and
+   the compat layer below maps legacy page styles onto them.
    ========================================================================== */
 .fin-scope {
-  --fin-page: #edecf5;
-  --fin-card: #ffffff;
-  --fin-ink: #16151f;
-  --fin-sub: #6b6880;
-  --fin-faint: #9d9ab0;
-  --fin-line: rgba(22, 21, 31, 0.08);
-  --fin-accent: #5b50e3;
-  --fin-accent-hover: #4a3fd0;
-  --fin-accent-wash: rgba(91, 80, 227, 0.1);
-  --fin-track: #f0eff7;
-  --fin-nav-dark: #1c1830;
-  --fin-shadow: 0 1px 2px rgba(20, 18, 40, 0.05), 0 20px 44px -20px rgba(20, 18, 40, 0.2);
-  --fin-shadow-sm: 0 1px 2px rgba(20, 18, 40, 0.04), 0 10px 24px -14px rgba(20, 18, 40, 0.16);
+  --fin-page: #0e0e11;
+  --fin-sidebar: #121216;
+  --fin-card: #16161b;
+  --fin-ink: #f2f0eb;
+  --fin-sub: #a3a1aa;
+  --fin-faint: #6e6c78;
+  --fin-line: rgba(255, 255, 255, 0.07);
+  --fin-accent: #b08d57;
+  --fin-accent-hover: #c5a065;
+  --fin-accent-text: #c5a065;
+  --fin-accent-wash: rgba(176, 141, 87, 0.14);
+  --fin-on-accent: #15151a;
+  --fin-track: #1e1e25;
+  --fin-track-hover: #26262e;
+  --fin-nav-dark: #15151a;
+  --fin-up: #34d399;
+  --fin-up-bg: rgba(52, 211, 153, 0.12);
+  --fin-down: #f87171;
+  --fin-down-bg: rgba(248, 113, 113, 0.12);
+  --fin-warn: #fbbf24;
+  --fin-warn-bg: rgba(251, 191, 36, 0.12);
+  --fin-shadow: 0 0 0 1px var(--fin-line), 0 18px 40px -24px rgba(0, 0, 0, 0.7);
+  --fin-shadow-sm: 0 0 0 1px var(--fin-line);
+  color-scheme: dark;
+}
+
+html.light .fin-scope {
+  --fin-page: #f2f0eb;
+  --fin-sidebar: #ebe7de;
+  --fin-card: #fbfaf6;
+  --fin-ink: #18181b;
+  --fin-sub: #5f5c68;
+  --fin-faint: #8a8894;
+  --fin-line: rgba(24, 24, 27, 0.08);
+  --fin-accent: #8c6428;
+  --fin-accent-hover: #765220;
+  --fin-accent-text: #8c6428;
+  --fin-accent-wash: rgba(176, 141, 87, 0.16);
+  --fin-on-accent: #ffffff;
+  --fin-track: #ece7dc;
+  --fin-track-hover: #e2dccf;
+  --fin-nav-dark: #15151a;
+  --fin-up: #15803d;
+  --fin-up-bg: #e7f6ec;
+  --fin-down: #dc2626;
+  --fin-down-bg: #fdecec;
+  --fin-warn: #92400e;
+  --fin-warn-bg: #fef3c7;
+  --fin-shadow: 0 0 0 1px var(--fin-line), 0 18px 40px -26px rgba(60, 45, 20, 0.35);
+  --fin-shadow-sm: 0 0 0 1px var(--fin-line);
+  color-scheme: light;
 }
 
 .fin-page { background-color: var(--fin-page); color: var(--fin-ink); }
 
 .fin-card {
   background-color: var(--fin-card);
-  border-radius: 1.5rem;
+  border-radius: 1rem;
   box-shadow: var(--fin-shadow);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 .fin-card-sm {
   background-color: var(--fin-card);
-  border-radius: 1.125rem;
+  border-radius: 0.875rem;
   box-shadow: var(--fin-shadow-sm);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
-.fin-card-hover:hover { transform: translateY(-2px); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 26px 50px -20px rgba(16, 24, 40, 0.28); }
+.fin-card-hover:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--fin-accent-wash), 0 22px 44px -24px rgba(0, 0, 0, 0.6); }
 
-.fin-inset { background-color: var(--fin-track); border-radius: 1.125rem; }
+.fin-inset { background-color: var(--fin-track); border-radius: 0.875rem; }
 
 /* Pill navigation / segmented control */
 .fin-pill-group { background-color: var(--fin-track); border-radius: 9999px; padding: 0.3rem; }
@@ -367,45 +396,44 @@ html.light .blueprint-grid-bg {
 .fin-tab-active {
   background-color: var(--fin-card);
   color: var(--fin-ink);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 6px 16px -8px rgba(16, 24, 40, 0.2);
+  box-shadow: var(--fin-shadow-sm);
 }
-.fin-tab-active-solid { background-color: var(--fin-accent); color: #fff; }
+.fin-tab-active-solid { background-color: var(--fin-accent); color: var(--fin-on-accent); }
 
 /* Buttons */
 .fin-btn-primary {
   background-color: var(--fin-accent);
-  color: #fff;
-  border-radius: 9999px;
+  color: var(--fin-on-accent);
+  border-radius: 0.75rem;
   transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-  box-shadow: 0 8px 20px -8px rgba(79, 70, 229, 0.55);
 }
 .fin-btn-primary:hover { background-color: var(--fin-accent-hover); }
 .fin-btn-primary:active { transform: translateY(1px); }
 .fin-btn-ghost {
   background-color: var(--fin-track);
-  color: #374151;
-  border-radius: 9999px;
+  color: var(--fin-sub);
+  border-radius: 0.75rem;
   transition: background-color 0.18s ease, color 0.18s ease;
 }
-.fin-btn-ghost:hover { background-color: #e6e7ee; color: var(--fin-ink); }
-.fin-btn-danger { background-color: #dc2626; color: #fff; border-radius: 9999px; }
+.fin-btn-ghost:hover { background-color: var(--fin-track-hover); color: var(--fin-ink); }
+.fin-btn-danger { background-color: #dc2626; color: #fff; border-radius: 0.75rem; }
 .fin-btn-danger:hover { background-color: #b91c1c; }
 
-/* Nav item (sidebar, expanded panel) */
+/* Sidebar nav item */
 .fin-nav-item {
-  border-radius: 0.9rem;
+  border-radius: 0.75rem;
   color: var(--fin-sub);
   transition: background-color 0.16s ease, color 0.16s ease;
 }
 .fin-nav-item:hover { background-color: var(--fin-track); color: var(--fin-ink); }
-.fin-nav-item-active { background-color: var(--fin-accent); color: #fff; box-shadow: 0 10px 22px -10px rgba(79, 70, 229, 0.6); }
-.fin-nav-item-active:hover { background-color: var(--fin-accent); color: #fff; }
+.fin-nav-item-active,
+.fin-nav-item-active:hover { background-color: var(--fin-accent); color: var(--fin-on-accent); }
 
 /* Icon rail (collapsed sidebar) */
 .fin-rail-icon {
   width: 2.5rem;
   height: 2.5rem;
-  border-radius: 0.85rem;
+  border-radius: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -414,51 +442,38 @@ html.light .blueprint-grid-bg {
 }
 .fin-rail-icon:hover { background-color: var(--fin-track); color: var(--fin-ink); }
 .fin-rail-icon-active,
-.fin-rail-icon-active:hover {
-  color: #fff;
-  background-color: var(--fin-accent);
-  box-shadow: 0 10px 22px -10px rgba(91, 80, 227, 0.6);
-}
+.fin-rail-icon-active:hover { color: var(--fin-on-accent); background-color: var(--fin-accent); }
 
-/* Top navigation bar (Finnova-style) */
-.fin-topbar { background-color: var(--fin-page); }
+/* Shell: sidebar + top bar */
+.fin-sidebar { background-color: var(--fin-sidebar); box-shadow: 1px 0 0 var(--fin-line); }
+.fin-topbar { background-color: var(--fin-sidebar); box-shadow: 0 1px 0 var(--fin-line); }
 .fin-topnav { background-color: var(--fin-nav-dark); border-radius: 9999px; padding: 0.3rem; }
 .fin-topnav-pill {
   border-radius: 9999px;
-  color: #a09dbd;
+  color: #a3a1aa;
   white-space: nowrap;
-  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  transition: background-color 0.18s ease, color 0.18s ease;
 }
-.fin-topnav-pill:hover { color: #ffffff; }
+.fin-topnav-pill:hover { color: #f2f0eb; }
 .fin-topnav-pill-active,
-.fin-topnav-pill-active:hover {
-  background-color: var(--fin-accent);
-  color: #ffffff;
-  box-shadow: 0 8px 20px -8px rgba(91, 80, 227, 0.75);
-}
+.fin-topnav-pill-active:hover { background-color: var(--fin-accent); color: var(--fin-on-accent); }
 
-/* Circular white icon button */
+/* Round icon button */
 .fin-iconbtn {
-  background-color: var(--fin-card);
+  background-color: transparent;
   color: var(--fin-sub);
   border-radius: 9999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--fin-shadow-sm);
-  transition: color 0.16s ease, transform 0.16s ease;
+  transition: color 0.16s ease, background-color 0.16s ease;
 }
-.fin-iconbtn:hover { color: var(--fin-accent); transform: translateY(-1px); }
+.fin-iconbtn:hover { color: var(--fin-ink); background-color: var(--fin-track); }
 .fin-iconbtn-active,
-.fin-iconbtn-active:hover {
-  background-color: var(--fin-accent);
-  color: #ffffff;
-  box-shadow: 0 10px 22px -8px rgba(91, 80, 227, 0.7);
-  transform: none;
-}
+.fin-iconbtn-active:hover { background-color: var(--fin-accent); color: var(--fin-on-accent); }
 .fin-iconbtn-dark {
   background-color: rgba(255, 255, 255, 0.08);
-  color: #cbc9e0;
+  color: #cbc9d4;
   border-radius: 9999px;
   display: flex;
   align-items: center;
@@ -467,48 +482,58 @@ html.light .blueprint-grid-bg {
 }
 .fin-iconbtn-dark:hover { color: #ffffff; background-color: rgba(255, 255, 255, 0.14); }
 
-/* Gradient feature card inside dark panels */
+/* Gold feature card */
 .fin-grad-card {
-  background: linear-gradient(150deg, #6b5ff0 0%, #5b50e3 45%, #4a3fd0 100%);
-  border-radius: 1.25rem;
-  color: #ffffff;
+  background: linear-gradient(150deg, #c5a065 0%, #b08d57 45%, #8c6428 100%);
+  border-radius: 1rem;
+  color: #15151a;
 }
-.fin-grad-card .fin-grad-sub { color: rgba(255, 255, 255, 0.72); }
+.fin-grad-card .fin-grad-sub { color: rgba(21, 21, 26, 0.72); }
 
 /* Status pills */
 .fin-badge { border-radius: 9999px; font-weight: 600; }
-.fin-badge-up { background-color: #e7f6ec; color: #15803d; }
-.fin-badge-down { background-color: #fdecec; color: #dc2626; }
+.fin-badge-up { background-color: var(--fin-up-bg); color: var(--fin-up); }
+.fin-badge-down { background-color: var(--fin-down-bg); color: var(--fin-down); }
 .fin-badge-neutral { background-color: var(--fin-track); color: var(--fin-sub); }
-.fin-badge-accent { background-color: var(--fin-accent-wash); color: var(--fin-accent); }
+.fin-badge-accent { background-color: var(--fin-accent-wash); color: var(--fin-accent-text); }
 
 /* Icon chip */
-.fin-icon-chip { background-color: var(--fin-accent-wash); color: var(--fin-accent); border-radius: 0.85rem; }
+.fin-icon-chip { background-color: var(--fin-accent-wash); color: var(--fin-accent-text); border-radius: 0.75rem; }
 
-/* Dark feature panel (the "content side when a tab is selected" accent) */
-.fin-panel-dark { background-color: #1b1830; color: #eae8f4; border-radius: 1.5rem; }
-.fin-panel-dark .fin-panel-sub { color: #a7a3c4; }
-.fin-panel-card { background-color: rgba(255, 255, 255, 0.06); border-radius: 1.05rem; }
+/* Charcoal feature panel (same in both modes) */
+.fin-panel-dark {
+  /* Always charcoal, so its contents use the dark-mode tokens even in Day Mode. */
+  --fin-ink: #f2f0eb;
+  --fin-sub: #a3a1aa;
+  --fin-faint: #6e6c78;
+  --fin-line: rgba(255, 255, 255, 0.07);
+  --fin-track: #1e1e25;
+  --fin-accent-text: #c5a065;
+  background-color: #15151a;
+  color: #f2f0eb;
+  border-radius: 1rem;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.fin-panel-dark .fin-panel-sub { color: #a3a1aa; }
+.fin-panel-card { background-color: rgba(255, 255, 255, 0.05); border-radius: 0.875rem; }
 
 /* Inputs */
 .fin-input {
   background-color: var(--fin-track);
-  border: 1px solid transparent;
-  border-radius: 0.9rem;
+  border: 1px solid var(--fin-line);
+  border-radius: 0.75rem;
   color: var(--fin-ink);
   transition: border-color 0.16s ease, background-color 0.16s ease;
 }
 .fin-input::placeholder { color: var(--fin-faint); }
-.fin-input:focus { outline: none; border-color: var(--fin-accent); background-color: var(--fin-card); }
-.fin-input option { background-color: #fff; color: var(--fin-ink); }
+.fin-input:focus { outline: none; border-color: var(--fin-accent); }
+.fin-input option { background-color: var(--fin-card); color: var(--fin-ink); }
 
 .fin-divider { background-color: var(--fin-line); }
 
 .fin-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-.fin-scrollbar::-webkit-scrollbar-thumb { background-color: #d5d7e0; border-radius: 9999px; }
+.fin-scrollbar::-webkit-scrollbar-thumb { background-color: var(--fin-track-hover); border-radius: 9999px; }
 .fin-scrollbar::-webkit-scrollbar-track { background-color: transparent; }
-
-
 
 
 /* ==========================================================================
@@ -544,11 +569,11 @@ html.light .blueprint-grid-bg {
   border-radius: 0.9rem;
 }
 
-/* Gold buttons -> indigo */
+/* Gold buttons -> accent */
 .fin-scope .neu-gold-filled {
   background: var(--fin-accent) !important;
-  color: #ffffff !important;
-  box-shadow: 0 8px 20px -8px rgba(91, 80, 227, 0.55) !important;
+  color: var(--fin-on-accent) !important;
+  box-shadow: none !important;
   border: none !important;
   border-radius: 9999px;
 }
@@ -560,7 +585,7 @@ html.light .blueprint-grid-bg {
   box-shadow: none !important;
   border-radius: 9999px;
 }
-.fin-scope .neu-gold-btn:hover { background-color: #e6e4f4 !important; color: var(--fin-ink) !important; }
+.fin-scope .neu-gold-btn:hover { background-color: var(--fin-track-hover) !important; color: var(--fin-ink) !important; }
 
 /* @theme alias utilities */
 .fin-scope .bg-card,
@@ -579,7 +604,7 @@ html.light .blueprint-grid-bg {
 .fin-scope .text-gold { color: var(--fin-accent) !important; }
 .fin-scope .bg-accent,
 .fin-scope .bg-amber,
-.fin-scope .bg-cyanotype { background-color: var(--fin-accent) !important; color: #fff !important; }
+.fin-scope .bg-cyanotype { background-color: var(--fin-accent) !important; color: var(--fin-on-accent) !important; }
 .fin-scope .border-border,
 .fin-scope .border-line { border-color: var(--fin-line) !important; }
 
@@ -630,7 +655,7 @@ html.light .blueprint-grid-bg {
 .fin-scope [class*="border-[#1C1C22]"],
 .fin-scope [class*="border-[#23232C]"] { border-color: var(--fin-line) !important; }
 .fin-scope [class*="bg-[#B08D57]"],
-.fin-scope [class*="bg-[#C5A065]"] { background-color: var(--fin-accent) !important; color: #fff !important; }
+.fin-scope [class*="bg-[#C5A065]"] { background-color: var(--fin-accent) !important; color: var(--fin-on-accent) !important; }
 
 /* Legacy inputs */
 .fin-scope input,
@@ -695,22 +720,44 @@ html.light .blueprint-grid-bg {
 .fin-scope [class*="border-slate-200"],
 .fin-scope [class*="border-slate-300"] { border-color: var(--fin-line) !important; }
 
-/* Indigo-family accents (buttons, tints, text, dots) -> brand indigo */
-.fin-scope [class*="bg-violet-6"],
-.fin-scope [class*="bg-violet-7"],
-.fin-scope [class*="bg-violet-5"],
-.fin-scope [class*="bg-purple-6"],
-.fin-scope [class*="bg-purple-7"],
-.fin-scope [class*="bg-indigo-6"],
-.fin-scope [class*="bg-indigo-7"],
-.fin-scope [class*="bg-blue-6"],
-.fin-scope [class*="bg-blue-7"],
-.fin-scope [class*="bg-fuchsia-6"],
-.fin-scope [class*="bg-sky-6"] { background-color: var(--fin-accent) !important; color: #fff !important; }
-.fin-scope [class*="bg-violet-6"] *,
-.fin-scope [class*="bg-purple-6"] *,
-.fin-scope [class*="bg-indigo-6"] *,
-.fin-scope [class*="bg-blue-6"] * { color: #fff !important; }
+/* Indigo-family solid fills (buttons, dots) -> brand accent. Exact class
+   tokens only, so translucent tints like bg-violet-600/5 aren't caught. */
+.fin-scope [class~="bg-violet-500"],
+.fin-scope [class~="bg-violet-600"],
+.fin-scope [class~="bg-violet-700"],
+.fin-scope [class~="bg-purple-500"],
+.fin-scope [class~="bg-purple-600"],
+.fin-scope [class~="bg-purple-700"],
+.fin-scope [class~="bg-indigo-500"],
+.fin-scope [class~="bg-indigo-600"],
+.fin-scope [class~="bg-indigo-700"],
+.fin-scope [class~="bg-blue-500"],
+.fin-scope [class~="bg-blue-600"],
+.fin-scope [class~="bg-blue-700"],
+.fin-scope [class~="bg-fuchsia-500"],
+.fin-scope [class~="bg-fuchsia-600"],
+.fin-scope [class~="bg-fuchsia-700"],
+.fin-scope [class~="bg-sky-500"],
+.fin-scope [class~="bg-sky-600"],
+.fin-scope [class~="bg-sky-700"] { background-color: var(--fin-accent) !important; color: var(--fin-on-accent) !important; }
+.fin-scope [class~="bg-violet-500"] *,
+.fin-scope [class~="bg-violet-600"] *,
+.fin-scope [class~="bg-violet-700"] *,
+.fin-scope [class~="bg-purple-500"] *,
+.fin-scope [class~="bg-purple-600"] *,
+.fin-scope [class~="bg-purple-700"] *,
+.fin-scope [class~="bg-indigo-500"] *,
+.fin-scope [class~="bg-indigo-600"] *,
+.fin-scope [class~="bg-indigo-700"] *,
+.fin-scope [class~="bg-blue-500"] *,
+.fin-scope [class~="bg-blue-600"] *,
+.fin-scope [class~="bg-blue-700"] *,
+.fin-scope [class~="bg-fuchsia-500"] *,
+.fin-scope [class~="bg-fuchsia-600"] *,
+.fin-scope [class~="bg-fuchsia-700"] *,
+.fin-scope [class~="bg-sky-500"] *,
+.fin-scope [class~="bg-sky-600"] *,
+.fin-scope [class~="bg-sky-700"] * { color: var(--fin-on-accent) !important; }
 
 .fin-scope [class*="bg-violet-500/1"],
 .fin-scope [class*="bg-violet-500/2"],
@@ -756,27 +803,54 @@ html.light .blueprint-grid-bg {
   background-image: none !important;
 }
 
-/* Solid accent buttons in any hue -> brand indigo (keep /10 /20 tints + rose/red destructive) */
-.fin-scope [class*="bg-emerald-6"],
-.fin-scope [class*="bg-emerald-7"],
-.fin-scope [class*="bg-green-6"],
-.fin-scope [class*="bg-green-7"],
-.fin-scope [class*="bg-teal-6"],
-.fin-scope [class*="bg-teal-7"],
-.fin-scope [class*="bg-amber-5"],
-.fin-scope [class*="bg-amber-6"],
-.fin-scope [class*="bg-orange-5"],
-.fin-scope [class*="bg-orange-6"],
-.fin-scope [class*="bg-cyan-6"] {
+/* Solid buttons in any other hue -> brand accent (exact tokens; tints and
+   rose/red destructive buttons keep their own colours) */
+.fin-scope [class~="bg-emerald-600"],
+.fin-scope [class~="bg-emerald-700"],
+.fin-scope [class~="bg-green-600"],
+.fin-scope [class~="bg-green-700"],
+.fin-scope [class~="bg-teal-600"],
+.fin-scope [class~="bg-teal-700"],
+.fin-scope [class~="bg-amber-500"],
+.fin-scope [class~="bg-amber-600"],
+.fin-scope [class~="bg-orange-500"],
+.fin-scope [class~="bg-orange-600"],
+.fin-scope [class~="bg-cyan-600"] {
   background-color: var(--fin-accent) !important;
   border-color: transparent !important;
-  color: #fff !important;
+  color: var(--fin-on-accent) !important;
 }
-.fin-scope [class*="bg-emerald-6"] *,
-.fin-scope [class*="bg-green-6"] *,
-.fin-scope [class*="bg-amber-5"] *,
-.fin-scope [class*="bg-amber-6"] *,
-.fin-scope [class*="bg-orange-5"] * { color: #fff !important; }
+.fin-scope [class~="bg-emerald-600"] *,
+.fin-scope [class~="bg-emerald-700"] *,
+.fin-scope [class~="bg-green-600"] *,
+.fin-scope [class~="bg-green-700"] *,
+.fin-scope [class~="bg-teal-600"] *,
+.fin-scope [class~="bg-teal-700"] *,
+.fin-scope [class~="bg-amber-500"] *,
+.fin-scope [class~="bg-amber-600"] *,
+.fin-scope [class~="bg-orange-500"] *,
+.fin-scope [class~="bg-orange-600"] *,
+.fin-scope [class~="bg-cyan-600"] * { color: var(--fin-on-accent) !important; }
+
+/* Translucent accent tints (bg-violet-600/5, bg-amber-500/10…) -> soft gold wash */
+.fin-scope [class*="bg-violet-500/"],
+.fin-scope [class*="bg-violet-600/"],
+.fin-scope [class*="bg-violet-700/"],
+.fin-scope [class*="bg-purple-500/"],
+.fin-scope [class*="bg-purple-600/"],
+.fin-scope [class*="bg-purple-700/"],
+.fin-scope [class*="bg-indigo-500/"],
+.fin-scope [class*="bg-indigo-600/"],
+.fin-scope [class*="bg-indigo-700/"],
+.fin-scope [class*="bg-blue-500/"],
+.fin-scope [class*="bg-blue-600/"],
+.fin-scope [class*="bg-blue-700/"],
+.fin-scope [class*="bg-fuchsia-500/"],
+.fin-scope [class*="bg-fuchsia-600/"],
+.fin-scope [class*="bg-fuchsia-700/"],
+.fin-scope [class*="bg-sky-500/"],
+.fin-scope [class*="bg-sky-600/"],
+.fin-scope [class*="bg-sky-700/"] { background-color: var(--fin-accent-wash) !important; }
 
 /* Legacy hardcoded near-black hexes not caught above -> track */
 .fin-scope [class*="bg-[#09"],
@@ -801,3 +875,121 @@ html.light .blueprint-grid-bg {
 .fin-scope [class*="bg-[#21"],
 .fin-scope [class*="bg-[#22"],
 .fin-scope [class*="bg-[#23"] { background-color: var(--fin-track) !important; }
+
+
+/* ---- Compat: light-theme utilities (from the earlier light /os design) ----
+   Many /os pages hardcode light classes (bg-white, bg-slate-50,
+   text-slate-800…). Map them onto the tokens so they follow dark/Day Mode. */
+.fin-scope .bg-white { background-color: var(--fin-card) !important; }
+.fin-scope .bg-slate-50,
+.fin-scope .bg-gray-50,
+.fin-scope .bg-zinc-50,
+.fin-scope .bg-slate-100,
+.fin-scope .bg-gray-100,
+.fin-scope .bg-zinc-100 { background-color: var(--fin-track) !important; }
+.fin-scope .bg-slate-200,
+.fin-scope .bg-gray-200 { background-color: var(--fin-track-hover) !important; }
+
+.fin-scope .text-slate-900,
+.fin-scope .text-slate-800,
+.fin-scope .text-slate-700,
+.fin-scope .text-gray-900,
+.fin-scope .text-gray-800,
+.fin-scope .text-gray-700,
+.fin-scope .text-zinc-900,
+.fin-scope .text-zinc-800,
+.fin-scope .text-black { color: var(--fin-ink) !important; }
+.fin-scope .text-slate-600,
+.fin-scope .text-gray-600,
+.fin-scope .text-gray-500,
+.fin-scope .text-zinc-600,
+.fin-scope .text-zinc-500 { color: var(--fin-sub) !important; }
+
+.fin-scope .border-slate-100,
+.fin-scope .border-gray-100,
+.fin-scope .border-gray-200,
+.fin-scope .border-zinc-100,
+.fin-scope .border-zinc-200,
+.fin-scope .border-emerald-100,
+.fin-scope .border-red-100,
+.fin-scope .border-rose-100,
+.fin-scope .border-amber-100,
+.fin-scope .divide-slate-100 > * + * { border-color: var(--fin-line) !important; }
+
+/* Hover states written for light surfaces */
+.fin-scope [class*="hover:bg-white"]:hover,
+.fin-scope [class*="hover:bg-slate-50"]:hover,
+.fin-scope [class*="hover:bg-slate-100"]:hover,
+.fin-scope [class*="hover:bg-slate-200"]:hover,
+.fin-scope [class*="hover:bg-gray-50"]:hover,
+.fin-scope [class*="hover:bg-gray-100"]:hover { background-color: var(--fin-track-hover) !important; }
+.fin-scope [class*="hover:text-slate-9"]:hover,
+.fin-scope [class*="hover:text-slate-8"]:hover,
+.fin-scope [class*="hover:text-gray-9"]:hover { color: var(--fin-ink) !important; }
+
+/* Pastel status chips */
+.fin-scope .bg-emerald-50,
+.fin-scope .bg-green-50 { background-color: var(--fin-up-bg) !important; }
+.fin-scope .text-emerald-700,
+.fin-scope .text-emerald-800,
+.fin-scope .text-green-700 { color: var(--fin-up) !important; }
+.fin-scope .bg-rose-50,
+.fin-scope .bg-red-50 { background-color: var(--fin-down-bg) !important; }
+.fin-scope .text-rose-700,
+.fin-scope .text-red-700,
+.fin-scope .text-red-600 { color: var(--fin-down) !important; }
+.fin-scope .bg-amber-50,
+.fin-scope .bg-yellow-50 { background-color: var(--fin-warn-bg) !important; }
+.fin-scope .text-amber-700,
+.fin-scope .text-amber-800,
+.fin-scope .text-amber-900 { color: var(--fin-warn) !important; }
+.fin-scope .bg-blue-50,
+.fin-scope .bg-indigo-50,
+.fin-scope .bg-violet-50 { background-color: var(--fin-accent-wash) !important; }
+.fin-scope .text-blue-700,
+.fin-scope .text-blue-800 { color: var(--fin-accent-text) !important; }
+
+/* Status text on dark surfaces stays light; on Day Mode it deepens (above). */
+.fin-scope .text-emerald-100 { color: var(--fin-up) !important; }
+
+/* Day Mode inside /os: beat the public site's html.light neumorphism so the
+   workspace stays flat and on-token in both modes. */
+html.light .fin-scope .neu-raised,
+html.light .fin-scope .neu-raised-sm,
+html.light .fin-scope .neu-raised-lg {
+  background-color: var(--fin-card) !important;
+  box-shadow: var(--fin-shadow-sm) !important;
+}
+html.light .fin-scope .neu-pressed,
+html.light .fin-scope .neu-pressed-deep {
+  background-color: var(--fin-track) !important;
+  box-shadow: none !important;
+}
+html.light .fin-scope .neu-gold-filled {
+  background: var(--fin-accent) !important;
+  color: var(--fin-on-accent) !important;
+  box-shadow: none !important;
+}
+html.light .fin-scope .neu-gold-btn {
+  background-color: var(--fin-track) !important;
+  color: var(--fin-accent-text) !important;
+  box-shadow: none !important;
+}
+
+/* Translucent light neutrals from the light /os design -> track */
+.fin-scope [class*="bg-slate-50/"],
+.fin-scope [class*="bg-slate-100/"],
+.fin-scope [class*="bg-gray-50/"],
+.fin-scope [class*="bg-gray-100/"],
+.fin-scope [class*="bg-zinc-50/"] { background-color: var(--fin-track) !important; }
+
+/* Tailwind's default border colour is currentColor, so bare `border` (or a
+   non-existent shade like border-slate-150) draws near-white lines on dark.
+   In the base layer, so any explicit border-* utility still wins. */
+@layer base {
+  .fin-scope *,
+  .fin-scope ::before,
+  .fin-scope ::after {
+    border-color: var(--fin-line);
+  }
+}

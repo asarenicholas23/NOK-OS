@@ -279,7 +279,7 @@ export const ProposalPaymentsPanel: React.FC<{ proposal: Proposal; onNotify: (ms
               <span className="text-[#F2F0EB] font-semibold capitalize">{p.kind}{p.duplicate ? " (duplicate: refund due)" : ""}</span>
               <span className="font-mono text-[#8A8A93]">{p.paidAt?.slice(0, 10)} · {p.channel?.replace("_", " ") || "—"}</span>
               <span className="font-mono text-[#F2F0EB]">{formatGhs(p.amount)}</span>
-              <span className="w-full font-mono text-[10px] text-[#6B6880]">Ref: {p.reference}</span>
+              <span className="w-full font-mono text-[10px] text-[var(--fin-sub)]">Ref: {p.reference}</span>
             </li>
           ))}
         </ul>

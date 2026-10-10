@@ -658,7 +658,7 @@ export const CmsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 text-[#16151F]">
+    <div className="space-y-6 text-[var(--fin-ink)]">
       {/* Toast Notification */}
       {successMsg && (
         <div className="fixed top-20 right-8 z-50 p-4 rounded-2xl fin-card text-emerald-600 border border-emerald-200 flex items-center space-x-2 text-xs shadow-2xl animate-in fade-in slide-in-from-top-2">
@@ -671,7 +671,7 @@ export const CmsPage: React.FC = () => {
       <div className="flex items-center justify-end">
         <button
           onClick={resetToDefaults}
-          className="fin-btn-ghost px-3.5 py-2 text-xs text-[#6B6880] hover:text-rose-500 flex items-center space-x-1.5 shrink-0 cursor-pointer"
+          className="fin-btn-ghost px-3.5 py-2 text-xs text-[var(--fin-sub)] hover:text-rose-500 flex items-center space-x-1.5 shrink-0 cursor-pointer"
           title="Reset CMS data back to initial defaults"
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -888,7 +888,7 @@ export const CmsPage: React.FC = () => {
                           <div className="flex items-center space-x-2">
                             <CalendarClock className="w-4 h-4 text-[#B08D57]" />
                             <span className="text-[10px] font-mono text-[#8A8A93] uppercase">Call time:</span>
-                            <span className={`font-semibold ${req.slotReleased ? "line-through text-[#6B6880]" : "text-[#F2F0EB]"}`}>
+                            <span className={`font-semibold ${req.slotReleased ? "line-through text-[var(--fin-sub)]" : "text-[#F2F0EB]"}`}>
                               {formatSlotFull(req.slotStart)}
                             </span>
                             {req.slotReleased && <span className="text-[10px] font-mono text-[#8A8A93]">(cancelled)</span>}

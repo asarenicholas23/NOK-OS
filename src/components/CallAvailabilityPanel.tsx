@@ -125,7 +125,7 @@ export const CallAvailabilityPanel: React.FC<{ onSaved: (msg: string) => void }>
                     onChange={(e) => setDay(i, { enabled: e.target.checked })}
                     className="accent-[#B08D57]"
                   />
-                  <span className={day.enabled ? "text-[#F2F0EB]" : "text-[#6B6880]"}>{WEEKDAYS[i]}</span>
+                  <span className={day.enabled ? "text-[#F2F0EB]" : "text-[var(--fin-sub)]"}>{WEEKDAYS[i]}</span>
                 </label>
                 {day.enabled ? (
                   <div className="flex items-center space-x-2">
@@ -144,7 +144,7 @@ export const CallAvailabilityPanel: React.FC<{ onSaved: (msg: string) => void }>
                     />
                   </div>
                 ) : (
-                  <span className="text-[11px] font-mono text-[#6B6880]">Unavailable</span>
+                  <span className="text-[11px] font-mono text-[var(--fin-sub)]">Unavailable</span>
                 )}
               </div>
             ))}

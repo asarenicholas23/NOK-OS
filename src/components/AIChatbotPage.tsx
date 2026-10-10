@@ -101,9 +101,10 @@ How can I help you today? You can:
     }
   ];
 
-  // Auto-scroll messages
+  // Auto-scroll the message list only (scrollIntoView would also scroll the page)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = messagesEndRef.current?.parentElement;
+    list?.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
   // Accent mapping helper

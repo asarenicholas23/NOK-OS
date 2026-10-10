@@ -67,7 +67,7 @@ export const DashboardPage: React.FC = () => {
     if (activeColor === "emerald") return "text-emerald-600";
     if (activeColor === "rose") return "text-rose-600";
     if (activeColor === "amber") return "text-amber-600";
-    return "text-[#4F46E5]";
+    return "text-[var(--fin-accent)]";
   };
 
   const getBrandBgClass = () => {
@@ -81,7 +81,7 @@ export const DashboardPage: React.FC = () => {
     if (activeColor === "emerald") return "#059669";
     if (activeColor === "rose") return "#e11d48";
     if (activeColor === "amber") return "#d97706";
-    return "#4F46E5";
+    return "#B08D57";
   };
 
   const handleCreateBrandSubmit = async (e: React.FormEvent) => {
@@ -212,17 +212,17 @@ export const DashboardPage: React.FC = () => {
   ];
 
   return (
-    <div id="dashboard-view" className="space-y-6 animate-in fade-in duration-200 text-[#16151F]">
+    <div id="dashboard-view" className="space-y-6 animate-in fade-in duration-200 text-[var(--fin-ink)]">
       {/* Slim status row */}
       <div className="flex items-center justify-between gap-3 -mt-2">
-        <p className="text-xs text-[#6B6880]">
+        <p className="text-xs text-[var(--fin-sub)]">
           Live-synced metrics for{" "}
           <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "Active Workspace"}</strong>.
         </p>
         <div className="flex items-center gap-2.5 shrink-0">
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full fin-card-sm text-[11px] font-medium text-[#6B6880]">
-            <span className="text-[#9D9AB0]">UTC</span>
-            <span className="font-semibold text-[#16151F]">2026-06-29 08:00</span>
+          <div className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full fin-card-sm text-[11px] font-medium text-[var(--fin-sub)]">
+            <span className="text-[var(--fin-faint)]">UTC</span>
+            <span className="font-semibold text-[var(--fin-ink)]">2026-06-29 08:00</span>
           </div>
           <div className="flex items-center gap-2 px-3.5 py-2 rounded-full fin-badge-up text-[10px] font-semibold uppercase tracking-wide">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -239,7 +239,7 @@ export const DashboardPage: React.FC = () => {
             return (
               <div key={card.label} className="fin-card fin-card-hover p-5 flex flex-col">
                 <div className="flex items-start justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-[#98A2B3]">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--fin-faint)]">
                     {card.label}
                   </span>
                   <span className="fin-icon-chip p-2 shrink-0">
@@ -247,17 +247,17 @@ export const DashboardPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="mt-5 flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold tracking-tight text-[#111827]">{card.value}</span>
-                  <span className="text-[10px] uppercase tracking-wide text-[#98A2B3]">{card.hint}</span>
+                  <span className="text-3xl font-extrabold tracking-tight text-[var(--fin-ink)]">{card.value}</span>
+                  <span className="text-[10px] uppercase tracking-wide text-[var(--fin-faint)]">{card.hint}</span>
                 </div>
-                <p className="text-[11px] text-[#98A2B3] mt-auto pt-3">{card.sub}</p>
+                <p className="text-[11px] text-[var(--fin-faint)] mt-auto pt-3">{card.sub}</p>
               </div>
             );
           })}
         </div>
 
         {/* Dark active-context feature panel */}
-        <div className="fin-panel-dark p-6 flex flex-col justify-between min-h-[220px]">
+        <div className="fin-panel-dark p-6 flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-[11px] uppercase tracking-[0.14em] fin-panel-sub">Active workspace</p>
@@ -265,7 +265,7 @@ export const DashboardPage: React.FC = () => {
               <p className="text-[11px] fin-panel-sub mt-0.5">{activeBrand ? activeBrand.domain : "—"}</p>
             </div>
             <span className="fin-panel-card p-2">
-              <Building className="w-4 h-4 text-[#C7D2FE]" />
+              <Building className="w-4 h-4 text-[var(--fin-accent-text)]" />
             </span>
           </div>
 
@@ -280,16 +280,6 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mt-6">
-            <div className="fin-panel-card p-3">
-              <p className="text-[10px] fin-panel-sub uppercase tracking-wide">Scheduled</p>
-              <p className="text-lg font-bold text-white mt-1">{queues.length}</p>
-            </div>
-            <div className="fin-panel-card p-3">
-              <p className="text-[10px] fin-panel-sub uppercase tracking-wide">Disc. calls</p>
-              <p className="text-lg font-bold text-white mt-1">{discoveryRequests.length}</p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -297,8 +287,8 @@ export const DashboardPage: React.FC = () => {
       <div className="fin-card p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
-            <h3 className="text-base font-bold text-[#111827]">N.O.K Os Brand Workspace Registry</h3>
-            <p className="text-xs text-[#667085] mt-0.5">
+            <h3 className="text-base font-bold text-[var(--fin-ink)]">N.O.K Os Brand Workspace Registry</h3>
+            <p className="text-xs text-[var(--fin-sub)] mt-0.5">
               Select a brand workspace to activate its live-sync performance data, or register a new client brand.
             </p>
           </div>
@@ -317,14 +307,14 @@ export const DashboardPage: React.FC = () => {
         {/* Add Brand Form Collapse */}
         {showAddForm && (
           <div className="fin-inset p-5 mb-6 animate-in slide-in-from-top-3 duration-200">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-[#98A2B3] mb-4 flex items-center">
-              <Sparkles className="w-3.5 h-3.5 text-[#4F46E5] mr-2" />
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--fin-faint)] mb-4 flex items-center">
+              <Sparkles className="w-3.5 h-3.5 text-[var(--fin-accent)] mr-2" />
               Register Brand Workspace Protocol
             </h4>
             <form onSubmit={handleCreateBrandSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-[10px] tracking-wide uppercase text-[#98A2B3] mb-1.5">Brand Name *</label>
+                  <label className="block text-[10px] tracking-wide uppercase text-[var(--fin-faint)] mb-1.5">Brand Name *</label>
                   <input
                     type="text"
                     required
@@ -340,7 +330,7 @@ export const DashboardPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] tracking-wide uppercase text-[#98A2B3] mb-1.5">Domain *</label>
+                  <label className="block text-[10px] tracking-wide uppercase text-[var(--fin-faint)] mb-1.5">Domain *</label>
                   <input
                     type="text"
                     required
@@ -351,7 +341,7 @@ export const DashboardPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] tracking-wide uppercase text-[#98A2B3] mb-1.5">Industry Sector *</label>
+                  <label className="block text-[10px] tracking-wide uppercase text-[var(--fin-faint)] mb-1.5">Industry Sector *</label>
                   <input
                     type="text"
                     required
@@ -362,7 +352,7 @@ export const DashboardPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] tracking-wide uppercase text-[#98A2B3] mb-1.5">Initials (2 char) *</label>
+                  <label className="block text-[10px] tracking-wide uppercase text-[var(--fin-faint)] mb-1.5">Initials (2 char) *</label>
                   <input
                     type="text"
                     maxLength={2}
@@ -374,7 +364,7 @@ export const DashboardPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] tracking-wide uppercase text-[#98A2B3] mb-1.5">Theme Accent Color</label>
+                  <label className="block text-[10px] tracking-wide uppercase text-[var(--fin-faint)] mb-1.5">Theme Accent Color</label>
                   <select
                     value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
@@ -387,7 +377,7 @@ export const DashboardPage: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] tracking-wide uppercase text-[#98A2B3] mb-1.5">Brand Tagline</label>
+                  <label className="block text-[10px] tracking-wide uppercase text-[var(--fin-faint)] mb-1.5">Brand Tagline</label>
                   <input
                     type="text"
                     placeholder="e.g., Crafting elegant lifestyle products."
@@ -436,14 +426,14 @@ export const DashboardPage: React.FC = () => {
               emerald: "text-emerald-600",
               rose: "text-rose-600",
               amber: "text-amber-600",
-              violet: "text-[#4F46E5]"
+              violet: "text-[var(--fin-accent)]"
             }[brand.primaryColor || "violet"];
 
             return (
               <div
                 key={brand.id}
                 className={`fin-card-sm p-5 transition-all duration-300 relative flex flex-col justify-between ${
-                  isActive ? "ring-2 ring-[#4F46E5] ring-offset-2 ring-offset-white" : "fin-card-hover"
+                  isActive ? "ring-2 ring-[var(--fin-accent)] ring-offset-2 ring-offset-white" : "fin-card-hover"
                 }`}
               >
                 <div>
@@ -454,7 +444,7 @@ export const DashboardPage: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => startEditBrand(brand)}
-                        className="fin-btn-ghost px-2.5 py-1 text-[10px] font-semibold text-[#667085] hover:text-[#4F46E5] cursor-pointer"
+                        className="fin-btn-ghost px-2.5 py-1 text-[10px] font-semibold text-[var(--fin-sub)] hover:text-[var(--fin-accent)] cursor-pointer"
                         title="Edit Brand"
                       >
                         Edit
@@ -475,15 +465,15 @@ export const DashboardPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <h4 className="text-sm font-bold text-[#111827]">{brand.name}</h4>
-                  <p className="text-[11px] text-[#98A2B3] mt-0.5">{brand.domain}</p>
+                  <h4 className="text-sm font-bold text-[var(--fin-ink)]">{brand.name}</h4>
+                  <p className="text-[11px] text-[var(--fin-faint)] mt-0.5">{brand.domain}</p>
 
-                  <div className="mt-3 pt-3 border-t border-[#ECEDF3] space-y-1.5">
-                    <div className="flex justify-between text-[11px] text-[#98A2B3]">
+                  <div className="mt-3 pt-3 border-t border-[var(--fin-line)] space-y-1.5">
+                    <div className="flex justify-between text-[11px] text-[var(--fin-faint)]">
                       <span>Sector</span>
-                      <span className="font-semibold text-[#667085]">{brand.industry}</span>
+                      <span className="font-semibold text-[var(--fin-sub)]">{brand.industry}</span>
                     </div>
-                    <div className="flex justify-between items-center text-[11px] text-[#98A2B3]">
+                    <div className="flex justify-between items-center text-[11px] text-[var(--fin-faint)]">
                       <span>Brand Theme</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-semibold ${badgeColor}`}>
                         {brand.primaryColor || "violet"}
@@ -492,7 +482,7 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between text-[10px] text-[#98A2B3]">
+                <div className="mt-4 flex items-center justify-between text-[10px] text-[var(--fin-faint)]">
                   <span className="italic truncate pr-4">
                     {brand.tagline ? `"${brand.tagline}"` : <span className="not-italic">(No tagline)</span>}
                   </span>
@@ -511,10 +501,10 @@ export const DashboardPage: React.FC = () => {
             <Brain className="w-5 h-5" />
           </span>
           <div>
-            <h4 className="text-sm font-bold text-[#111827]">
+            <h4 className="text-sm font-bold text-[var(--fin-ink)]">
               No analytics data imported yet for {activeBrand?.name || "this brand"}
             </h4>
-            <p className="text-xs mt-1 text-[#667085]">
+            <p className="text-xs mt-1 text-[var(--fin-sub)]">
               These stat cards reflect real uploaded performance data. Go to <strong>Analytics Import</strong> to upload a CSV/JSON export and populate this dashboard.
             </p>
           </div>
@@ -530,7 +520,7 @@ export const DashboardPage: React.FC = () => {
             return (
               <div key={metric.id} id={`metric-card-${metric.id}`} className="fin-card fin-card-hover p-5 relative overflow-hidden">
                 <div className="relative z-10 flex justify-between items-start">
-                  <span className="text-[11px] tracking-wide font-semibold uppercase text-[#98A2B3]">{metric.label}</span>
+                  <span className="text-[11px] tracking-wide font-semibold uppercase text-[var(--fin-faint)]">{metric.label}</span>
                   <span
                     className={`flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full fin-badge ${
                       isNeutral ? "fin-badge-neutral" : isIncrease ? "fin-badge-up" : "fin-badge-down"
@@ -542,8 +532,8 @@ export const DashboardPage: React.FC = () => {
                 </div>
 
                 <div className="relative z-10 mt-3 flex items-baseline gap-2">
-                  <span className="text-2xl font-bold tracking-tight text-[#111827]">{metric.value}</span>
-                  <span className="text-[10px] text-[#98A2B3] uppercase tracking-wide">KPI</span>
+                  <span className="text-2xl font-bold tracking-tight text-[var(--fin-ink)]">{metric.value}</span>
+                  <span className="text-[10px] text-[var(--fin-faint)] uppercase tracking-wide">KPI</span>
                 </div>
 
                 {/* Sparkline Custom SVG rendering */}
@@ -576,17 +566,17 @@ export const DashboardPage: React.FC = () => {
         <div className="fin-card p-6 flex flex-col justify-between lg:col-span-2">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-[11px] uppercase tracking-wide font-semibold text-[#98A2B3]">
+              <h3 className="text-[11px] uppercase tracking-wide font-semibold text-[var(--fin-faint)]">
                 Performance Aggregation
               </h3>
-              <h4 className="text-sm font-semibold mt-1 text-[#111827]">Multi-Channel Active Reach Trend</h4>
+              <h4 className="text-sm font-semibold mt-1 text-[var(--fin-ink)]">Multi-Channel Active Reach Trend</h4>
             </div>
-            <div className="flex items-center gap-3 text-[11px] text-[#98A2B3]">
+            <div className="flex items-center gap-3 text-[11px] text-[var(--fin-faint)]">
               <span className="flex items-center">
                 <span className="w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: getAccentHex() }} />
                 Reach Scale
               </span>
-              <span className="px-2.5 py-1 rounded-full fin-inset font-medium text-[#667085]">7D</span>
+              <span className="px-2.5 py-1 rounded-full fin-inset font-medium text-[var(--fin-sub)]">7D</span>
             </div>
           </div>
 
@@ -619,13 +609,13 @@ export const DashboardPage: React.FC = () => {
                 <circle cx="500" cy="45" r="4" fill="#fff" stroke={getAccentHex()} strokeWidth="2" />
               </svg>
 
-              <div className="absolute top-[30%] left-[45%] fin-card-sm px-2.5 py-1 text-[10px] font-semibold text-[#111827]">
+              <div className="absolute top-[30%] left-[45%] fin-card-sm px-2.5 py-1 text-[10px] font-semibold text-[var(--fin-ink)]">
                 Peak: +42.4% reach
               </div>
             </div>
           </div>
 
-          <div className="flex justify-between items-center mt-4 pt-4 border-t border-[#ECEDF3] text-[10px] font-medium text-[#98A2B3]">
+          <div className="flex justify-between items-center mt-4 pt-4 border-t border-[var(--fin-line)] text-[10px] font-medium text-[var(--fin-faint)]">
             <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
           </div>
         </div>
@@ -634,8 +624,8 @@ export const DashboardPage: React.FC = () => {
         <div className="fin-card p-6 flex flex-col">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-[11px] uppercase tracking-wide font-semibold text-[#98A2B3]">Active Pipeline</h3>
-              <h4 className="text-sm font-semibold mt-1 text-[#111827]">Upcoming Live Posts</h4>
+              <h3 className="text-[11px] uppercase tracking-wide font-semibold text-[var(--fin-faint)]">Active Pipeline</h3>
+              <h4 className="text-sm font-semibold mt-1 text-[var(--fin-ink)]">Upcoming Live Posts</h4>
             </div>
             <div className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${getBrandBgClass()}`}>
               {queues.length}
@@ -653,20 +643,20 @@ export const DashboardPage: React.FC = () => {
               return (
                 <div key={item.id} className="fin-inset p-3.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-medium text-[#98A2B3]">{item.channel}</span>
+                    <span className="text-[10px] font-medium text-[var(--fin-faint)]">{item.channel}</span>
                     <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${statusColors[item.status]}`}>
                       {item.status}
                     </span>
                   </div>
-                  <h5 className="text-xs font-semibold mt-2 line-clamp-1 text-[#111827]">{item.title}</h5>
-                  <p className="text-[10px] text-[#667085] mt-1 line-clamp-2 leading-relaxed">{item.content}</p>
-                  <div className="text-[9px] font-medium text-[#98A2B3] mt-2">Sched: {item.scheduledTime}</div>
+                  <h5 className="text-xs font-semibold mt-2 line-clamp-1 text-[var(--fin-ink)]">{item.title}</h5>
+                  <p className="text-[10px] text-[var(--fin-sub)] mt-1 line-clamp-2 leading-relaxed">{item.content}</p>
+                  <div className="text-[9px] font-medium text-[var(--fin-faint)] mt-2">Sched: {item.scheduledTime}</div>
                 </div>
               );
             })}
 
             {queues.length === 0 && (
-              <div className="text-center py-8 text-[#98A2B3] text-xs">No active campaigns in pipeline</div>
+              <div className="text-center py-8 text-[var(--fin-faint)] text-xs">No active campaigns in pipeline</div>
             )}
           </div>
         </div>

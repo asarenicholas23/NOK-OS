@@ -285,7 +285,7 @@ export const CreativeSandboxPage: React.FC = () => {
   const uniqueTags = Array.from(new Set(ideas.flatMap(i => i.tags || [])));
 
   return (
-    <div className="font-sans text-[#16151F] space-y-6">
+    <div className="font-sans text-[var(--fin-ink)] space-y-6">
 
       {/* Action row */}
       <div id="sandbox-header" className="flex items-center justify-end mb-2">
