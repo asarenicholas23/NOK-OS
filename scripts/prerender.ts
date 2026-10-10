@@ -38,8 +38,18 @@ async function renderRoute(
   route: string,
   expectedTitleText?: string
 ) {
-  await page.goto(`${BASE_URL}${route}`, { waitUntil: "load" });
-  await page.waitForSelector("footer", { timeout: 15000 });
+  // Pages load their content from Firestore, so a slow response can miss the
+  // timeout; retry once before failing the build.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await page.goto(`${BASE_URL}${route}`, { waitUntil: "load" });
+      await page.waitForSelector("footer", { timeout: 20000 });
+      break;
+    } catch (err) {
+      if (attempt >= 2) throw err;
+      console.warn(`  retrying ${route} (slow load)`);
+    }
+  }
   if (expectedTitleText) {
     await page
       .waitForFunction(
