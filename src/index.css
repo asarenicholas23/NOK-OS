@@ -246,6 +246,29 @@ html.light .text-\[\#C5A065\] {
   color: #8C6428 !important;
 }
 
+/* Pale status text (success / warning / error notices) is written for dark
+   surfaces; on Day Mode and the light /os workspace it needs a deep shade. */
+html.light .text-emerald-200,
+html.light .text-emerald-300,
+.fin-scope .text-emerald-200,
+.fin-scope .text-emerald-300 {
+  color: #047857 !important;
+}
+
+html.light .text-amber-200,
+html.light .text-amber-300,
+.fin-scope .text-amber-200,
+.fin-scope .text-amber-300 {
+  color: #92400E !important;
+}
+
+html.light .text-rose-200,
+html.light .text-rose-300,
+.fin-scope .text-rose-200,
+.fin-scope .text-rose-300 {
+  color: #BE123C !important;
+}
+
 /* Day Mode Borders & Lines */
 html.light .border-\[\#1C1C22\],
 html.light .border-\[\#23232C\],
