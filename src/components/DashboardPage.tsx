@@ -214,22 +214,10 @@ export const DashboardPage: React.FC = () => {
   return (
     <div id="dashboard-view" className="space-y-6 animate-in fade-in duration-200 text-[var(--fin-ink)]">
       {/* Slim status row */}
-      <div className="flex items-center justify-between gap-3 -mt-2">
-        <p className="text-xs text-[var(--fin-sub)]">
-          Live-synced metrics for{" "}
-          <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "Active Workspace"}</strong>.
-        </p>
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full fin-card-sm text-[11px] font-medium text-[var(--fin-sub)]">
-            <span className="text-[var(--fin-faint)]">UTC</span>
-            <span className="font-semibold text-[var(--fin-ink)]">2026-06-29 08:00</span>
-          </div>
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-full fin-badge-up text-[10px] font-semibold uppercase tracking-wide">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Synced
-          </div>
-        </div>
-      </div>
+      <p className="text-xs text-[var(--fin-sub)] -mt-2">
+        Live-synced metrics for{" "}
+        <strong className={getBrandTextColor()}>{activeBrand ? activeBrand.name : "Active Workspace"}</strong>.
+      </p>
 
       {/* Hero: stat cards + dark active-context panel */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -269,16 +257,20 @@ export const DashboardPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="mt-6">
-            <p className="text-[11px] fin-panel-sub">AI Intel Score</p>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-[40px] leading-none font-extrabold tracking-tight text-white">98.4%</span>
-              <span className="flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-400/15 text-emerald-300">
-                <ArrowUpRight className="w-3 h-3 mr-0.5" />
-                +2.1%
-              </span>
+          {activeBrand && (
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <div className="fin-panel-card p-3">
+                <p className="text-[10px] fin-panel-sub uppercase tracking-wide">Industry</p>
+                <p className="text-sm font-semibold text-white mt-1 truncate">{activeBrand.industry || "—"}</p>
+              </div>
+              <div className="fin-panel-card p-3">
+                <p className="text-[10px] fin-panel-sub uppercase tracking-wide">Tagline</p>
+                <p className="text-sm font-semibold text-white mt-1 truncate" title={activeBrand.tagline || undefined}>
+                  {activeBrand.tagline || "Not set"}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
       </div>
