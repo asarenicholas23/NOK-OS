@@ -519,6 +519,29 @@ export interface Proposal {
   lastClientCommentAt?: string;
   clientCommentCount?: number;
   staffSeenAt?: string; // staff last opened this proposal in the CMS
+  // Payment (written only by the API after Paystack confirms a payment).
+  acceptedAt?: string;
+  acceptedVersion?: number; // the version the client accepted by paying
+  acceptedTotal?: number; // GH¢, total of the accepted version
+  amountPaid?: number; // GH¢, all confirmed payments so far
+  paymentStatus?: "deposit_paid" | "paid_in_full";
+  balanceRequested?: boolean; // staff opened the balance payment to the client
+}
+
+export type PaymentKind = "deposit" | "balance";
+
+// proposals/{id}/payments/{reference}: one per Paystack checkout started.
+export interface ProposalPayment {
+  reference: string;
+  kind: PaymentKind;
+  amount: number; // GH¢
+  currency: "GHS";
+  version: number;
+  status: "pending" | "success";
+  createdAt: string;
+  paidAt?: string;
+  channel?: string; // e.g. "mobile_money", "card"
+  duplicate?: boolean; // a second deposit for an already-accepted proposal: refund due
 }
 
 // What the client sees. Each send freezes one of these in

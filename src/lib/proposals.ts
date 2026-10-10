@@ -3,6 +3,7 @@ import { db, cleanFirestoreData } from "./firebase";
 import {
   Proposal,
   ProposalComment,
+  ProposalPayment,
   ProposalSnapshot,
   PROPOSAL_CONTENT_FIELDS,
   DiscoveryRequest,
@@ -160,4 +161,18 @@ export const createDraftProposal = (
     createdAt: now,
     updatedAt: now
   };
+};
+
+export const subscribeToProposalPayments = (proposalId: string, onUpdate: (payments: ProposalPayment[]) => void) => {
+  const q = query(collection(db, "proposals", proposalId, "payments"), orderBy("createdAt", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    onUpdate(snapshot.docs.map((d) => d.data() as ProposalPayment));
+  }, (err) => {
+    console.warn("Firestore subscription error on proposal payments:", err);
+  });
+};
+
+// Shows (or hides) the "Pay balance" button on the client's proposal page.
+export const setBalanceRequested = async (proposalId: string, requested: boolean) => {
+  await updateDoc(doc(db, "proposals", proposalId), { balanceRequested: requested });
 };

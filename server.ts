@@ -4,6 +4,8 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import admin from "firebase-admin";
 import dotenv from "dotenv";
+import crypto from "node:crypto";
+import { proposalTotals } from "./src/data/cmsData";
 
 dotenv.config();
 
@@ -42,7 +44,13 @@ app.use(cors({
   },
 }));
 
-app.use(express.json({ limit: "50mb" }));
+// Keep the raw body too: the Paystack webhook signature is an HMAC of the exact bytes.
+app.use(express.json({
+  limit: "50mb",
+  verify: (req, _res, buf) => {
+    (req as any).rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Initialize Gemini client on the server
@@ -961,6 +969,14 @@ app.post("/api/proposals/view", proposalRateLimit(60), async (req, res) => {
     res.json({
       proposal: versionSnap.data(),
       status: data.status,
+      payment: {
+        acceptedVersion: data.acceptedVersion || null,
+        acceptedTotal: data.acceptedTotal || 0,
+        amountPaid: data.amountPaid || 0,
+        paymentStatus: data.paymentStatus || null,
+        balanceRequested: !!data.balanceRequested,
+      },
+      paymentsEnabled: !!PAYSTACK_SECRET_KEY,
       comments: commentsSnap.docs.map((d) => publicComment(d.id, d.data())),
     });
   } catch (error: any) {
@@ -1016,6 +1032,209 @@ app.post("/api/proposals/comment", proposalRateLimit(10), async (req, res) => {
     console.error("Proposal comment error:", error);
     res.status(500).json({ error: "Failed to save comment." });
   }
+});
+
+// ── Paystack payments ───────────────────────────────────────────────────────
+// Paying the deposit is how a client accepts a proposal. Amounts are always
+// computed here from the sent version snapshot, never taken from the browser.
+// A payment only counts once Paystack confirms it: via the signed webhook, or
+// when the client returns to the page (both re-verify with Paystack and record
+// idempotently, so it doesn't matter which arrives first).
+
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || "";
+const SITE_ORIGIN = "https://noksocial.com";
+const PAYSTACK_REFERENCE_RE = /^[A-Za-z0-9.=-]{1,100}$/;
+// Overridable only so tests can point at a local stub.
+const PAYSTACK_API_BASE = process.env.PAYSTACK_API_BASE || "https://api.paystack.co";
+
+async function paystack(path: string, init?: { method?: string; body?: unknown }) {
+  const resp = await fetch(`${PAYSTACK_API_BASE}${path}`, {
+    method: init?.method || "GET",
+    headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`, "Content-Type": "application/json" },
+    ...(init?.body ? { body: JSON.stringify(init.body) } : {}),
+  });
+  const body: any = await resp.json().catch(() => ({}));
+  if (!resp.ok || !body.status) {
+    throw new Error(`Paystack ${path} failed: ${resp.status} ${body.message || ""}`);
+  }
+  return body.data;
+}
+
+const toPesewas = (ghs: number) => Math.round(ghs * 100);
+const roundGhs = (n: number) => Math.round(n * 100) / 100;
+
+// What the client can pay next, or why they can't.
+async function amountDue(
+  ref: FirebaseFirestore.DocumentReference,
+  data: FirebaseFirestore.DocumentData,
+  kind: "deposit" | "balance",
+): Promise<{ amount: number; version: number } | { error: string }> {
+  if (kind === "deposit") {
+    if (data.status !== "sent" && data.status !== "changes_requested") return { error: "not_payable" };
+    const snap = (await ref.collection("versions").doc(String(data.sentVersion)).get()).data();
+    if (!snap) return { error: "not_payable" };
+    if (snap.validUntil && snap.validUntil < new Date().toISOString().slice(0, 10)) return { error: "expired" };
+    const { deposit } = proposalTotals(snap as any);
+    if (deposit <= 0) return { error: "not_payable" };
+    return { amount: deposit, version: data.sentVersion };
+  }
+  if (data.status !== "accepted" || !data.balanceRequested) return { error: "not_payable" };
+  const remaining = roundGhs((data.acceptedTotal || 0) - (data.amountPaid || 0));
+  if (remaining <= 0) return { error: "nothing_due" };
+  return { amount: remaining, version: data.acceptedVersion };
+}
+
+type RecordResult = "recorded" | "already_recorded" | "not_successful" | "unknown_payment";
+
+async function recordPaystackPayment(reference: string): Promise<RecordResult> {
+  if (!PAYSTACK_REFERENCE_RE.test(reference)) return "unknown_payment";
+  const tx = await paystack(`/transaction/verify/${encodeURIComponent(reference)}`);
+  if (tx.status !== "success") return "not_successful";
+  const proposalId = tx.metadata?.proposalId;
+  if (typeof proposalId !== "string" || !proposalId) return "unknown_payment";
+
+  const proposalRef = adminDb.collection("proposals").doc(proposalId);
+  const paymentRef = proposalRef.collection("payments").doc(reference);
+
+  return adminDb.runTransaction(async (t): Promise<RecordResult> => {
+    const [paySnap, propSnap] = await Promise.all([t.get(paymentRef), t.get(proposalRef)]);
+    if (!paySnap.exists || !propSnap.exists) return "unknown_payment";
+    const pay = paySnap.data()!;
+    const prop = propSnap.data()!;
+    if (pay.status === "success") return "already_recorded";
+    if (tx.amount !== toPesewas(pay.amount) || tx.currency !== "GHS") {
+      console.error(`[paystack] amount mismatch for ${reference}: paid ${tx.amount} ${tx.currency}, expected ${toPesewas(pay.amount)} GHS`);
+      return "unknown_payment";
+    }
+
+    // All transaction reads must happen before any writes.
+    const isFirstDeposit = pay.kind === "deposit" && prop.status !== "accepted";
+    const versionSnap = isFirstDeposit ? await t.get(proposalRef.collection("versions").doc(String(pay.version))) : null;
+    const leadRef = isFirstDeposit && prop.requestId ? adminDb.collection("discoveryRequests").doc(prop.requestId) : null;
+    const leadSnap = leadRef ? await t.get(leadRef) : null;
+
+    const now = new Date().toISOString();
+    const amountPaid = roundGhs((prop.amountPaid || 0) + pay.amount);
+    const acceptedTotal = isFirstDeposit && versionSnap?.exists
+      ? proposalTotals(versionSnap.data() as any).total
+      : prop.acceptedTotal || 0;
+    const paidInFull = acceptedTotal > 0 && amountPaid >= acceptedTotal - 0.005;
+
+    t.update(paymentRef, {
+      status: "success",
+      paidAt: tx.paid_at || now,
+      channel: tx.channel || null,
+      paystackId: tx.id || null,
+      // A second deposit (e.g. paid in two tabs) is kept on record for a refund.
+      ...(pay.kind === "deposit" && !isFirstDeposit ? { duplicate: true } : {}),
+    });
+    t.update(proposalRef, {
+      amountPaid,
+      paymentStatus: paidInFull ? "paid_in_full" : "deposit_paid",
+      ...(paidInFull ? { balanceRequested: false } : {}),
+      ...(isFirstDeposit
+        ? { status: "accepted", acceptedAt: now, acceptedVersion: pay.version, acceptedTotal }
+        : {}),
+      updatedAt: now,
+    });
+    if (leadRef && leadSnap?.exists) t.update(leadRef, { status: "Converted" });
+    return "recorded";
+  });
+}
+
+app.post("/api/proposals/pay", proposalRateLimit(10), async (req, res) => {
+  try {
+    if (!PAYSTACK_SECRET_KEY) return res.status(503).json({ error: "payments_unavailable" });
+    const found = await findSentProposal(req.body?.token);
+    if (!found) return res.status(404).json({ error: "not_found" });
+    const { ref, data } = found;
+    const kind = req.body?.kind === "balance" ? "balance" : "deposit";
+
+    const due = await amountDue(ref, data, kind);
+    if ("error" in due) return res.status(409).json({ error: due.error });
+    if (!data.clientEmail) return res.status(409).json({ error: "missing_email" });
+
+    const origin = typeof req.headers.origin === "string" && allowedOrigins.includes(req.headers.origin)
+      ? req.headers.origin
+      : SITE_ORIGIN;
+    const reference = `nok-${ref.id}-${kind}-${Date.now()}`;
+
+    await ref.collection("payments").doc(reference).set({
+      reference,
+      kind,
+      amount: due.amount,
+      currency: "GHS",
+      version: due.version,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    });
+
+    const tx = await paystack("/transaction/initialize", {
+      method: "POST",
+      body: {
+        email: data.clientEmail,
+        amount: toPesewas(due.amount),
+        currency: "GHS",
+        reference,
+        callback_url: `${origin}/proposal/${req.body.token}`,
+        metadata: {
+          proposalId: ref.id,
+          kind,
+          version: due.version,
+          custom_fields: [
+            { display_name: "Proposal", variable_name: "proposal", value: data.title || ref.id },
+            { display_name: "Payment", variable_name: "payment", value: kind === "deposit" ? "Deposit" : "Balance" },
+          ],
+        },
+      },
+    });
+
+    res.json({ authorizationUrl: tx.authorization_url, reference });
+  } catch (error: any) {
+    console.error("Proposal pay error:", error);
+    res.status(500).json({ error: "Failed to start payment." });
+  }
+});
+
+// Called by the proposal page when Paystack redirects the client back.
+app.post("/api/proposals/verify-payment", proposalRateLimit(20), async (req, res) => {
+  try {
+    if (!PAYSTACK_SECRET_KEY) return res.status(503).json({ error: "payments_unavailable" });
+    const found = await findSentProposal(req.body?.token);
+    const reference = req.body?.reference;
+    // Only references that belong to this proposal.
+    if (!found || typeof reference !== "string" || !reference.startsWith(`nok-${found.ref.id}-`)) {
+      return res.status(404).json({ error: "not_found" });
+    }
+    res.json({ result: await recordPaystackPayment(reference) });
+  } catch (error: any) {
+    console.error("Verify payment error:", error);
+    res.status(500).json({ error: "Failed to verify payment." });
+  }
+});
+
+// Paystack → server. Signed with HMAC-SHA512 of the raw body using the secret key.
+app.post("/api/paystack/webhook", async (req, res) => {
+  const raw: Buffer | undefined = (req as any).rawBody;
+  const signature = req.headers["x-paystack-signature"];
+  if (!PAYSTACK_SECRET_KEY || !raw || typeof signature !== "string") return res.sendStatus(400);
+
+  const expected = crypto.createHmac("sha512", PAYSTACK_SECRET_KEY).update(raw).digest("hex");
+  if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    return res.sendStatus(401);
+  }
+
+  const reference = req.body?.data?.reference;
+  if (req.body?.event === "charge.success" && typeof reference === "string" && reference.startsWith("nok-")) {
+    try {
+      const result = await recordPaystackPayment(reference);
+      console.log(`[paystack] webhook ${reference}: ${result}`);
+    } catch (error) {
+      console.error("[paystack] webhook processing failed:", error);
+      return res.sendStatus(500); // Paystack retries
+    }
+  }
+  res.sendStatus(200);
 });
 
 app.get("/api/health", (_req, res) => {

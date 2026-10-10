@@ -20,13 +20,13 @@ import {
   markProposalSeen
 } from "../lib/proposals";
 import { ProposalDocument } from "./ProposalDocument";
-import { ProposalSendPanel, ProposalComments } from "./ProposalStaffPanels";
+import { ProposalSendPanel, ProposalComments, ProposalPaymentsPanel } from "./ProposalStaffPanels";
 
 const STATUS_LABELS: Record<ProposalStatus, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "bg-white/5 text-zinc-300 border-white/10" },
   sent: { label: "Sent", cls: "bg-violet-500/10 text-violet-300 border-violet-500/30" },
   changes_requested: { label: "Changes requested", cls: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
-  accepted: { label: "Accepted & paid", cls: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" },
+  accepted: { label: "Accepted · deposit paid", cls: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" },
   declined: { label: "Declined", cls: "bg-rose-500/10 text-rose-300 border-rose-500/30" }
 };
 
@@ -143,7 +143,7 @@ export const ProposalsTab: React.FC<ProposalsTabProps> = ({ seedLead, onSeedCons
         {locked && (
           <p className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-200 flex items-center space-x-2">
             <Lock className="w-3.5 h-3.5" />
-            <span>This proposal was accepted and paid, so it can no longer be edited.</span>
+            <span>The client accepted v{live?.acceptedVersion} by paying the deposit, so this proposal is locked. Scope changes need a new proposal.</span>
           </p>
         )}
 
@@ -351,6 +351,7 @@ export const ProposalsTab: React.FC<ProposalsTabProps> = ({ seedLead, onSeedCons
           </div>
         )}
 
+        {live?.status === "accepted" && <ProposalPaymentsPanel proposal={live} onNotify={onNotify} />}
         {live?.sentVersion && <ProposalComments proposal={live} onNotify={onNotify} />}
       </div>
     );
@@ -402,6 +403,7 @@ export const ProposalsTab: React.FC<ProposalsTabProps> = ({ seedLead, onSeedCons
                 <div className="text-[11px] font-mono text-[#8A8A93]">
                   {p.clientName} · {p.businessName} · {formatGhs(total)}
                   {p.sentVersion ? ` · v${p.sentVersion} sent` : ""}
+                  {p.amountPaid ? ` · ${formatGhs(p.amountPaid)} paid${p.paymentStatus === "paid_in_full" ? " (in full)" : ""}` : ""}
                   {p.lastViewedAt ? ` · viewed ${p.lastViewedAt.slice(0, 10)}` : ""}
                   {` · updated ${p.updatedAt.slice(0, 10)}`}
                 </div>

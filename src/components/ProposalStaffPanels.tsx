@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Send, Copy, Mail, MessageSquare, Eye, Loader2, PenLine } from "lucide-react";
+import { Send, Copy, Mail, MessageSquare, Eye, Loader2, PenLine, Wallet } from "lucide-react";
 import { auth } from "../lib/firebase";
-import { Proposal, ProposalComment, PROPOSAL_CONTENT_FIELDS, proposalTotals } from "../data/cmsData";
+import { Proposal, ProposalComment, ProposalPayment, PROPOSAL_CONTENT_FIELDS, proposalTotals, formatGhs } from "../data/cmsData";
 import {
   sendProposal,
   nextSendVersion,
   proposalLink,
   subscribeToProposalComments,
+  subscribeToProposalPayments,
+  setBalanceRequested,
   addStaffReply
 } from "../lib/proposals";
 
@@ -200,6 +202,113 @@ export const ProposalComments: React.FC<{ proposal: Proposal; onNotify: (msg: st
           <span>Post reply</span>
         </button>
       </div>
+    </section>
+  );
+};
+
+// Payments on an accepted proposal, and the switch that lets the client pay the balance.
+export const ProposalPaymentsPanel: React.FC<{ proposal: Proposal; onNotify: (msg: string) => void }> = ({ proposal, onNotify }) => {
+  const [payments, setPayments] = useState<ProposalPayment[]>([]);
+  const [updating, setUpdating] = useState(false);
+
+  useEffect(() => subscribeToProposalPayments(proposal.id, setPayments), [proposal.id]);
+
+  const total = proposal.acceptedTotal || 0;
+  const paid = proposal.amountPaid || 0;
+  const balance = Math.max(0, Math.round((total - paid) * 100) / 100);
+  const paidInFull = proposal.paymentStatus === "paid_in_full";
+  const link = proposalLink(proposal);
+  const balanceText = `Hello ${proposal.clientName}! Your project is ready for handover. You can pay the remaining balance of ${formatGhs(balance)} here: ${link}`;
+
+  const toggleBalance = async (requested: boolean) => {
+    setUpdating(true);
+    try {
+      await setBalanceRequested(proposal.id, requested);
+      onNotify(requested ? "Balance payment opened: the client now sees a Pay balance button" : "Balance payment closed");
+    } catch (err) {
+      console.error("Updating balance request failed:", err);
+      onNotify("Couldn't update the balance request. Please try again.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const successful = payments.filter((p) => p.status === "success");
+
+  return (
+    <section className="p-5 rounded-2xl neu-raised space-y-4 max-w-3xl">
+      <h3 className="flex items-center space-x-2 text-sm font-bold text-[#F2F0EB]">
+        <Wallet className="w-4 h-4 text-[#B08D57]" />
+        <span>Payments</span>
+      </h3>
+      <div className="grid grid-cols-3 gap-3 text-center">
+        {[["Total", total], ["Paid", paid], ["Balance", balance]].map(([label, value]) => (
+          <div key={label as string} className="p-3 rounded-xl neu-pressed">
+            <div className="text-[10px] font-mono uppercase text-[#8A8A93]">{label}</div>
+            <div className="text-sm font-bold font-mono text-[#F2F0EB] mt-1">{formatGhs(value as number)}</div>
+          </div>
+        ))}
+      </div>
+
+      {successful.length > 0 && (
+        <ul className="space-y-1.5 text-xs">
+          {successful.map((p) => (
+            <li key={p.reference} className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg neu-pressed">
+              <span className="text-[#F2F0EB] font-semibold capitalize">{p.kind}{p.duplicate ? " (duplicate: refund due)" : ""}</span>
+              <span className="font-mono text-[#8A8A93]">{p.paidAt?.slice(0, 10)} · {p.channel?.replace("_", " ") || "—"}</span>
+              <span className="font-mono text-[#F2F0EB]">{formatGhs(p.amount)}</span>
+              <span className="w-full font-mono text-[10px] text-[#6B6880]">Ref: {p.reference}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {paidInFull ? (
+        <p className="text-xs text-emerald-300">Paid in full.</p>
+      ) : proposal.balanceRequested ? (
+        <div className="space-y-2">
+          <p className="text-xs text-zinc-300">
+            The client can now pay the {formatGhs(balance)} balance from their proposal link. Send them a reminder:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(balanceText)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center space-x-1.5"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>WhatsApp</span>
+            </a>
+            <a
+              href={`mailto:${proposal.clientEmail}?subject=${encodeURIComponent(`Balance payment: ${proposal.title}`)}&body=${encodeURIComponent(balanceText)}`}
+              className="px-3 py-2 rounded-lg neu-raised text-[11px] font-semibold text-[#F2F0EB] flex items-center space-x-1.5"
+            >
+              <Mail className="w-3.5 h-3.5 text-[#B08D57]" />
+              <span>Email</span>
+            </a>
+            <button
+              onClick={() => toggleBalance(false)}
+              disabled={updating}
+              className="px-3 py-2 rounded-lg neu-raised text-[11px] font-mono text-zinc-400 cursor-pointer disabled:opacity-50"
+            >
+              Close balance payment
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          <button
+            onClick={() => toggleBalance(true)}
+            disabled={updating || balance <= 0}
+            className="px-4 py-2 rounded-xl neu-gold-filled text-xs font-bold flex items-center space-x-1.5 cursor-pointer disabled:opacity-60"
+          >
+            {updating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wallet className="w-3.5 h-3.5" />}
+            <span>Request balance ({formatGhs(balance)})</span>
+          </button>
+          <p className="text-[11px] text-[#8A8A93]">Adds a Pay balance button to the client's proposal page. Do this at delivery.</p>
+        </div>
+      )}
     </section>
   );
 };

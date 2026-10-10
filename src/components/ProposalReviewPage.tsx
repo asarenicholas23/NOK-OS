@@ -1,13 +1,29 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, MessageSquare, Send, PenLine, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { Loader2, MessageSquare, Send, PenLine, AlertTriangle, CheckCircle2, Info, ShieldCheck } from "lucide-react";
 import { API_BASE_URL } from "../lib/apiBase";
 import { useCms } from "../context/CmsContext";
-import { ProposalSnapshot, ProposalComment, ProposalStatus } from "../data/cmsData";
+import { ProposalSnapshot, ProposalComment, ProposalStatus, PaymentKind, proposalTotals, formatGhs } from "../data/cmsData";
 import { ProposalDocument } from "./ProposalDocument";
 import { SEO } from "./SEO";
 
 const GENERAL = "General";
+
+interface PaymentSummary {
+  acceptedVersion: number | null;
+  acceptedTotal: number;
+  amountPaid: number;
+  paymentStatus: "deposit_paid" | "paid_in_full" | null;
+  balanceRequested: boolean;
+}
+
+const PAY_ERRORS: Record<string, string> = {
+  expired: "This proposal has passed its valid-until date. Leave a comment below and we'll send you an updated one.",
+  not_payable: "This payment isn't available right now. Please refresh the page.",
+  nothing_due: "There's nothing left to pay. Thank you!",
+  missing_email: "We're missing your email address for the receipt. Please message us and we'll fix it.",
+  payments_unavailable: "Online payment isn't switched on yet. Please message us on WhatsApp to go ahead."
+};
 
 // The client's private proposal page. Loaded through the API (which checks the
 // token), so it works without any login.
@@ -17,35 +33,66 @@ export const ProposalReviewPage: React.FC = () => {
   const [proposal, setProposal] = useState<ProposalSnapshot | null>(null);
   const [status, setStatus] = useState<ProposalStatus | null>(null);
   const [comments, setComments] = useState<ProposalComment[]>([]);
+  const [payment, setPayment] = useState<PaymentSummary | null>(null);
+  const [paymentsEnabled, setPaymentsEnabled] = useState(false);
   const [loadState, setLoadState] = useState<"loading" | "slow" | "ready" | "not_found" | "error">("loading");
+  const [paying, setPaying] = useState<PaymentKind | null>(null);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<"checking" | "confirmed" | "pending" | null>(null);
 
   const [message, setMessage] = useState("");
   const [section, setSection] = useState(GENERAL);
   const [posting, setPosting] = useState<"comment" | "changes" | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
 
+  const apiPost = (path: string, body: object) =>
+    fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, ...body })
+    });
+
+  // Returns false if the proposal couldn't be loaded.
+  const load = async () => {
+    const resp = await apiPost("/api/proposals/view", {});
+    if (resp.status === 404) {
+      setLoadState("not_found");
+      return false;
+    }
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    setProposal(data.proposal);
+    setStatus(data.status);
+    setPayment(data.payment);
+    setPaymentsEnabled(!!data.paymentsEnabled);
+    setComments(data.comments);
+    setLoadState("ready");
+    return true;
+  };
+
   useEffect(() => {
     let cancelled = false;
     // The API host can take up to a minute to wake from sleep.
     const slowTimer = setTimeout(() => !cancelled && setLoadState((s) => (s === "loading" ? "slow" : s)), 5000);
+    // Paystack sends the client back here with ?reference=… after checkout.
+    const reference = new URLSearchParams(window.location.search).get("reference");
     (async () => {
       try {
-        const resp = await fetch(`${API_BASE_URL}/api/proposals/view`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token })
-        });
+        if (!(await load()) || cancelled || !reference) return;
+        window.history.replaceState(null, "", window.location.pathname);
+        setConfirming("checking");
+        const resp = await apiPost("/api/proposals/verify-payment", { reference });
+        const result = resp.ok ? (await resp.json()).result : null;
         if (cancelled) return;
-        if (resp.status === 404) return setLoadState("not_found");
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        setProposal(data.proposal);
-        setStatus(data.status);
-        setComments(data.comments);
-        setLoadState("ready");
+        if (result === "recorded" || result === "already_recorded") {
+          await load();
+          setConfirming("confirmed");
+        } else {
+          setConfirming("pending");
+        }
       } catch (err) {
         console.error("Loading proposal failed:", err);
-        if (!cancelled) setLoadState("error");
+        if (!cancelled) setLoadState((s) => (s === "ready" ? s : "error"));
       } finally {
         clearTimeout(slowTimer);
       }
@@ -54,7 +101,24 @@ export const ProposalReviewPage: React.FC = () => {
       cancelled = true;
       clearTimeout(slowTimer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  const startPayment = async (kind: PaymentKind) => {
+    setPaying(kind);
+    setPayError(null);
+    try {
+      const resp = await apiPost("/api/proposals/pay", { kind });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.authorizationUrl) {
+        throw new Error(PAY_ERRORS[data.error] || "We couldn't start the payment. Please try again in a moment.");
+      }
+      window.location.href = data.authorizationUrl;
+    } catch (err: any) {
+      setPayError(err.message);
+      setPaying(null);
+    }
+  };
 
   const postComment = async (requestChanges: boolean) => {
     if (!message.trim()) {
@@ -64,15 +128,10 @@ export const ProposalReviewPage: React.FC = () => {
     setPosting(requestChanges ? "changes" : "comment");
     setPostError(null);
     try {
-      const resp = await fetch(`${API_BASE_URL}/api/proposals/comment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          message: message.trim(),
-          section: section === GENERAL ? "" : section,
-          requestChanges
-        })
+      const resp = await apiPost("/api/proposals/comment", {
+        message: message.trim(),
+        section: section === GENERAL ? "" : section,
+        requestChanges
       });
       if (resp.status === 429) throw new Error("Too many messages in a short time. Please wait a minute and try again.");
       if (resp.status === 409) throw new Error("This proposal is closed, so changes can no longer be requested here. Message us on WhatsApp instead.");
@@ -135,10 +194,27 @@ export const ProposalReviewPage: React.FC = () => {
 
         {loadState === "ready" && proposal && (
           <>
+            {confirming === "checking" && (
+              <div className="p-4 rounded-2xl neu-pressed text-sm text-zinc-200 flex items-center space-x-2">
+                <Loader2 className="w-4 h-4 animate-spin text-[#B08D57]" />
+                <span>Confirming your payment with Paystack…</span>
+              </div>
+            )}
+            {confirming === "pending" && (
+              <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-sm text-amber-200 flex items-start space-x-2">
+                <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>We haven't received confirmation of a completed payment yet. If you were charged, it will show here shortly. Refresh in a minute, or message us on WhatsApp.</span>
+              </div>
+            )}
             {status === "accepted" && (
               <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-sm text-emerald-200 flex items-start space-x-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>You've accepted this proposal. Thank you, we're on it!</span>
+                <span>
+                  {confirming === "confirmed" ? "Payment received! " : ""}
+                  {payment?.paymentStatus === "paid_in_full"
+                    ? "This project is paid in full. Thank you!"
+                    : `You've accepted version ${payment?.acceptedVersion ?? proposal.version} of this proposal and paid the deposit. Thank you, we're on it! A receipt is on its way to your email from Paystack.`}
+                </span>
               </div>
             )}
             {status === "changes_requested" && (
@@ -158,21 +234,79 @@ export const ProposalReviewPage: React.FC = () => {
               <ProposalDocument proposal={proposal} agencyName={agencyInfo.name} />
             </div>
 
+            {payError && (
+              <div className="p-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 text-sm text-rose-200 flex items-start space-x-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{payError}</span>
+              </div>
+            )}
+
             {status !== "accepted" && status !== "declined" && (
-              <section className="p-6 rounded-3xl neu-raised space-y-3">
+              <section className="p-6 rounded-3xl neu-raised space-y-4">
                 <h2 className="font-display text-lg font-bold">Ready to go ahead?</h2>
-                <p className="text-sm text-zinc-300">
-                  Message us on WhatsApp and we'll send you the deposit details to get started. If anything needs adjusting first, leave a comment below.
-                </p>
-                <a
-                  href={whatsappUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  <span>I'm ready: message us on WhatsApp</span>
-                </a>
+                {paymentsEnabled ? (
+                  <>
+                    <p className="text-sm text-zinc-300">
+                      Paying the {proposal.depositPercent}% deposit accepts version {proposal.version} of this proposal and books your project in. The balance is due on delivery.
+                    </p>
+                    <button
+                      onClick={() => startPayment("deposit")}
+                      disabled={paying !== null}
+                      className="w-full sm:w-auto px-6 py-3.5 rounded-xl neu-gold-filled text-sm font-bold inline-flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-60"
+                    >
+                      {paying === "deposit" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                      <span>Accept & pay {formatGhs(proposalTotals(proposal).deposit)} deposit</span>
+                    </button>
+                    <p className="text-xs text-zinc-400">
+                      Secure payment by Mobile Money or card through Paystack. Questions first?{" "}
+                      <a href={whatsappUrl()} target="_blank" rel="noopener noreferrer" className="text-emerald-300 underline">Message us on WhatsApp</a>{" "}
+                      or leave a comment below.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-zinc-300">
+                      Message us on WhatsApp and we'll send you the deposit details to get started. If anything needs adjusting first, leave a comment below.
+                    </p>
+                    <a
+                      href={whatsappUrl()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>I'm ready: message us on WhatsApp</span>
+                    </a>
+                  </>
+                )}
+              </section>
+            )}
+
+            {status === "accepted" && payment && (
+              <section className="p-6 rounded-3xl neu-raised space-y-4">
+                <h2 className="font-display text-lg font-bold">Payments</h2>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  {[
+                    ["Project total", formatGhs(payment.acceptedTotal)],
+                    ["Paid", formatGhs(payment.amountPaid)],
+                    ["Balance", formatGhs(Math.max(0, payment.acceptedTotal - payment.amountPaid))]
+                  ].map(([label, value]) => (
+                    <div key={label} className="p-3 rounded-xl neu-pressed">
+                      <div className="text-[10px] font-mono uppercase text-[#8A8A93]">{label}</div>
+                      <div className="text-sm font-bold font-mono mt-1">{value}</div>
+                    </div>
+                  ))}
+                </div>
+                {payment.balanceRequested && payment.paymentStatus !== "paid_in_full" && paymentsEnabled && (
+                  <button
+                    onClick={() => startPayment("balance")}
+                    disabled={paying !== null}
+                    className="w-full sm:w-auto px-6 py-3.5 rounded-xl neu-gold-filled text-sm font-bold inline-flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-60"
+                  >
+                    {paying === "balance" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                    <span>Pay balance of {formatGhs(Math.max(0, payment.acceptedTotal - payment.amountPaid))}</span>
+                  </button>
+                )}
               </section>
             )}
 
