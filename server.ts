@@ -6,6 +6,7 @@ import admin from "firebase-admin";
 import dotenv from "dotenv";
 import crypto from "node:crypto";
 import { proposalTotals } from "./src/data/cmsData";
+import { syncProposalToZoho, zohoConfigured } from "./zohoInvoice";
 
 dotenv.config();
 
@@ -1142,6 +1143,23 @@ async function recordPaystackPayment(reference: string): Promise<RecordResult> {
   });
 }
 
+// Zoho sync runs after the response so a slow or failing Zoho never delays the
+// client's payment confirmation. Failures are saved on the proposal and can be
+// retried from the CMS.
+function queueZohoSync(reference: string) {
+  const proposalId = reference.match(/^nok-(.+)-(?:deposit|balance)-\d+$/)?.[1];
+  if (!proposalId || !zohoConfigured()) return;
+  syncProposalToZoho(adminDb, proposalId).then((r) => console.log(`[zoho] ${proposalId}: ${r}`));
+}
+
+app.post("/api/zoho/sync-proposal", requireStaffAuth, async (req, res) => {
+  const proposalId = req.body?.proposalId;
+  if (typeof proposalId !== "string" || !proposalId) return res.status(400).json({ error: "missing_proposal" });
+  const result = await syncProposalToZoho(adminDb, proposalId);
+  const data = (await adminDb.collection("proposals").doc(proposalId).get()).data();
+  res.status(result === "error" ? 502 : 200).json({ result, error: data?.zohoSyncError || null });
+});
+
 app.post("/api/proposals/pay", proposalRateLimit(10), async (req, res) => {
   try {
     if (!PAYSTACK_SECRET_KEY) return res.status(503).json({ error: "payments_unavailable" });
@@ -1206,7 +1224,9 @@ app.post("/api/proposals/verify-payment", proposalRateLimit(20), async (req, res
     if (!found || typeof reference !== "string" || !reference.startsWith(`nok-${found.ref.id}-`)) {
       return res.status(404).json({ error: "not_found" });
     }
-    res.json({ result: await recordPaystackPayment(reference) });
+    const result = await recordPaystackPayment(reference);
+    if (result === "recorded") queueZohoSync(reference);
+    res.json({ result });
   } catch (error: any) {
     console.error("Verify payment error:", error);
     res.status(500).json({ error: "Failed to verify payment." });
@@ -1229,6 +1249,7 @@ app.post("/api/paystack/webhook", async (req, res) => {
     try {
       const result = await recordPaystackPayment(reference);
       console.log(`[paystack] webhook ${reference}: ${result}`);
+      if (result === "recorded") queueZohoSync(reference);
     } catch (error) {
       console.error("[paystack] webhook processing failed:", error);
       return res.sendStatus(500); // Paystack retries

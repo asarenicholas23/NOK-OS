@@ -526,6 +526,13 @@ export interface Proposal {
   amountPaid?: number; // GH¢, all confirmed payments so far
   paymentStatus?: "deposit_paid" | "paid_in_full";
   balanceRequested?: boolean; // staff opened the balance payment to the client
+  // Zoho Invoice sync (written by the API).
+  zohoContactId?: string;
+  zohoInvoiceId?: string;
+  zohoInvoiceNumber?: string | null;
+  zohoInvoiceSent?: boolean;
+  zohoSyncError?: string | null;
+  zohoSyncedAt?: string;
 }
 
 export type PaymentKind = "deposit" | "balance";
@@ -542,6 +549,7 @@ export interface ProposalPayment {
   paidAt?: string;
   channel?: string; // e.g. "mobile_money", "card"
   duplicate?: boolean; // a second deposit for an already-accepted proposal: refund due
+  zohoPaymentId?: string;
 }
 
 // What the client sees. Each send freezes one of these in

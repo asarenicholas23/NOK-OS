@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Send, Copy, Mail, MessageSquare, Eye, Loader2, PenLine, Wallet } from "lucide-react";
+import { Send, Copy, Mail, MessageSquare, Eye, Loader2, PenLine, Wallet, Receipt, RotateCcw } from "lucide-react";
 import { auth } from "../lib/firebase";
+import { apiFetch } from "../lib/apiBase";
 import { Proposal, ProposalComment, ProposalPayment, PROPOSAL_CONTENT_FIELDS, proposalTotals, formatGhs } from "../data/cmsData";
 import {
   sendProposal,
@@ -210,6 +211,27 @@ export const ProposalComments: React.FC<{ proposal: Proposal; onNotify: (msg: st
 export const ProposalPaymentsPanel: React.FC<{ proposal: Proposal; onNotify: (msg: string) => void }> = ({ proposal, onNotify }) => {
   const [payments, setPayments] = useState<ProposalPayment[]>([]);
   const [updating, setUpdating] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const retryZohoSync = async () => {
+    setSyncing(true);
+    try {
+      const resp = await apiFetch("/api/zoho/sync-proposal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proposalId: proposal.id })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (data.result === "synced") onNotify("Synced to Zoho Invoice");
+      else if (data.result === "not_configured") onNotify("Zoho isn't connected yet: add the ZOHO_* settings on Render.");
+      else onNotify(`Zoho sync failed: ${data.error || "unknown error"}`);
+    } catch (err) {
+      console.error("Zoho sync request failed:", err);
+      onNotify("Couldn't reach the server. Please try again.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => subscribeToProposalPayments(proposal.id, setPayments), [proposal.id]);
 
@@ -262,6 +284,32 @@ export const ProposalPaymentsPanel: React.FC<{ proposal: Proposal; onNotify: (ms
           ))}
         </ul>
       )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl neu-pressed text-xs">
+        <span className="flex items-center space-x-2">
+          <Receipt className="w-3.5 h-3.5 text-[#B08D57]" />
+          {proposal.zohoSyncError ? (
+            <span className="text-rose-300">Zoho sync failed: {proposal.zohoSyncError}</span>
+          ) : proposal.zohoInvoiceId ? (
+            <span className="text-[#F2F0EB]">
+              Zoho invoice {proposal.zohoInvoiceNumber || proposal.zohoInvoiceId}
+              {successful.some((p) => !p.duplicate && !p.zohoPaymentId) ? " · syncing payments…" : " · payments recorded"}
+            </span>
+          ) : (
+            <span className="text-[#8A8A93]">Not in Zoho Invoice yet</span>
+          )}
+        </span>
+        {(proposal.zohoSyncError || !proposal.zohoInvoiceId || successful.some((p) => !p.duplicate && !p.zohoPaymentId)) && (
+          <button
+            onClick={retryZohoSync}
+            disabled={syncing}
+            className="px-2.5 py-1 rounded-lg neu-raised text-[11px] font-mono text-[#B08D57] flex items-center space-x-1 cursor-pointer disabled:opacity-50"
+          >
+            {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+            <span>{proposal.zohoInvoiceId || proposal.zohoSyncError ? "Retry Zoho sync" : "Send to Zoho"}</span>
+          </button>
+        )}
+      </div>
 
       {paidInFull ? (
         <p className="text-xs text-emerald-300">Paid in full.</p>
