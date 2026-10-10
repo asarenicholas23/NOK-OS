@@ -48,6 +48,51 @@ export function parseCSV(text: string): string[][] {
 }
 
 /**
+ * Converts the first worksheet of an .xlsx file into CSV text so it can flow
+ * through the same parseCSV / cleanAndNormalizeData pipeline as a CSV upload.
+ * ExcelJS is loaded lazily so it stays out of the import page's initial bundle.
+ */
+export async function excelToCSV(buffer: ArrayBuffer): Promise<string> {
+  const { default: ExcelJS } = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+
+  const sheet = workbook.worksheets.find(ws => ws.actualRowCount > 0);
+  if (!sheet) {
+    throw new Error("Excel workbook contains no populated worksheets.");
+  }
+
+  const cellToString = (value: any): string => {
+    if (value === null || value === undefined) return "";
+    if (value instanceof Date) return value.toISOString().split("T")[0];
+    if (typeof value === "object") {
+      if ("result" in value) return cellToString(value.result); // formula
+      if ("richText" in value) return value.richText.map((t: any) => t.text).join("");
+      // Hyperlink: keep the URL, since platform detection reads permalinks
+      if ("hyperlink" in value) return String(value.hyperlink);
+      if ("text" in value) return cellToString(value.text);
+      if ("error" in value) return "";
+    }
+    return String(value);
+  };
+
+  const escapeCSV = (str: string): string =>
+    /[",\r\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+
+  const columnCount = sheet.columnCount;
+  const lines: string[] = [];
+  sheet.eachRow({ includeEmpty: false }, row => {
+    const cells: string[] = [];
+    for (let col = 1; col <= columnCount; col++) {
+      cells.push(escapeCSV(cellToString(row.getCell(col).value)));
+    }
+    lines.push(cells.join(","));
+  });
+
+  return lines.join("\n");
+}
+
+/**
  * Standardize headers equivalent to pandas .str.strip().str.lower().str.replace(" ", "_").str.replace("-", "_")
  */
 export function standardizeHeader(h: string): string {
@@ -162,7 +207,7 @@ export function cleanPlatform(val: any): string {
  */
 export function cleanPostType(val: any): string {
   const raw = cleanText(val).toLowerCase();
-  if (raw.includes("carousel") || raw.includes("slide") || raw === "car") return "Carousel";
+  if (raw.includes("carousel") || raw.includes("slide") || raw.includes("document") || raw === "car") return "Carousel";
   if (raw.includes("video") || raw.includes("reel") || raw.includes("short") || raw.includes("mp4") || raw === "vid") return "Video";
   if (raw.includes("text") || raw.includes("status") || raw === "txt") return "Text";
   if (raw.includes("article") || raw.includes("blog") || raw.includes("newsletter") || raw === "art") return "Article";
@@ -267,7 +312,7 @@ export function cleanAndNormalizeData(
     });
 
     // 2. Identify key mappings
-    const rawDate = r["date_posted"] || r["date"] || r["posted_at"] || r["publish_time"];
+    const rawDate = r["date_posted"] || r["date"] || r["posted_at"] || r["created_date"] || r["publish_time"];
     // If date is "Lifetime", fallback to publish_time which holds the actual date
     const dateStr = parseMixedDates(
       rawDate === "Lifetime" ? r["publish_time"] || "" : rawDate
@@ -276,7 +321,7 @@ export function cleanAndNormalizeData(
     // Auto-detect Platform based on multiple parameters (columns, permalink, description, default)
     let detectedPlatform = r["platform"] || r["channel"] || r["source"] || "";
     if (!detectedPlatform) {
-      const permalink = String(r["permalink"] || r["url"] || r["link"] || "").toLowerCase();
+      const permalink = String(r["permalink"] || r["url"] || r["link"] || r["post_link"] || "").toLowerCase();
       const lowerCaption = String(r["caption"] || r["post_description"] || r["description"] || r["title"] || "").toLowerCase();
       
       if (
@@ -311,7 +356,9 @@ export function cleanAndNormalizeData(
     }
     const platform = cleanPlatform(detectedPlatform);
     
-    const postType = cleanPostType(r["post_type"] || r["type"] || r["format"] || r["category"]);
+    // LinkedIn exports use "Post type" for Organic/Sponsored and "Content Type" for the actual format
+    const rawPostType = /^(organic|sponsored|boosted|paid)$/i.test(cleanText(r["post_type"])) ? "" : r["post_type"];
+    const postType = cleanPostType(r["content_type"] || rawPostType || r["type"] || r["format"] || r["category"]);
     const dayOfWeek = cleanDayOfWeek(r["day_of_week"] || r["day_of_weel"] || r["day"] || r["weekday"], dateStr);
 
     // 3. Clean and enforce numeric types (pd.to_numeric(errors="coerce").fillna(0))
@@ -321,7 +368,7 @@ export function cleanAndNormalizeData(
     // Facebook uses 'reactions' instead of 'likes'
     const likes = toNumeric(r["likes"] || r["reactions"]);
     const comments = toNumeric(r["comments"]);
-    const shares = toNumeric(r["shares"] || r["retweets"]);
+    const shares = toNumeric(r["shares"] || r["reposts"] || r["retweets"]);
     const saves = toNumeric(r["saves"] || r["bookmarks"]);
     
     // Map total_clicks / clicks to profileVisits
@@ -346,7 +393,7 @@ export function cleanAndNormalizeData(
     const followConversionRate = impressions > 0 ? (follows / impressions) * 100 : 0.0;
 
     // 5. Select title cleanly
-    const postDescription = cleanText(r["post_description"] || r["description"] || r["title"]);
+    const postDescription = cleanText(r["post_description"] || r["description"] || r["title"] || r["post_title"]);
     const caption = cleanText(r["caption"]);
     const postId = cleanText(r["post_id"]);
     

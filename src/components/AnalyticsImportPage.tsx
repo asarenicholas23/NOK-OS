@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useBrand } from "../context/BrandContext";
 import { apiFetch } from "../lib/apiBase";
-import { cleanAndNormalizeData } from "../utils/dataCleaner";
+import { cleanAndNormalizeData, excelToCSV } from "../utils/dataCleaner";
 import { 
   UploadCloud, 
   CheckCircle2, 
@@ -185,6 +185,24 @@ export const AnalyticsImportPage: React.FC = () => {
   const readAndProcessFile = (selectedFile: File) => {
     setFile({ name: selectedFile.name, size: selectedFile.size, type: selectedFile.type });
     setUploadState("parsing");
+
+    // Excel workbooks are binary: convert the first sheet to CSV text, then reuse the CSV pipeline
+    if (selectedFile.name.toLowerCase().endsWith(".xlsx")) {
+      selectedFile
+        .arrayBuffer()
+        .then(excelToCSV)
+        .then(content => {
+          setRawFileContent(content);
+          setActivePreviewTab("raw");
+          parseFileContent(content, selectedFile.name);
+        })
+        .catch(err => {
+          console.error(err);
+          setUploadState("idle");
+          addNotification("Parsing Failure", err.message || "Could not read Excel workbook.", "warning");
+        });
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
