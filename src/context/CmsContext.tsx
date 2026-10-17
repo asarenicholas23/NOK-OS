@@ -41,6 +41,7 @@ interface CmsContextType {
   updateBlogPost: (id: string, updated: Partial<BlogPost>) => Promise<void>;
   deleteBlogPost: (id: string) => Promise<void>;
   addDiscoveryRequest: (req: Omit<DiscoveryRequest, "id" | "createdAt" | "status" | "slotReleased">) => Promise<void>;
+  addManualClient: (client: Pick<DiscoveryRequest, "name" | "email" | "businessName" | "serviceTier" | "notes" | "phone" | "status">) => Promise<DiscoveryRequest>;
   updateDiscoveryRequestStatus: (id: string, status: DiscoveryRequest["status"]) => Promise<void>;
   releaseDiscoverySlot: (id: string) => Promise<void>;
   deleteDiscoveryRequest: (id: string) => Promise<void>;
@@ -223,6 +224,22 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await batch.commit();
   };
 
+  // A client staff add by hand (met offline, referred, etc.), with no booked call.
+  const addManualClient = async (client: Pick<DiscoveryRequest, "name" | "email" | "businessName" | "serviceTier" | "notes" | "phone" | "status">) => {
+    const now = new Date();
+    const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const newReq: DiscoveryRequest = {
+      ...client,
+      id: "client-" + Date.now(),
+      source: "manual",
+      createdAt: formattedDate
+    };
+    const { db } = await import("../lib/firebase");
+    const { doc, setDoc } = await import("firebase/firestore");
+    await setDoc(doc(db, "discoveryRequests", newReq.id), cleanFirestoreData(newReq));
+    return newReq;
+  };
+
   const updateDiscoveryRequestStatus = async (id: string, status: DiscoveryRequest["status"]) => {
     const { db } = await import("../lib/firebase");
     const { doc, updateDoc } = await import("firebase/firestore");
@@ -315,6 +332,7 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateBlogPost,
         deleteBlogPost,
         addDiscoveryRequest,
+        addManualClient,
         updateDiscoveryRequestStatus,
         releaseDiscoverySlot,
         deleteDiscoveryRequest,

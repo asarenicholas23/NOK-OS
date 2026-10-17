@@ -5,6 +5,7 @@ import { apiFetch } from "../lib/apiBase";
 import { BlogPost, ServicePackage, DiscoveryRequest, ClientBrand, isWebsiteBuild } from "../data/cmsData";
 import { CallAvailabilityPanel } from "./CallAvailabilityPanel";
 import { ProposalsTab } from "./ProposalsTab";
+import { AddClientPanel } from "./AddClientPanel";
 import { formatSlotFull, slotIdFromDate } from "../utils/discoverySlots";
 import { 
   FileText, 
@@ -769,7 +770,7 @@ export const CmsPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-[#8A8A93] mt-0.5">
-                All "Book a Discovery Call" form submissions from the public site automatically stream into this workspace queue.
+                All "Book a Discovery Call" form submissions from the public site automatically stream into this workspace queue. Clients you add by hand appear here too.
               </p>
             </div>
 
@@ -785,6 +786,14 @@ export const CmsPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <AddClientPanel
+            onNotify={showNotification}
+            onCreateProposal={(client) => {
+              setProposalSeedLead(client);
+              setActiveTab("proposals");
+            }}
+          />
 
           <CallAvailabilityPanel onSaved={showNotification} />
 
@@ -842,8 +851,10 @@ export const CmsPage: React.FC = () => {
                 }[req.status];
 
                 const callTimeLine = req.slotStart && !req.slotReleased ? `\n\nYour call is booked for *${formatSlotFull(req.slotStart)}*.` : "";
-                const whatsappMsg = `Hello ${req.name}! Thank you for booking a Discovery Call for ${req.businessName} with NOK Social.${callTimeLine}\n\nRegarding your interest in the *${req.serviceTier}* tier...`;
-                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMsg)}`;
+                const whatsappMsg = req.source === "manual"
+                  ? `Hello ${req.name}! Great to connect about ${req.businessName} and the *${req.serviceTier}* package with NOK Social.`
+                  : `Hello ${req.name}! Thank you for booking a Discovery Call for ${req.businessName} with NOK Social.${callTimeLine}\n\nRegarding your interest in the *${req.serviceTier}* tier...`;
+                const whatsappUrl = `https://wa.me/${(req.phone || "").replace(/[^0-9]/g, "")}?text=${encodeURIComponent(whatsappMsg)}`;
                 const mailtoUrl = `mailto:${req.email}?subject=${encodeURIComponent(`NOK Social — Discovery Call for ${req.businessName}`)}&body=${encodeURIComponent(`Hello ${req.name},\n\nThank you for booking a Discovery Call with NOK Social regarding ${req.businessName}.\n\n${req.slotStart && !req.slotReleased ? `This confirms your call on ${formatSlotFull(req.slotStart)}.` : "When would be the best time for our strategy team to connect?"}`)}`;
 
                 return (
@@ -858,7 +869,8 @@ export const CmsPage: React.FC = () => {
                           <span className="text-xs font-mono text-[#B08D57] font-semibold">• {req.businessName}</span>
                         </div>
                         <p className="text-xs font-mono text-[#8A8A93] mt-0.5">
-                          Submitted: {req.createdAt}
+                          {req.source === "manual" ? "Added manually" : "Submitted"}: {req.createdAt}
+                          {req.phone && <> · {req.phone}</>}
                         </p>
                       </div>
 

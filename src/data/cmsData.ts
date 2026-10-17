@@ -56,6 +56,8 @@ export interface DiscoveryRequest {
   slotStart?: string;
   // Set when staff cancel the call and free the slot for someone else.
   slotReleased?: boolean;
+  phone?: string; // WhatsApp number, for clients added by staff
+  source?: "booking" | "manual"; // unset = booked from the public site
   createdAt: string;
   status: "New" | "Contacted" | "Scheduled" | "Converted" | "Closed";
 }
