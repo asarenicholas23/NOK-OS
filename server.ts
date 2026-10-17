@@ -5,7 +5,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import admin from "firebase-admin";
 import dotenv from "dotenv";
 import crypto from "node:crypto";
-import { proposalTotals } from "./src/data/cmsData";
+import { proposalTotals, selectedLineItems } from "./src/data/cmsData";
 import { syncProposalToZoho, zohoConfigured } from "./zohoInvoice";
 
 dotenv.config();
@@ -973,6 +973,7 @@ app.post("/api/proposals/view", proposalRateLimit(60), async (req, res) => {
       payment: {
         acceptedVersion: data.acceptedVersion || null,
         acceptedTotal: data.acceptedTotal || 0,
+        acceptedItemIds: data.acceptedItemIds || null,
         amountPaid: data.amountPaid || 0,
         paymentStatus: data.paymentStatus || null,
         balanceRequested: !!data.balanceRequested,
@@ -1036,8 +1037,9 @@ app.post("/api/proposals/comment", proposalRateLimit(10), async (req, res) => {
 });
 
 // ── Paystack payments ───────────────────────────────────────────────────────
-// Paying the deposit is how a client accepts a proposal. Amounts are always
-// computed here from the sent version snapshot, never taken from the browser.
+// The client ticks the line items they want and pays the deposit on those;
+// that payment confirms the order. Amounts are always computed here from the
+// sent version snapshot; the browser only says which items it chose.
 // A payment only counts once Paystack confirms it: via the signed webhook, or
 // when the client returns to the page (both re-verify with Paystack and record
 // idempotently, so it doesn't matter which arrives first).
@@ -1064,20 +1066,29 @@ async function paystack(path: string, init?: { method?: string; body?: unknown }
 const toPesewas = (ghs: number) => Math.round(ghs * 100);
 const roundGhs = (n: number) => Math.round(n * 100) / 100;
 
-// What the client can pay next, or why they can't.
+const MAX_LINE_ITEMS = 200;
+
+// What the client can pay next, or why they can't. For a deposit, itemIds is
+// the client's choice of line items (anything else means all of them).
 async function amountDue(
   ref: FirebaseFirestore.DocumentReference,
   data: FirebaseFirestore.DocumentData,
   kind: "deposit" | "balance",
-): Promise<{ amount: number; version: number } | { error: string }> {
+  itemIds?: unknown,
+): Promise<{ amount: number; version: number; itemIds?: string[] } | { error: string }> {
   if (kind === "deposit") {
     if (data.status !== "sent" && data.status !== "changes_requested") return { error: "not_payable" };
     const snap = (await ref.collection("versions").doc(String(data.sentVersion)).get()).data();
     if (!snap) return { error: "not_payable" };
     if (snap.validUntil && snap.validUntil < new Date().toISOString().slice(0, 10)) return { error: "expired" };
-    const { deposit } = proposalTotals(snap as any);
+    const chosen = Array.isArray(itemIds)
+      ? itemIds.filter((id): id is string => typeof id === "string").slice(0, MAX_LINE_ITEMS)
+      : null;
+    const items = selectedLineItems(snap.lineItems || [], chosen).map((li: any) => li.id as string);
+    if (items.length === 0) return { error: "no_items" };
+    const { deposit } = proposalTotals(snap as any, items);
     if (deposit <= 0) return { error: "not_payable" };
-    return { amount: deposit, version: data.sentVersion };
+    return { amount: deposit, version: data.sentVersion, itemIds: items };
   }
   if (data.status !== "accepted" || !data.balanceRequested) return { error: "not_payable" };
   const remaining = roundGhs((data.acceptedTotal || 0) - (data.amountPaid || 0));
@@ -1116,8 +1127,12 @@ async function recordPaystackPayment(reference: string): Promise<RecordResult> {
 
     const now = new Date().toISOString();
     const amountPaid = roundGhs((prop.amountPaid || 0) + pay.amount);
+    // Deposits from before item selection have no itemIds: they ordered everything.
+    const acceptedItemIds: string[] | null = isFirstDeposit && versionSnap?.exists
+      ? selectedLineItems((versionSnap.data() as any).lineItems || [], pay.itemIds).map((li: any) => li.id)
+      : null;
     const acceptedTotal = isFirstDeposit && versionSnap?.exists
-      ? proposalTotals(versionSnap.data() as any).total
+      ? proposalTotals(versionSnap.data() as any, acceptedItemIds).total
       : prop.acceptedTotal || 0;
     const paidInFull = acceptedTotal > 0 && amountPaid >= acceptedTotal - 0.005;
 
@@ -1134,7 +1149,7 @@ async function recordPaystackPayment(reference: string): Promise<RecordResult> {
       paymentStatus: paidInFull ? "paid_in_full" : "deposit_paid",
       ...(paidInFull ? { balanceRequested: false } : {}),
       ...(isFirstDeposit
-        ? { status: "accepted", acceptedAt: now, acceptedVersion: pay.version, acceptedTotal }
+        ? { status: "accepted", acceptedAt: now, acceptedVersion: pay.version, acceptedTotal, acceptedItemIds }
         : {}),
       updatedAt: now,
     });
@@ -1168,7 +1183,7 @@ app.post("/api/proposals/pay", proposalRateLimit(10), async (req, res) => {
     const { ref, data } = found;
     const kind = req.body?.kind === "balance" ? "balance" : "deposit";
 
-    const due = await amountDue(ref, data, kind);
+    const due = await amountDue(ref, data, kind, req.body?.itemIds);
     if ("error" in due) return res.status(409).json({ error: due.error });
     if (!data.clientEmail) return res.status(409).json({ error: "missing_email" });
 
@@ -1183,6 +1198,7 @@ app.post("/api/proposals/pay", proposalRateLimit(10), async (req, res) => {
       amount: due.amount,
       currency: "GHS",
       version: due.version,
+      ...(due.itemIds ? { itemIds: due.itemIds } : {}),
       status: "pending",
       createdAt: new Date().toISOString(),
     });

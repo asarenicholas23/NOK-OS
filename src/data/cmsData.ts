@@ -475,8 +475,8 @@ export const INITIAL_BLOG_POSTS: BlogPost[] = [
 
 // ── Proposals ──────────────────────────────────────────────────────────────
 // A tailored proposal (project build plan + price) sent to a client after their
-// discovery call. The client reviews it at /proposal/:token and accepts it by
-// paying the deposit.
+// discovery call. The client reviews it at /proposal/:token, ticks the line
+// items they want, and confirms that order by paying the deposit on them.
 
 export interface ProposalPhase {
   id: string;
@@ -490,6 +490,7 @@ export interface ProposalLineItem {
   title: string;
   description?: string;
   amount: number; // GH¢
+  required?: boolean; // always part of the order; the client can't untick it
 }
 
 export type ProposalStatus = "draft" | "sent" | "changes_requested" | "accepted" | "declined";
@@ -524,7 +525,8 @@ export interface Proposal {
   // Payment (written only by the API after Paystack confirms a payment).
   acceptedAt?: string;
   acceptedVersion?: number; // the version the client accepted by paying
-  acceptedTotal?: number; // GH¢, total of the accepted version
+  acceptedTotal?: number; // GH¢, total of the items the client accepted
+  acceptedItemIds?: string[]; // line items the client paid for; unset = all
   amountPaid?: number; // GH¢, all confirmed payments so far
   paymentStatus?: "deposit_paid" | "paid_in_full";
   balanceRequested?: boolean; // staff opened the balance payment to the client
@@ -546,6 +548,7 @@ export interface ProposalPayment {
   amount: number; // GH¢
   currency: "GHS";
   version: number;
+  itemIds?: string[]; // deposit only: the line items this payment orders
   status: "pending" | "success";
   createdAt: string;
   paidAt?: string;
@@ -582,7 +585,7 @@ export interface ProposalComment {
 
 export const DEFAULT_DEPOSIT_PERCENT = 40;
 
-export const DEFAULT_PROPOSAL_TERMS = `- Work begins once the ${DEFAULT_DEPOSIT_PERCENT}% deposit is paid. Paying the deposit confirms you accept this proposal.
+export const DEFAULT_PROPOSAL_TERMS = `- Choose the items you'd like from the pricing section. Paying the ${DEFAULT_DEPOSIT_PERCENT}% deposit on them confirms your order, and work begins once it's paid.
 - The remaining balance is due on delivery, before final handover.
 - Each phase includes up to two rounds of revisions. Extra changes or new scope are quoted separately.
 - Third-party costs (ad spend, domains, hosting, paid tools) are billed separately unless listed above.
@@ -591,8 +594,13 @@ export const DEFAULT_PROPOSAL_TERMS = `- Work begins once the ${DEFAULT_DEPOSIT_
 export const hasNewClientComments = (p: Proposal) =>
   !!p.lastClientCommentAt && (!p.staffSeenAt || p.lastClientCommentAt > p.staffSeenAt);
 
-export const proposalTotals = (p: Pick<Proposal, "lineItems" | "depositPercent">) => {
-  const total = Math.round(p.lineItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0) * 100) / 100;
+// The line items in an order. No selection means every item; required items
+// are always included. Ids that aren't on the proposal are ignored.
+export const selectedLineItems = (lineItems: ProposalLineItem[], itemIds?: string[] | null) =>
+  itemIds ? lineItems.filter((li) => li.required || itemIds.includes(li.id)) : lineItems;
+
+export const proposalTotals = (p: Pick<Proposal, "lineItems" | "depositPercent">, itemIds?: string[] | null) => {
+  const total = Math.round(selectedLineItems(p.lineItems, itemIds).reduce((sum, li) => sum + (Number(li.amount) || 0), 0) * 100) / 100;
   const deposit = Math.round(total * (p.depositPercent / 100) * 100) / 100;
   return { total, deposit, balance: Math.round((total - deposit) * 100) / 100 };
 };

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, MessageSquare, Send, PenLine, AlertTriangle, CheckCircle2, Info, ShieldCheck } from "lucide-react";
+import { Loader2, MessageSquare, Send, PenLine, AlertTriangle, CheckCircle2, Info, ShieldCheck, CheckCheck } from "lucide-react";
 import { API_BASE_URL } from "../lib/apiBase";
 import { useCms } from "../context/CmsContext";
-import { ProposalSnapshot, ProposalComment, ProposalStatus, PaymentKind, proposalTotals, formatGhs } from "../data/cmsData";
+import { ProposalSnapshot, ProposalComment, ProposalStatus, PaymentKind, proposalTotals, selectedLineItems, formatGhs } from "../data/cmsData";
 import { ProposalDocument } from "./ProposalDocument";
 import { SEO } from "./SEO";
 
@@ -12,6 +12,7 @@ const GENERAL = "General";
 interface PaymentSummary {
   acceptedVersion: number | null;
   acceptedTotal: number;
+  acceptedItemIds: string[] | null;
   amountPaid: number;
   paymentStatus: "deposit_paid" | "paid_in_full" | null;
   balanceRequested: boolean;
@@ -20,6 +21,7 @@ interface PaymentSummary {
 const PAY_ERRORS: Record<string, string> = {
   expired: "This proposal has passed its valid-until date. Leave a comment below and we'll send you an updated one.",
   not_payable: "This payment isn't available right now. Please refresh the page.",
+  no_items: "Tick at least one item to go ahead.",
   nothing_due: "There's nothing left to pay. Thank you!",
   missing_email: "We're missing your email address for the receipt. Please message us and we'll fix it.",
   payments_unavailable: "Online payment isn't switched on yet. Please message us on WhatsApp to go ahead."
@@ -39,6 +41,8 @@ export const ProposalReviewPage: React.FC = () => {
   const [paying, setPaying] = useState<PaymentKind | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<"checking" | "confirmed" | "pending" | null>(null);
+  // Line items the client has ticked. Everything starts ticked.
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [message, setMessage] = useState("");
   const [section, setSection] = useState(GENERAL);
@@ -62,6 +66,7 @@ export const ProposalReviewPage: React.FC = () => {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     setProposal(data.proposal);
+    setSelectedIds(data.proposal.lineItems.map((li: { id: string }) => li.id));
     setStatus(data.status);
     setPayment(data.payment);
     setPaymentsEnabled(!!data.paymentsEnabled);
@@ -108,7 +113,7 @@ export const ProposalReviewPage: React.FC = () => {
     setPaying(kind);
     setPayError(null);
     try {
-      const resp = await apiPost("/api/proposals/pay", { kind });
+      const resp = await apiPost("/api/proposals/pay", kind === "deposit" ? { kind, itemIds: selectedIds } : { kind });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.authorizationUrl) {
         throw new Error(PAY_ERRORS[data.error] || "We couldn't start the payment. Please try again in a moment.");
@@ -150,9 +155,18 @@ export const ProposalReviewPage: React.FC = () => {
 
   const whatsappUrl = () => {
     const rawPhone = (agencyInfo.whatsapp || "+233235337886").replace(/[^0-9]/g, "");
-    const text = `Hello NOK Social! I'm looking at my proposal "${proposal?.title || ""}" and I'm ready to go ahead.`;
+    const chosen = proposal ? selectedLineItems(proposal.lineItems, selectedIds) : [];
+    const items = proposal && chosen.length < proposal.lineItems.length
+      ? ` with these items: ${chosen.map((li) => li.title).join(", ")}`
+      : "";
+    const text = `Hello NOK Social! I'm looking at my proposal "${proposal?.title || ""}" and I'm ready to go ahead${items}.`;
     return `https://wa.me/${rawPhone}?text=${encodeURIComponent(text)}`;
   };
+
+  const canOrder = status !== "accepted" && status !== "declined";
+  const orderTotals = proposal
+    ? { ...proposalTotals(proposal, selectedIds), count: selectedLineItems(proposal.lineItems, selectedIds).length }
+    : null;
 
   const sections = proposal
     ? [GENERAL, "Project build plan", ...proposal.phases.map((p) => p.title).filter(Boolean), "Pricing", "Terms"]
@@ -213,7 +227,7 @@ export const ProposalReviewPage: React.FC = () => {
                   {confirming === "confirmed" ? "Payment received! " : ""}
                   {payment?.paymentStatus === "paid_in_full"
                     ? "This project is paid in full. Thank you!"
-                    : `You've accepted version ${payment?.acceptedVersion ?? proposal.version} of this proposal and paid the deposit. Thank you, we're on it! A receipt is on its way to your email from Paystack.`}
+                    : `Your order from version ${payment?.acceptedVersion ?? proposal.version} of this proposal is confirmed and the deposit is paid. Thank you, we're on it! A receipt is on its way to your email from Paystack.`}
                 </span>
               </div>
             )}
@@ -231,7 +245,22 @@ export const ProposalReviewPage: React.FC = () => {
             )}
 
             <div className="p-6 sm:p-10 rounded-3xl neu-raised">
-              <ProposalDocument proposal={proposal} agencyName={agencyInfo.name} />
+              {canOrder ? (
+                <ProposalDocument
+                  proposal={proposal}
+                  agencyName={agencyInfo.name}
+                  selectedIds={selectedIds}
+                  onToggleItem={(id) => setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))}
+                  onSelectAll={() => setSelectedIds(proposal.lineItems.map((li) => li.id))}
+                />
+              ) : (
+                <ProposalDocument
+                  proposal={proposal}
+                  agencyName={agencyInfo.name}
+                  // After acceptance, show what was ordered (only if they accepted this version).
+                  selectedIds={status === "accepted" && payment?.acceptedVersion === proposal.version ? payment.acceptedItemIds : null}
+                />
+              )}
             </div>
 
             {payError && (
@@ -247,15 +276,31 @@ export const ProposalReviewPage: React.FC = () => {
                 {paymentsEnabled ? (
                   <>
                     <p className="text-sm text-zinc-300">
-                      Paying the {proposal.depositPercent}% deposit accepts version {proposal.version} of this proposal and books your project in. The balance is due on delivery.
+                      {!orderTotals || orderTotals.count === 0
+                        ? "You haven't chosen any items yet. Tick the ones you'd like in the pricing above, or accept all items."
+                        : <>
+                            {orderTotals.count < proposal.lineItems.length
+                              ? `You've chosen ${orderTotals.count} of ${proposal.lineItems.length} items (${formatGhs(orderTotals.total)}). `
+                              : `You've accepted all items (${formatGhs(orderTotals.total)}). `}
+                            Paying the {proposal.depositPercent}% deposit on them confirms your order and books your project in. The balance is due on delivery.
+                          </>}
                     </p>
+                    {orderTotals && orderTotals.count < proposal.lineItems.length && (
+                      <button
+                        onClick={() => setSelectedIds(proposal.lineItems.map((li) => li.id))}
+                        className="w-full sm:w-auto px-5 py-3 rounded-xl neu-raised text-sm font-bold text-[#C5A065] inline-flex items-center justify-center space-x-2 cursor-pointer mb-3 sm:mb-0 sm:mr-3"
+                      >
+                        <CheckCheck className="w-4 h-4" />
+                        <span>Accept all items ({formatGhs(proposalTotals(proposal).total)})</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => startPayment("deposit")}
-                      disabled={paying !== null}
+                      disabled={paying !== null || !orderTotals || orderTotals.total <= 0}
                       className="w-full sm:w-auto px-6 py-3.5 rounded-xl neu-gold-filled text-sm font-bold inline-flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-60"
                     >
                       {paying === "deposit" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                      <span>Accept & pay {formatGhs(proposalTotals(proposal).deposit)} deposit</span>
+                      <span>Confirm order & pay {formatGhs(orderTotals?.deposit || 0)} deposit</span>
                     </button>
                     <p className="text-xs text-zinc-400">
                       Secure payment by Mobile Money or card through Paystack. Questions first?{" "}

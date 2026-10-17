@@ -1,7 +1,8 @@
 import type { Firestore } from "firebase-admin/firestore";
+import { selectedLineItems } from "./src/data/cmsData";
 
 // Zoho Invoice sync: when a proposal payment is confirmed, create the client's
-// contact and a full-price invoice from the accepted proposal version, then
+// contact and an invoice for the items the client ordered, then
 // record each Paystack payment against it. Every step stores the Zoho id it
 // created, so re-running a sync (retries, the CMS "Retry" button) never
 // duplicates anything in Zoho.
@@ -121,7 +122,7 @@ async function runSync(db: Firestore, proposalId: string): Promise<SyncResult> {
         customer_id: contactId,
         date: (prop.acceptedAt || today()).slice(0, 10),
         reference_number: `Proposal v${prop.acceptedVersion}`,
-        line_items: (snap.lineItems || []).map((li: any) => ({
+        line_items: selectedLineItems(snap.lineItems || [], prop.acceptedItemIds).map((li: any) => ({
           name: String(li.title || "Item").slice(0, 100),
           description: li.description || "",
           rate: Number(li.amount) || 0,
