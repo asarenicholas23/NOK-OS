@@ -52,7 +52,7 @@ export const BlogPostPage: React.FC = () => {
   });
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/blog/${post.slug}`;
+    const url = `${SITE_URL}/blog/${post.slug}`;
     const result = await shareArticle({ title: post.title, text: post.excerpt, url });
     if (result === "copied") {
       setShareToast("Link copied to clipboard!");

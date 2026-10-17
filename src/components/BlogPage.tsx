@@ -7,6 +7,7 @@ import { BlogPost } from "../data/cmsData";
 import { Search, Calendar, Clock, ArrowRight, BookOpen, Share2 } from "lucide-react";
 import { shareArticle } from "../utils/share";
 import { SEO } from "./SEO";
+import { SITE_URL } from "../lib/seo";
 
 export const BlogPage: React.FC = () => {
   const { blogPosts } = useCms();
@@ -15,7 +16,7 @@ export const BlogPage: React.FC = () => {
   const [shareToast, setShareToast] = useState<string | null>(null);
 
   const handleShare = async (post: BlogPost) => {
-    const url = `${window.location.origin}/blog/${post.slug}`;
+    const url = `${SITE_URL}/blog/${post.slug}`;
     const result = await shareArticle({ title: post.title, text: post.excerpt, url });
     if (result === "copied") {
       setShareToast("Link copied to clipboard!");

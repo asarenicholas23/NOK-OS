@@ -1,5 +1,6 @@
 import { collection, doc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 import { db, cleanFirestoreData } from "./firebase";
+import { SITE_URL } from "./seo";
 import {
   Proposal,
   ProposalComment,
@@ -84,7 +85,9 @@ export const sendProposal = async (proposal: Proposal, changeNote?: string): Pro
   return sent;
 };
 
-export const proposalLink = (p: Pick<Proposal, "token">) => `${window.location.origin}/proposal/${p.token}`;
+// Always the custom domain, even when staff work from nok-os.web.app: Google
+// Safe Browsing has flagged the web.app address, so links there show a warning.
+export const proposalLink = (p: Pick<Proposal, "token">) => `${SITE_URL}/proposal/${p.token}`;
 
 export const subscribeToProposalComments = (proposalId: string, onUpdate: (comments: ProposalComment[]) => void) => {
   const q = query(collection(db, "proposals", proposalId, "comments"), orderBy("createdAt", "asc"));

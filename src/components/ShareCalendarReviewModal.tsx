@@ -1,3 +1,4 @@
+import { SITE_URL } from "../lib/seo";
 import React, { useState, useEffect } from "react";
 import { 
   X, 
@@ -163,7 +164,7 @@ export const ShareCalendarReviewModal: React.FC<ShareCalendarReviewModalProps> =
     }
   };
 
-  const shareUrl = shareLink ? `${window.location.origin}/review/${shareLink.token}` : "";
+  const shareUrl = shareLink ? `${SITE_URL}/review/${shareLink.token}` : "";
 
   const proposedCount = briefs.filter((b) => b.status === "Proposed").length;
   const approvedCount = briefs.filter((b) => b.status === "Approved").length;
