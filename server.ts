@@ -2,7 +2,9 @@ import express from "express";
 import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
-import admin from "firebase-admin";
+import { initializeApp, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import dotenv from "dotenv";
 import crypto from "node:crypto";
 import { proposalTotals, selectedLineItems } from "./src/data/cmsData";
@@ -75,8 +77,8 @@ const hasAdminCreds =
   !!process.env.FIREBASE_PRIVATE_KEY;
 
 if (hasAdminCreds) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
+  initializeApp({
+    credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
@@ -88,9 +90,10 @@ if (hasAdminCreds) {
       "Admin SDK. Frontend/dev server works; Admin-backed API routes will fail until " +
       "FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY are provided."
   );
-  admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || "nok-os-prod" });
+  initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || "nok-os-prod" });
 }
-const adminDb = admin.firestore();
+const adminDb = getFirestore();
+const adminAuth = getAuth();
 
 // Gate: only signed-in staff (real Firebase email/password accounts) may call
 // the Gemini-backed endpoints below, so a stranger can't burn the API quota.
@@ -101,7 +104,7 @@ async function requireStaffAuth(req: express.Request, res: express.Response, nex
     return res.status(401).json({ error: "Missing Authorization header." });
   }
   try {
-    const decoded = await admin.auth().verifyIdToken(match[1]);
+    const decoded = await adminAuth.verifyIdToken(match[1]);
     if (decoded.firebase?.sign_in_provider !== "password") {
       return res.status(403).json({ error: "Not authorized." });
     }
@@ -888,7 +891,7 @@ app.post("/api/calendar-review/exchange", async (req, res) => {
       });
     }
 
-    const customToken = await admin.auth().createCustomToken(`client-${linkDoc.id}`, {
+    const customToken = await adminAuth.createCustomToken(`client-${linkDoc.id}`, {
       shareLinkId: linkDoc.id,
       brandId: linkData.brandId,
     });
@@ -1024,7 +1027,7 @@ app.post("/api/proposals/comment", proposalRateLimit(10), async (req, res) => {
     batch.set(commentRef, comment);
     batch.update(ref, {
       lastClientCommentAt: now,
-      clientCommentCount: admin.firestore.FieldValue.increment(1),
+      clientCommentCount: FieldValue.increment(1),
       status: nextStatus,
     });
     await batch.commit();
