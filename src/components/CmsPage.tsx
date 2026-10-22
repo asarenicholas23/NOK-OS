@@ -86,6 +86,7 @@ export const CmsPage: React.FC = () => {
   const [editorMode, setEditorMode] = useState<"write" | "preview">("write");
   const [blogFormData, setBlogFormData] = useState({
     title: "",
+    slug: "",
     category: BLOG_CATEGORIES[0] as string,
     authorName: "Osei Kofi",
     authorRole: "Lead Strategist, N.O.K Social",
@@ -275,6 +276,7 @@ export const CmsPage: React.FC = () => {
         const data = await resp.json();
         setBlogFormData({
           title: data.title || "Migrated Article",
+          slug: "",
           category: blogCategory({ slug: "", category: data.category || "" }),
           authorName: data.authorName || "Osei Kofi",
           authorRole: data.authorRole || "Lead Strategist, N.O.K Social",
@@ -326,6 +328,7 @@ export const CmsPage: React.FC = () => {
 
       setBlogFormData({
         title: inferredTitle,
+        slug: "",
         category: blogCategory({ slug: "", category: inferredCategory }),
         authorName: "Osei Kofi",
         authorRole: "Lead Strategist, N.O.K Social",
@@ -357,7 +360,7 @@ export const CmsPage: React.FC = () => {
       .map((p) => p.trim())
       .filter((p) => p.length > 0);
 
-    const slug = blogFormData.title
+    const slug = (blogFormData.slug.trim() || blogFormData.title)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)+/g, "");
@@ -418,6 +421,7 @@ export const CmsPage: React.FC = () => {
     setEditingBlog(post);
     setBlogFormData({
       title: post.title,
+      slug: post.slug,
       category: blogCategory(post),
       authorName: post.author.name,
       authorRole: post.author.role,
@@ -434,6 +438,7 @@ export const CmsPage: React.FC = () => {
     setEditingBlog(null);
     setBlogFormData({
       title: "",
+      slug: "",
       category: BLOG_CATEGORIES[0] as string,
       authorName: "Osei Kofi",
       authorRole: "Lead Strategist, N.O.K Social",
@@ -1062,6 +1067,23 @@ export const CmsPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
+                    URL Slug
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[#8A8A93]">/blog/</span>
+                    <input
+                      type="text"
+                      placeholder="sales-funnel-mastery"
+                      value={blogFormData.slug}
+                      onChange={(e) => setBlogFormData({ ...blogFormData, slug: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
+                    />
+                  </div>
+                  <span className="mt-1 block text-[10px] text-[#8A8A93]">Use lowercase words separated by hyphens. Leave blank to generate it from the title.</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
