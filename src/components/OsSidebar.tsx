@@ -123,7 +123,7 @@ export const OsSidebar: React.FC<OsSidebarProps> = ({ activeView, onNavigate, co
   const footer = (
     <div className="px-3 py-3 border-t border-[var(--fin-line)] shrink-0">
       <Link
-        to="/home"
+        to="/"
         title={collapsed ? "Agency website" : undefined}
         className={`fin-nav-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium ${collapsed ? "lg:justify-center lg:px-0" : ""}`}
       >

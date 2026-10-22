@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Search, Share2 } from "lucide-react";
 import { useCms } from "../context/CmsContext";
@@ -38,7 +38,7 @@ export const Cover: React.FC<{ post: BlogPost; aspect?: string; priority?: boole
     <div className={`relative overflow-hidden rounded-frame bg-[#E9DCC7] ${className}`} style={{ aspectRatio: aspect }}>
       <img
         src={post.coverImage}
-        alt=""
+        alt={postTitle(post)}
         width={800}
         height={450}
         loading={priority ? "eager" : "lazy"}
@@ -117,7 +117,8 @@ const Featured: React.FC<{ post: BlogPost }> = ({ post }) => (
 );
 
 const BlogIndex: React.FC = () => {
-  const { blogPosts, blogPostsReady } = useCms();
+  const { blogPosts, blogPostsReady, requestLiveData } = useCms();
+  useEffect(requestLiveData, [requestLiveData]);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>(blog.all);
   const { share, toastNode } = useShareToast();
@@ -135,7 +136,7 @@ const BlogIndex: React.FC = () => {
   return (
     <>
       <SEO title={blog.seo.title} description={blog.seo.description} path="/blog" image={ogImage("blog")} />
-      <Breadcrumbs currentPath="/blog" items={[{ label: crumbs.home, to: "/home" }, { label: blog.crumb }]} />
+      <Breadcrumbs currentPath="/blog" items={[{ label: crumbs.home, to: "/" }, { label: blog.crumb }]} />
 
       <Container>
         <header className="pt-6 sm:pt-10">

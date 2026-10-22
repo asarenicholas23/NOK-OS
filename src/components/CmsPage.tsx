@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import { useCms } from "../context/CmsContext";
 import { apiFetch } from "../lib/apiBase";
 import { BlogPost, DiscoveryRequest, ClientBrand } from "../data/cmsData";
-import { BLOG_CATEGORIES, blogCategory } from "../content/blog";
+import { BLOG_CATEGORIES, BLOG_TITLE_SUFFIX, blogCategory } from "../content/blog";
 import { CallAvailabilityPanel } from "./CallAvailabilityPanel";
 import { ProposalsTab } from "./ProposalsTab";
 import { AddClientPanel } from "./AddClientPanel";
@@ -91,6 +91,7 @@ export const CmsPage: React.FC = () => {
     authorRole: "Lead Strategist, N.O.K Social",
     readTime: "5 min read",
     coverImage: "",
+    seoTitle: "",
     excerpt: "",
     contentRaw: ""
   });
@@ -279,6 +280,7 @@ export const CmsPage: React.FC = () => {
           authorRole: data.authorRole || "Lead Strategist, N.O.K Social",
           readTime: data.readTime || "5 min read",
           coverImage: data.coverImage || "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1000&q=80",
+          seoTitle: "",
           excerpt: data.excerpt || "",
           contentRaw: data.contentMarkdown || ""
         });
@@ -329,6 +331,7 @@ export const CmsPage: React.FC = () => {
         authorRole: "Lead Strategist, N.O.K Social",
         readTime: "5 min read",
         coverImage: inferredCover,
+        seoTitle: "",
         excerpt: bodyText.slice(0, 180) + "...",
         contentRaw: bodyText
       });
@@ -378,6 +381,8 @@ export const CmsPage: React.FC = () => {
             role: blogFormData.authorRole
           },
           excerpt: blogFormData.excerpt,
+          // Empty clears it; the page then falls back to the post title.
+          seoTitle: blogFormData.seoTitle.trim(),
           content: contentArray
         });
         showNotification("Blog post updated successfully!");
@@ -394,6 +399,8 @@ export const CmsPage: React.FC = () => {
             role: blogFormData.authorRole
           },
           excerpt: blogFormData.excerpt,
+          // Empty clears it; the page then falls back to the post title.
+          seoTitle: blogFormData.seoTitle.trim(),
           content: contentArray
         });
         showNotification("New blog post published!");
@@ -416,6 +423,7 @@ export const CmsPage: React.FC = () => {
       authorRole: post.author.role,
       readTime: post.readTime,
       coverImage: post.coverImage || "",
+      seoTitle: post.seoTitle || "",
       excerpt: post.excerpt,
       contentRaw: post.content.join("\n\n")
     });
@@ -431,6 +439,7 @@ export const CmsPage: React.FC = () => {
       authorRole: "Lead Strategist, N.O.K Social",
       readTime: "5 min read",
       coverImage: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1000&q=80",
+      seoTitle: "",
       excerpt: "",
       contentRaw: ""
     });
@@ -1189,6 +1198,28 @@ export const CmsPage: React.FC = () => {
                       </div>
                     </div>
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
+                    SEO title (optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Shorter title for Google and browser tabs. Leave empty to use the post title."
+                    value={blogFormData.seoTitle}
+                    onChange={(e) => setBlogFormData({ ...blogFormData, seoTitle: e.target.value })}
+                    className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
+                  />
+                  {(() => {
+                    const full = `${(blogFormData.seoTitle.trim() || blogFormData.title.trim())}${BLOG_TITLE_SUFFIX}`;
+                    const over = full.length > 60;
+                    return (
+                      <p className={`mt-1 text-[10px] font-mono ${over ? "text-amber-400" : "text-[#8A8A93]"}`}>
+                        Browser title: {full.length}/60 characters{over ? ". Aim for 60 or fewer." : ""}
+                      </p>
+                    );
+                  })()}
                 </div>
 
                 <div>

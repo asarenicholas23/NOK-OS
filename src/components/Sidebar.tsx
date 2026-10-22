@@ -77,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="w-10 h-10 rounded-2xl bg-[#4F46E5] flex items-center justify-center text-white shadow-[0_10px_22px_-10px_rgba(79,70,229,0.7)]">
             <NokMark />
           </div>
-          <Link to="/home" className="fin-rail-icon" title="Public Agency Site">
+          <Link to="/" className="fin-rail-icon" title="Public Agency Site">
             <Globe className="w-4 h-4" />
           </Link>
         </div>
@@ -169,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Public Site link */}
         <div className="px-3 pb-2 shrink-0">
           <Link
-            to="/home"
+            to="/"
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl fin-inset text-[11px] font-medium text-[#667085] hover:text-[#4F46E5] transition-colors group"
           >
             <span className="flex items-center space-x-2">

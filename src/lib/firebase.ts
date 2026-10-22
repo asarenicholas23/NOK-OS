@@ -15,7 +15,6 @@ import {
 } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { getAnalytics, isSupported as isAnalyticsSupported, logEvent } from "firebase/analytics";
 import {
   BlogPost,
   ClientBrand,
@@ -26,6 +25,7 @@ import {
   INITIAL_CLIENT_BRANDS
 } from "../data/cmsData";
 import { withCurrentServiceNames } from "../content/services";
+import { whenIdle } from "./loadFirebase";
 
 // Config parsed from firebase-applet-config.json
 const firebaseConfig = {
@@ -41,19 +41,23 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Analytics only works in a real browser (needs window/IndexedDB), so it's
-// initialized lazily behind isSupported() rather than at module load — this
-// keeps this module safe to import from the Node build/prerender scripts too.
+// Analytics starts once the page has loaded and the browser is idle, and its
+// code (plus Google's gtag script) is only downloaded then, so it never
+// competes with the page itself. It only runs in a real browser, which also
+// keeps this module safe to import from the Node build/prerender scripts.
 let analyticsInstance: import("firebase/analytics").Analytics | null = null;
-isAnalyticsSupported().then((supported) => {
-  if (supported) {
+let analyticsLogEvent: typeof import("firebase/analytics").logEvent | null = null;
+whenIdle(async () => {
+  const { getAnalytics, isSupported, logEvent } = await import("firebase/analytics");
+  if (await isSupported()) {
     analyticsInstance = getAnalytics(app);
+    analyticsLogEvent = logEvent;
   }
 });
 
 export const logAnalyticsEvent = (eventName: string, params?: Record<string, unknown>) => {
-  if (analyticsInstance) {
-    logEvent(analyticsInstance, eventName, params);
+  if (analyticsInstance && analyticsLogEvent) {
+    analyticsLogEvent(analyticsInstance, eventName, params);
   }
 };
 

@@ -196,7 +196,7 @@ const HomeContent: React.FC = () => {
 
   return (
     <>
-      <SEO title={home.seo.title} description={home.seo.description} path="/home" image={ogImage("home")} />
+      <SEO title={home.seo.title} description={home.seo.description} path="/" image={ogImage("home")} />
       <JsonLd
         data={buildBusinessJsonLd({
           description: home.seo.description,

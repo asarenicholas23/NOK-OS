@@ -83,7 +83,7 @@ const AboutContent: React.FC = () => {
   return (
     <>
       <SEO title={about.seo.title} description={about.seo.description} path="/about" image={ogImage("about")} />
-      <Breadcrumbs currentPath="/about" items={[{ label: crumbs.home, to: "/home" }, { label: about.crumb }]} />
+      <Breadcrumbs currentPath="/about" items={[{ label: crumbs.home, to: "/" }, { label: about.crumb }]} />
       <PageHero tight tag={about.tag} title={about.title} subtitle={about.subtitle} />
 
       <Founder />

@@ -47,7 +47,7 @@ async function main() {
   console.log(`[sitemap] found ${posts.length} blog post(s)`);
 
   const urls: SitemapUrl[] = [
-    { loc: `${SITE_URL}/home`, changefreq: "weekly", priority: "1.0" },
+    { loc: `${SITE_URL}/`, changefreq: "weekly", priority: "1.0" },
     { loc: `${SITE_URL}/blog`, changefreq: "daily", priority: "0.9" },
     { loc: `${SITE_URL}/resources`, changefreq: "monthly", priority: "0.7" },
     { loc: `${SITE_URL}/ighealthcheck`, changefreq: "monthly", priority: "0.8" },

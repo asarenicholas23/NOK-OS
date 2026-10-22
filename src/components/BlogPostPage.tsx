@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { Share2, User } from "lucide-react";
 import { useCms } from "../context/CmsContext";
 import type { BlogPost } from "../data/cmsData";
-import { blogCategory, postTitle, sortByPublishDate, type BlogCategory } from "../content/blog";
+import { blogCategory, postDocumentTitle, postTitle, sortByPublishDate, type BlogCategory } from "../content/blog";
 import { blog, crumbs } from "../content/siteContent";
 import { buildArticleJsonLd, SITE_URL, toCrawlableImage, toIsoDate, truncateDescription } from "../lib/seo";
 import { SEO } from "./SEO";
@@ -18,11 +18,16 @@ const isBareImageUrl = (s: string) =>
   s.startsWith("data:image/") ||
   (s.startsWith("http") && (s.includes("unsplash.com") || s.includes("images.") || /\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(s)));
 
-const ArticleImage: React.FC<{ src?: string; alt?: string; caption?: string }> = ({ src, alt, caption }) => (
+/** The current post's title: the alt-text fallback for article images that don't have their own. */
+const ArticleTitle = React.createContext("");
+
+const ArticleImage: React.FC<{ src?: string; alt?: string; caption?: string }> = ({ src, alt, caption }) => {
+  const title = React.useContext(ArticleTitle);
+  return (
   <figure className="my-8">
     <img
       src={src}
-      alt={alt || ""}
+      alt={alt?.trim() || title}
       width={1000}
       height={562}
       loading="lazy"
@@ -32,7 +37,8 @@ const ArticleImage: React.FC<{ src?: string; alt?: string; caption?: string }> =
     />
     {caption && <figcaption className="mt-2 text-center text-[15px] text-site-slate">{caption}</figcaption>}
   </figure>
-);
+  );
+};
 
 const md: React.ComponentProps<typeof ReactMarkdown>["components"] = {
   h1: ({ children }) => <h2 className="mb-4 mt-10 text-[28px] font-bold leading-tight text-site-ink sm:text-[32px]">{children}</h2>,
@@ -142,7 +148,8 @@ const NotFound: React.FC<{ slug?: string }> = ({ slug }) => (
 
 const Article: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { blogPosts, blogPostsReady } = useCms();
+  const { blogPosts, blogPostsReady, requestLiveData } = useCms();
+  useEffect(requestLiveData, [requestLiveData]);
   const { share, toastNode } = useShareToast();
   const post = blogPosts.find((p) => p.slug === slug);
   if (!post && !blogPostsReady) {
@@ -172,11 +179,11 @@ const Article: React.FC = () => {
 
   return (
     <>
-      <SEO title={`${title} | N.O.K Social`} description={truncateDescription(post.excerpt)} path={`/blog/${post.slug}`} image={toCrawlableImage(post.coverImage)} type="article" />
+      <SEO title={postDocumentTitle(post)} description={truncateDescription(post.excerpt)} path={`/blog/${post.slug}`} image={toCrawlableImage(post.coverImage)} type="article" />
       <script type="application/ld+json">{JSON.stringify(articleJsonLd).replace(/</g, "\\u003c")}</script>
       <Breadcrumbs
         currentPath={`/blog/${post.slug}`}
-        items={[{ label: crumbs.home, to: "/home" }, { label: blog.crumb, to: "/blog" }, { label: title.length > 48 ? title.slice(0, 46).trimEnd() + "…" : title }]}
+        items={[{ label: crumbs.home, to: "/" }, { label: blog.crumb, to: "/blog" }, { label: title.length > 48 ? title.slice(0, 46).trimEnd() + "…" : title }]}
       />
 
       <article>
@@ -212,7 +219,9 @@ const Article: React.FC = () => {
 
         <Container className="mt-10 max-w-[720px]">
           <p className="mb-8 text-xl font-medium leading-relaxed text-site-ink sm:text-[22px]">{post.excerpt}</p>
-          <ReactMarkdown components={md}>{post.content.join("\n\n")}</ReactMarkdown>
+          <ArticleTitle.Provider value={title}>
+            <ReactMarkdown components={md}>{post.content.join("\n\n")}</ReactMarkdown>
+          </ArticleTitle.Provider>
 
           <div className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-card bg-white px-6 py-4">
             <span className="font-semibold text-site-ink">{blog.article.foundUseful}</span>

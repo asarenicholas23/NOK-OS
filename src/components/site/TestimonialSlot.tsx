@@ -46,7 +46,7 @@ export const TestimonialSlot: React.FC<TestimonialSlotProps> = ({ testimonial, s
       )}
       <blockquote className={`font-medium leading-snug ${compact ? "text-base" : "text-lg sm:text-xl"}`}>“{t.quote}”</blockquote>
       <figcaption className={`flex items-center gap-3 ${compact ? "mt-3" : "mt-4"}`}>
-        {t.photo && <img src={t.photo} alt="" width={40} height={40} loading="lazy" className="h-10 w-10 rounded-full object-cover" />}
+        {t.photo && <img src={t.photo} alt={t.name} width={40} height={40} loading="lazy" className="h-10 w-10 rounded-full object-cover" />}
         <span className="leading-tight">
           <span className={`block font-semibold ${compact ? "text-[15px]" : ""}`}>{t.name}</span>
           {t.role && <span className={`block text-sm ${ink ? "text-site-paper/75" : "text-site-slate"}`}>{t.role}</span>}

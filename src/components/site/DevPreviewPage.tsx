@@ -106,7 +106,7 @@ export const DevPreviewPage: React.FC = () => (
         <PillButton variant="soft" size="lg">Soft</PillButton>
         <PillButton variant="dark" size="lg">Dark</PillButton>
         <PillButton variant="primary">Primary md</PillButton>
-        <PillButton variant="dark" to="/home">Link to /home</PillButton>
+        <PillButton variant="dark" to="/">Link to /home</PillButton>
         <BookingDemo />
       </div>
     </div>

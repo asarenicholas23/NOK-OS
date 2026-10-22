@@ -31,7 +31,9 @@ export const DiscoveryModal: React.FC<DiscoveryModalProps> = ({
   serviceTier,
   services,
 }) => {
-  const { addDiscoveryRequest, agencyInfo, callAvailability } = useCms();
+  const { addDiscoveryRequest, agencyInfo, callAvailability, requestLiveData } = useCms();
+  // The call times shown depend on the live booking settings.
+  useEffect(requestLiveData, [requestLiveData]);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

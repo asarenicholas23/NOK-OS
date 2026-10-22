@@ -14,7 +14,7 @@ export const PublicNavbar: React.FC = () => {
     <header className="sticky top-0 z-50 px-4 sm:px-8 py-4 bg-[#15151A]/90 backdrop-blur-md">
       <div className="max-w-7xl mx-auto flex items-center justify-between p-3 sm:p-4 rounded-2xl neu-raised relative">
         {/* Brand Identity */}
-        <Link to="/home" className="flex items-center space-x-3 group">
+        <Link to="/" className="flex items-center space-x-3 group">
           <div className="w-10 h-10 rounded-xl neu-pressed flex items-center justify-center text-[#B08D57] transition-transform duration-200 group-hover:scale-105">
             <svg width="24" height="24" viewBox="0 0 46 46" aria-hidden="true">
               <circle cx="12" cy="23" r="5" fill="#B08D57" />
@@ -37,7 +37,7 @@ export const PublicNavbar: React.FC = () => {
         {/* Desktop Center Nav Links */}
         <nav className="hidden md:flex items-center space-x-2 p-1.5 rounded-xl neu-pressed">
           <Link
-            to="/home"
+            to="/"
             className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${
               isActive("/home")
                 ? "neu-pressed text-[#C5A065] font-semibold"
@@ -47,13 +47,13 @@ export const PublicNavbar: React.FC = () => {
             Agency Home
           </Link>
           <a
-            href="/home#brands-worked-with"
+            href="/#brands-worked-with"
             className="px-4 py-2 text-xs font-medium text-zinc-200 hover:text-[#F2F0EB] transition-colors"
           >
             Client Brands
           </a>
           <a
-            href="/home#services"
+            href="/#services"
             className="px-4 py-2 text-xs font-medium text-zinc-200 hover:text-[#F2F0EB] transition-colors"
           >
             Services
@@ -93,7 +93,7 @@ export const PublicNavbar: React.FC = () => {
         {/* Right Action buttons & Theme Switcher */}
         <div className="hidden md:flex items-center space-x-3">
           <a
-            href="/home#services"
+            href="/#services"
             className="neu-gold-btn px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2"
           >
             <span>Our Services</span>
@@ -116,7 +116,7 @@ export const PublicNavbar: React.FC = () => {
         {mobileMenuOpen && (
           <div className="absolute top-full left-0 right-0 mt-3 p-4 rounded-2xl neu-raised-lg bg-[#15151A] z-50 border border-[#1C1C22] space-y-3 md:hidden animate-in fade-in slide-in-from-top-2 duration-150">
             <Link
-              to="/home"
+              to="/"
               onClick={() => setMobileMenuOpen(false)}
               className={`block px-4 py-2.5 rounded-xl text-xs font-medium ${
                 isActive("/home") ? "neu-pressed text-[#C5A065] font-semibold" : "text-zinc-200 hover:text-[#F2F0EB]"
@@ -125,14 +125,14 @@ export const PublicNavbar: React.FC = () => {
               Agency Home
             </Link>
             <a
-              href="/home#brands-worked-with"
+              href="/#brands-worked-with"
               onClick={() => setMobileMenuOpen(false)}
               className="block px-4 py-2.5 rounded-xl text-xs font-medium text-zinc-200 hover:text-[#F2F0EB]"
             >
               Brands We've Worked With
             </a>
             <a
-              href="/home#services"
+              href="/#services"
               onClick={() => setMobileMenuOpen(false)}
               className="block px-4 py-2.5 rounded-xl text-xs font-medium text-zinc-200 hover:text-[#F2F0EB]"
             >
@@ -168,7 +168,7 @@ export const PublicNavbar: React.FC = () => {
 
             <div className="pt-2 border-t border-white/5">
               <a
-                href="/home#services"
+                href="/#services"
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full py-3 rounded-xl neu-gold-filled text-xs font-bold font-mono flex items-center justify-center space-x-2"
               >

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { BarChart3, CheckCircle2, Clock, LayoutGrid, Link2, Loader2, Send } from "lucide-react";
-import { db } from "../lib/firebase";
+import { loadFirebase } from "../lib/loadFirebase";
 import { crumbs, freeTools, igHealthCheck as t } from "../content/siteContent";
 import { SEO } from "./SEO";
 import { ogImage } from "../lib/seo";
@@ -30,6 +29,8 @@ const Waitlist: React.FC = () => {
     setSubmitting(true);
     setError("");
     try {
+      // Firebase loads on submit, so the page itself doesn't download it.
+      const [{ db }, { collection, addDoc, serverTimestamp }] = await Promise.all([loadFirebase(), import("firebase/firestore")]);
       await addDoc(collection(db, "leads"), {
         name: "",
         email: email.trim(),
@@ -93,7 +94,7 @@ export const IgHealthCheckPage: React.FC = () => (
     <SEO title={t.seo.title} description={t.seo.description} path="/ighealthcheck" image={ogImage("ighealthcheck")} />
     <Breadcrumbs
       currentPath="/ighealthcheck"
-      items={[{ label: crumbs.home, to: "/home" }, { label: freeTools.page.crumb, to: "/resources" }, { label: t.crumb }]}
+      items={[{ label: crumbs.home, to: "/" }, { label: freeTools.page.crumb, to: "/resources" }, { label: t.crumb }]}
     />
     <PageHero tight tag={t.tag} title={t.title} subtitle={t.subtitle} />
 

@@ -75,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({ viewLabel }) => {
 
         {/* Link back to public site */}
         <Link
-          to="/home"
+          to="/"
           className="fin-btn-ghost px-3 py-2 rounded-full text-xs font-medium text-[#667085] hover:text-[#4F46E5] flex items-center space-x-1.5"
           title="Return to N.O.K Social Agency Site"
         >

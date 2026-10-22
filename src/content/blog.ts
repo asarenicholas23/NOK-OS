@@ -56,3 +56,25 @@ export const sortByPublishDate = <T extends Pick<BlogPost, "date">>(posts: T[]):
 
 /** Stored titles can carry stray spaces; show them trimmed. */
 export const postTitle = (p: Pick<BlogPost, "title">) => p.title.trim();
+
+/** Appended to every blog post's <title>. */
+export const BLOG_TITLE_SUFFIX = " | N.O.K Social";
+
+/**
+ * Approved SEO titles (22 Oct 2026), by post slug, for posts whose full title
+ * runs past ~60 characters. An SEO title typed into the CMS takes priority.
+ */
+const SEO_TITLE_BY_SLUG: Record<string, string> = {
+  "scaling-beyond-the-grind-why-digital-marketing-alone-won-t-save-your-overwhelmed-startup": "Why marketing alone won't save your startup",
+  "customer-journey-mapping-ghana-sales-funnel": "Customer journey mapping for Ghanaian brands",
+  "crafting-lead-magnets-that-convert-ghana": "Lead magnets that convert: a guide for Ghana",
+  "building-high-converting-social-media-strategy-accra-kumasi": "Social media strategy for Accra and Kumasi",
+  "pitfalls-of-diy-social-media-ghana": "The pitfalls of DIY social media in Ghana",
+  "someone-could-be-pretending-to-be-your-business-right-now": "Is someone pretending to be your business?",
+  "why-your-marketing-isn-t-generating-revenue-and-your-sales-team-is-paying-for-it": "Why your marketing isn't generating revenue",
+  "how-running-campaigns-shows-you-which-marketing-activity-actually-makes-money": "How campaigns show what marketing makes money",
+};
+
+/** A post's <title>: its CMS SEO title, else its approved SEO title, else its title, plus the site name. Keep it to ~60 characters. */
+export const postDocumentTitle = (p: Pick<BlogPost, "slug" | "title" | "seoTitle">) =>
+  `${p.seoTitle?.trim() || SEO_TITLE_BY_SLUG[p.slug] || p.title.trim()}${BLOG_TITLE_SUFFIX}`;

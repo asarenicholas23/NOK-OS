@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>N.O.K Social homepage concept</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+:root{--ink:#14213D;--cy:#2E5EAA;--pa:#F5F1E8;--sl:#6B7280;--am:#E8A33D;--gr:#14171A}
+*{box-sizing:border-box}
+body{margin:0;background:var(--pa);font-family:'Baloo 2',sans-serif;color:var(--gr)}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 24px 48px}
+.mono{font-family:'IBM Plex Mono',monospace}
+.pill{border-radius:999px;padding:10px 18px;font-size:15px;font-weight:600;border:none;cursor:pointer;font-family:inherit;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.pill:hover{transform:translateY(-2px)}
+.rise{opacity:0;transform:translateY(18px);animation:rise .8s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.ph{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;color:#8a7f6a;font-size:12px}
+.w{color:rgba(245,241,232,.22);transition:color .35s ease}.w.on{color:var(--pa)}
+.step{padding:12px 14px;border-radius:16px;cursor:pointer;transition:background .35s ease;display:flex;gap:12px;align-items:baseline}.step.on{background:#fff}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+h2{font-size:34px;font-weight:700;color:var(--ink);margin:64px 0 18px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rise{opacity:1;transform:none}.w{color:var(--pa)}}
+@media (max-width:720px){.hero h1{font-size:38px!important}.collage{height:360px!important}.steps-wrap{grid-template-columns:1fr!important}}
+</style>
+</head>
+<body>
+<!-- CONCEPT ONLY. All copy is draft. All numbers in floating cards are invented placeholders. Grey/tinted blocks are image slots. -->
+<div class="wrap">
+
+<nav style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:56px">
+<div style="display:flex;align-items:center;gap:8px"><svg width="34" height="30" viewBox="10 10 34 44" aria-hidden="true"><circle cx="18" cy="32" r="5" fill="#14213D"/><circle cx="38" cy="18" r="5" fill="#2E5EAA"/><circle cx="38" cy="46" r="5" fill="#2E5EAA"/><line x1="18" y1="32" x2="38" y2="18" stroke="#14213D" stroke-width="2"/><line x1="18" y1="32" x2="38" y2="46" stroke="#14213D" stroke-width="2"/></svg><span style="font-weight:600;font-size:19px;color:var(--ink)">N.O.K Social</span></div>
+<div style="display:flex;gap:4px;background:#fff;border-radius:999px;padding:5px;font-size:15px;color:var(--ink)"><span style="padding:4px 14px">Work</span><span style="padding:4px 14px">Services</span><span style="padding:4px 14px">About</span><span style="padding:4px 14px">Blog</span></div>
+<button class="pill" style="background:var(--ink);color:var(--pa)">Book a call</button></nav>
+
+<header class="rise hero" style="text-align:center;max-width:760px;margin:0 auto">
+<h1 style="font-size:60px;line-height:1.02;font-weight:700;color:var(--ink);margin:0 0 18px">Social media, campaigns and websites that bring you <span style="background:var(--am);padding:0 10px;border-radius:14px">customers</span></h1>
+<p style="font-size:20px;line-height:1.5;color:var(--sl);margin:0 auto 26px;max-width:600px">We plan your content, run your ads and build the website or booking system behind them. More people find you, and more of them pay.</p>
+<div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center"><button class="pill" style="background:var(--am);color:var(--ink);padding:14px 26px">Book a discovery call</button><button class="pill" style="background:#fff;color:var(--ink);padding:14px 26px">See our work</button></div>
+</header>
+
+<div class="rise collage" style="animation-delay:.25s;position:relative;height:440px;margin:48px auto 0;max-width:960px">
+<div style="position:absolute;left:4%;right:20%;top:10px;background:#fff;border-radius:24px;padding:10px">
+<div style="display:flex;gap:5px;padding:2px 6px 10px"><span style="width:9px;height:9px;border-radius:50%;background:#E5E0D3"></span><span style="width:9px;height:9px;border-radius:50%;background:#E5E0D3"></span><span style="width:9px;height:9px;border-radius:50%;background:#E5E0D3"></span></div>
+<div class="ph" style="height:330px;border-radius:16px;background:#E9DCC7"><i class="ti ti-browser" style="font-size:26px"></i><span class="mono">Real client site screenshot</span></div></div>
+<div style="position:absolute;right:4%;top:50px;width:190px;background:var(--ink);border-radius:32px;padding:10px;animation:bob 5s ease-in-out infinite">
+<div style="background:#fff;border-radius:24px;padding:10px"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">
+<div style="aspect-ratio:1;border-radius:6px;background:#E7C9C2"></div><div style="aspect-ratio:1;border-radius:6px;background:#C9DDDA"></div><div style="aspect-ratio:1;border-radius:6px;background:#E9DCC7"></div><div style="aspect-ratio:1;border-radius:6px;background:#C9DDDA"></div><div style="aspect-ratio:1;border-radius:6px;background:#E9DCC7"></div><div style="aspect-ratio:1;border-radius:6px;background:#E7C9C2"></div><div style="aspect-ratio:1;border-radius:6px;background:#E9DCC7"></div><div style="aspect-ratio:1;border-radius:6px;background:#E7C9C2"></div><div style="aspect-ratio:1;border-radius:6px;background:#C9DDDA"></div></div>
+<p class="mono" style="font-size:11px;color:var(--sl);margin:8px 0 0;text-align:center">Client Instagram grid</p></div></div>
+<div style="position:absolute;left:0;bottom:10px;background:#fff;border-radius:18px;padding:12px 16px;display:flex;gap:12px;align-items:center;animation:bob 6s ease-in-out infinite;animation-delay:1s">
+<span style="width:36px;height:36px;border-radius:50%;background:#E6EDF7;color:var(--cy);display:flex;align-items:center;justify-content:center"><i class="ti ti-trending-up"></i></span>
+<div><p class="mono" style="margin:0;font-size:14px;color:var(--ink)">+212 profile visits</p><p style="margin:0;font-size:13px;color:var(--sl)">From this week's campaign</p></div></div>
+<div style="position:absolute;right:16%;bottom:0;background:#fff;border-radius:18px;padding:12px 16px;display:flex;gap:12px;align-items:center;animation:bob 5.5s ease-in-out infinite;animation-delay:.5s">
+<span style="width:36px;height:36px;border-radius:50%;background:var(--am);color:var(--ink);display:flex;align-items:center;justify-content:center"><i class="ti ti-check"></i></span>
+<div><p style="margin:0;font-size:15px;font-weight:600;color:var(--ink)">Order paid</p><p class="mono" style="margin:0;font-size:12px;color:var(--sl)">GH₵ 240 · MoMo</p></div></div></div>
+
+<section style="background:var(--ink);border-radius:32px;padding:48px 44px;margin:64px 0 0">
+<p id="stmt" style="font-size:34px;line-height:1.25;font-weight:600;margin:0;max-width:900px"></p></section>
+
+<div class="grid2" style="margin-top:16px">
+<div style="background:#fff;border-radius:28px;padding:14px 14px 28px">
+<div class="ph" style="height:200px;border-radius:18px;background:#E6EDF7;color:#4b6694"><i class="ti ti-photo" style="font-size:26px"></i><span class="mono">Photo: content shoot with a client</span></div>
+<div style="padding:0 14px"><p class="mono" style="font-size:12px;color:var(--cy);margin:18px 0 4px">Data Direction</p>
+<p style="font-size:26px;font-weight:600;color:var(--ink);margin:0;line-height:1.2">Content and campaigns that sell</p>
+<p style="font-size:16px;color:var(--sl);margin:8px 0 0;line-height:1.5">Planned around your real numbers, so you know which posts and ads bring in money.</p></div></div>
+<div style="background:#fff;border-radius:28px;padding:14px 14px 28px">
+<div class="ph" style="height:200px;border-radius:18px;background:#FBEFD9;color:#8a6420"><i class="ti ti-device-mobile" style="font-size:26px"></i><span class="mono">Screenshot: booking on a phone</span></div>
+<div style="padding:0 14px"><p class="mono" style="font-size:12px;color:var(--cy);margin:18px 0 4px">Pipeline Build</p>
+<p style="font-size:26px;font-weight:600;color:var(--ink);margin:0;line-height:1.2">Websites that take orders and bookings</p>
+<p style="font-size:16px;color:var(--sl);margin:8px 0 0;line-height:1.5">Online stores, booking and MoMo checkout, built around how your business runs.</p></div></div></div>
+
+<h2>Brands we've worked with</h2>
+<div class="grid3">
+<div><div style="background:#fff;border-radius:22px;padding:10px"><div class="ph" style="height:160px;border-radius:14px;background:#E9DCC7"><i class="ti ti-browser"></i><span class="mono">Site screenshot</span></div></div><p style="font-size:18px;font-weight:600;color:var(--ink);margin:10px 0 0">Nkabom World</p><p class="mono" style="font-size:12px;color:var(--sl);margin:0">Store and social</p></div>
+<div><div style="background:#fff;border-radius:22px;padding:10px"><div class="ph" style="height:160px;border-radius:14px;background:#E7C9C2"><i class="ti ti-browser"></i><span class="mono">Site screenshot</span></div></div><p style="font-size:18px;font-weight:600;color:var(--ink);margin:10px 0 0">Standout Clothing</p><p class="mono" style="font-size:12px;color:var(--sl);margin:0">Streetwear shop</p></div>
+<div><div style="background:#fff;border-radius:22px;padding:10px"><div class="ph" style="height:160px;border-radius:14px;background:#C9DDDA"><i class="ti ti-browser"></i><span class="mono">Site screenshot</span></div></div><p style="font-size:18px;font-weight:600;color:var(--ink);margin:10px 0 0">Vividel</p><p class="mono" style="font-size:12px;color:var(--sl);margin:0">Booking system</p></div></div>
+
+<h2>How we work with you</h2>
+<div class="steps-wrap" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px">
+<div id="steps"></div>
+<div style="background:var(--ink);border-radius:28px;padding:32px;display:flex;flex-direction:column;justify-content:center;min-height:280px">
+<span id="pnum" class="mono" style="font-size:12px;color:var(--am)">Step 01</span>
+<p id="ptitle" style="font-size:32px;font-weight:600;color:var(--pa);margin:8px 0;line-height:1.15;transition:opacity .3s"></p>
+<p id="pdesc" style="font-size:17px;color:rgba(245,241,232,.75);margin:0;line-height:1.5;transition:opacity .3s"></p>
+<div style="height:6px;background:rgba(245,241,232,.12);border-radius:99px;margin-top:24px;overflow:hidden"><div id="prog" style="height:100%;width:20%;background:var(--am);border-radius:99px;transition:width .6s cubic-bezier(.2,.8,.2,1)"></div></div></div></div>
+
+<section style="background:var(--ink);border-radius:32px;padding:48px 32px;margin-top:64px;text-align:center">
+<p style="font-size:40px;font-weight:700;color:var(--pa);margin:0 0 10px;line-height:1.1">Let's talk about your business</p>
+<p style="font-size:18px;color:rgba(245,241,232,.75);margin:0 0 22px">A free 30-minute call. You'll leave with a clear next step, whether you hire us or not.</p>
+<button class="pill" style="background:var(--am);color:var(--ink);padding:14px 28px">Book a discovery call</button></section>
+</div>
+<script>
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const txt="Most of our clients came to us running everything from their phone. Posting when they had time, orders buried in WhatsApp, and no idea what was working. We fix both sides: getting customers in, and making it easy for them to buy.";
+const st=document.getElementById('stmt');st.innerHTML=txt.split(' ').map(w=>'<span class="w">'+w+'</span>').join(' ');
+const words=[...st.children];
+function fill(){const r=st.getBoundingClientRect();const p=Math.min(1,Math.max(0,(innerHeight*0.85-r.top)/(r.height+innerHeight*0.4)));const n=Math.round(p*words.length);words.forEach((w,i)=>w.classList.toggle('on',reduce||i<n))}
+addEventListener('scroll',fill,{passive:true});fill();
+const S=[["Free discovery call","We look at where you are now: your page, your sales, how orders come in."],["Tailored proposal","A clear plan and price for content, a build, or both."],["Start with a deposit","For builds, 40% books you in. Retainers start month one."],["Build, post, review","We build in phases or post on a plan, and check results with you."],["Grow from there","Monthly reports show what's working, so the next move is clear."]];
+const sw=document.getElementById('steps');sw.innerHTML=S.map((s,i)=>'<div class="step" data-i="'+i+'"><span class="mono" style="font-size:12px;color:#2E5EAA">0'+(i+1)+'</span><span style="font-size:20px;font-weight:600;color:#14213D">'+s[0]+'</span></div>').join('');
+let cur=0,auto;function show(i){cur=i;[...sw.children].forEach((c,j)=>c.classList.toggle('on',j===i));const t=document.getElementById('ptitle'),d=document.getElementById('pdesc');t.style.opacity=0;d.style.opacity=0;setTimeout(()=>{t.textContent=S[i][0];d.textContent=S[i][1];document.getElementById('pnum').textContent='Step 0'+(i+1);t.style.opacity=1;d.style.opacity=1},reduce?0:250);document.getElementById('prog').style.width=((i+1)*20)+'%'}
+function start(){if(reduce)return;clearInterval(auto);auto=setInterval(()=>show((cur+1)%5),3000)}
+sw.onclick=e=>{const el=e.target.closest('.step');if(el){show(+el.dataset.i);start()}};show(0);start();
+</script>
+</body>
+</html>

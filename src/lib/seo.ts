@@ -115,7 +115,7 @@ export function buildBusinessJsonLd(input: BusinessJsonLdInput) {
     "@type": "ProfessionalService",
     "@id": BUSINESS_ID,
     name: SITE_NAME,
-    url: `${SITE_URL}/home`,
+    url: `${SITE_URL}/`,
     description: input.description,
     logo: SITE_LOGO.url,
     image: DEFAULT_OG_IMAGE,
@@ -152,7 +152,7 @@ export function buildServiceJsonLd(input: ServiceJsonLdInput) {
     description: input.description,
     url: `${SITE_URL}${input.path}`,
     areaServed: "Worldwide",
-    provider: { "@type": "ProfessionalService", "@id": BUSINESS_ID, name: SITE_NAME, url: `${SITE_URL}/home` },
+    provider: { "@type": "ProfessionalService", "@id": BUSINESS_ID, name: SITE_NAME, url: `${SITE_URL}/` },
     ...(input.packages.length
       ? {
           hasOfferCatalog: {

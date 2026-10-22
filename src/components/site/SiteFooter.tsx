@@ -15,7 +15,7 @@ export const SiteFooter: React.FC = () => {
       <div className="mx-auto max-w-[1120px] rounded-section bg-site-ink px-6 py-10 text-site-paper sm:px-11 sm:py-12">
         <div className="grid gap-10 md:grid-cols-[1.3fr_1fr_1fr_1fr]">
           <div>
-            <Link to="/home" className="inline-flex items-center gap-2 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-amber">
+            <Link to="/" className="inline-flex items-center gap-2 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-amber">
               <NodeLogo hub="#F5F1E8" node="#E8A33D" />
               <span className="text-[19px] font-semibold">{brand.name}</span>
             </Link>

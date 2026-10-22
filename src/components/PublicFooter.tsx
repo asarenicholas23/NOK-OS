@@ -12,7 +12,7 @@ export const PublicFooter: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-12 border-b border-white/5">
         {/* Col 1: Brand Info */}
         <div className="space-y-4 md:col-span-1">
-          <Link to="/home" className="flex items-center space-x-3 group">
+          <Link to="/" className="flex items-center space-x-3 group">
             <div className="w-10 h-10 rounded-xl neu-pressed flex items-center justify-center text-[#B08D57]">
               <svg width="24" height="24" viewBox="0 0 46 46" aria-hidden="true">
                 <circle cx="12" cy="23" r="5" fill="#B08D57" />
@@ -43,17 +43,17 @@ export const PublicFooter: React.FC = () => {
           </div>
           <ul className="space-y-2 text-xs text-zinc-200">
             <li>
-              <Link to="/home" className="hover:text-[#F2F0EB] transition-colors">
+              <Link to="/" className="hover:text-[#F2F0EB] transition-colors">
                 Agency Home
               </Link>
             </li>
             <li>
-              <a href="/home#brands-worked-with" className="hover:text-[#F2F0EB] transition-colors">
+              <a href="/#brands-worked-with" className="hover:text-[#F2F0EB] transition-colors">
                 Brands We've Worked With
               </a>
             </li>
             <li>
-              <a href="/home#services" className="hover:text-[#F2F0EB] transition-colors">
+              <a href="/#services" className="hover:text-[#F2F0EB] transition-colors">
                 Our Services & Pricing
               </a>
             </li>
@@ -121,7 +121,7 @@ export const PublicFooter: React.FC = () => {
           © {new Date().getFullYear()} {agencyInfo.name} • {agencyInfo.address}. All rights reserved.
         </div>
         <div className="flex items-center space-x-4">
-          <Link to="/home" className="hover:text-[#F2F0EB]">Home</Link>
+          <Link to="/" className="hover:text-[#F2F0EB]">Home</Link>
           <Link to="/blog" className="hover:text-[#F2F0EB]">Blog</Link>
           <Link to="/ighealthcheck" className="hover:text-[#F2F0EB]">Audit</Link>
         </div>

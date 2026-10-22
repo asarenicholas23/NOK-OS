@@ -45,7 +45,7 @@ export const SiteNavbar: React.FC = () => {
 
       <div className="flex items-center justify-between gap-3">
         <Link
-          to="/home"
+          to="/"
           className="flex items-center gap-2 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype"
         >
           <NodeLogo />

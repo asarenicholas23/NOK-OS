@@ -40,7 +40,7 @@ export const LoginScreen: React.FC = () => {
       {/* Back to Public Site link */}
       <div className="absolute top-6 left-6 z-20">
         <Link
-          to="/home"
+          to="/"
           className="neu-raised-sm px-4 py-2 rounded-xl text-xs font-mono text-[#8A8A93] hover:text-[#F2F0EB] inline-flex items-center space-x-2 transition-all cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />

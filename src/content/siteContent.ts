@@ -26,7 +26,7 @@ export const contact = {
 
 export const nav = {
   links: [
-    { label: "Work", to: "/home#work" },
+    { label: "Work", to: "/#work" },
     { label: "Services", to: "/services" },
     { label: "About", to: "/about" },
     { label: "Blog", to: "/blog" },
@@ -47,8 +47,8 @@ export const footer = {
   ],
   pagesTitle: "Pages",
   pages: [
-    { label: "Home", to: "/home" },
-    { label: "Work", to: "/home#work" },
+    { label: "Home", to: "/" },
+    { label: "Work", to: "/#work" },
     { label: "Services", to: "/services" },
     { label: "About", to: "/about" },
     { label: "Blog", to: "/blog" },
@@ -138,10 +138,12 @@ export const booking = {
 export const home = {
   seo: {
     // DRAFT: page title and meta description for search and link previews.
-    title: "N.O.K Social | Marketing strategies, campaigns and websites for growing businesses",
+    // DRAFT (≤60 characters)
+    title: "N.O.K Social | Marketing and websites that bring customers",
     // DRAFT
     description:
-      "We plan your content, run your ads and build the website behind them, so more people find your business and more of them pay.",
+      // DRAFT: keyword "digital marketing agency in Ghana"
+      "N.O.K Social is a digital marketing agency in Ghana. We plan your content, run your ads and build the website behind them, for businesses anywhere.",
   },
 
   hero: {
@@ -263,7 +265,8 @@ export const home = {
   },
 
   faq: {
-    title: "Questions we get asked",
+    // DRAFT: keyword subheading
+    title: "Questions about our digital marketing agency in Ghana",
     // DRAFT
     asideTitle: "Still have a question?",
     // DRAFT
@@ -374,7 +377,8 @@ export const servicesHub = {
 export const marketingPage = {
   seo: {
     // DRAFT
-    title: "Marketing: content and campaigns that sell | N.O.K Social",
+    // DRAFT: keyword "digital marketing agency in Ghana"
+    title: "Digital marketing agency in Ghana | N.O.K Social",
     // DRAFT
     description: "Content, social media and ad campaigns planned around your real numbers, so you know which posts and ads bring in money. Four stages, from brand foundation to monthly growth.",
   },
@@ -412,7 +416,8 @@ export const marketingPage = {
     caption: "A live analytics view in NOK OS.",
   },
   faq: {
-    title: "Questions about our marketing",
+    // DRAFT: keyword subheading
+    title: "Choosing a digital marketing agency in Ghana: your questions",
     items: (services: ServicePackage[], deposit: number): FAQItem[] => {
       const social = services.filter((s) => s.category !== "website");
       return [
@@ -442,9 +447,11 @@ export const marketingPage = {
 export const websitesPage = {
   seo: {
     // DRAFT
-    title: "Websites and business toolkits | N.O.K Social",
+    // DRAFT: keyword "website developers in Ghana"
+    title: "Website developers in Ghana | N.O.K Social",
     // DRAFT
-    description: "Custom websites that take bookings, orders and payments with MoMo and card, and collect your customer data. Not ready for a full site? Start with an affordable business toolkit.",
+    // DRAFT: keyword "website developers in Ghana"
+    description: "Website developers in Ghana. We build custom sites that take bookings, orders and MoMo or card payments, and collect your customer data.",
   },
   tag: "Websites",
   // DRAFT
@@ -458,7 +465,8 @@ export const websitesPage = {
     text: "Orders come in through DMs, WhatsApp and calls. Some get answered late, some get lost, and it's hard to tell who has paid. A good website answers, books and takes payment for you, and remembers every customer, even while you sleep.",
   },
   build: {
-    title: "What we build",
+    // DRAFT: keyword subheading
+    title: "What we build as website developers in Ghana",
     // DRAFT
     intro: "One project or a mix. Every build is scoped to what your business actually needs.",
     // Carried over from the current website-builds page.
@@ -686,7 +694,8 @@ export const about = {
 export const blog = {
   seo: {
     // DRAFT
-    title: "Blog | N.O.K Social",
+    // DRAFT (≤60 characters)
+    title: "Marketing and website advice for Ghana | N.O.K Social",
     // DRAFT
     description: "Practical guides on social media, campaigns, websites and running a small business, from N.O.K Social.",
   },

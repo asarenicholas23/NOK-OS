@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Send, Loader2, CheckCircle2 } from "lucide-react";
-import { db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { loadFirebase } from "../lib/loadFirebase";
 import { freeTools } from "../content/siteContent";
 
 const LEAD_EMAIL_STORAGE_KEY = "nok_lead_email";
@@ -45,6 +44,8 @@ export const ResourceCaptureForm: React.FC<ResourceCaptureFormProps> = ({
     setSubmitting(true);
     setError("");
     try {
+      // Firebase loads on submit, so the page itself doesn't download it.
+      const [{ db }, { collection, addDoc, serverTimestamp }] = await Promise.all([loadFirebase(), import("firebase/firestore")]);
       await addDoc(collection(db, "leads"), {
         name,
         email,

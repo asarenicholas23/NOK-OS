@@ -4,7 +4,7 @@
  * drift out of sync with each other.
  */
 import { initializeApp } from "firebase/app";
-import { collection, getDocs, getFirestore } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, getFirestore, orderBy, query } from "firebase/firestore";
 
 // Same public (non-secret) config the browser bundle ships with — reading
 // blogPosts is allowed for anyone per firestore.rules, so no service
@@ -24,9 +24,11 @@ export interface BuildTimeBlogPost {
   date: string;
 }
 
+let buildDb: ReturnType<typeof getFirestore> | null = null;
+const getBuildDb = () => (buildDb ??= getFirestore(initializeApp(firebaseConfig, "build-scripts")));
+
 export async function fetchBlogPosts(): Promise<BuildTimeBlogPost[]> {
-  const app = initializeApp(firebaseConfig, "build-scripts");
-  const db = getFirestore(app);
+  const db = getBuildDb();
   const snapshot = await getDocs(collection(db, "blogPosts"));
   const posts: BuildTimeBlogPost[] = [];
   snapshot.forEach((d) => {
@@ -36,4 +38,31 @@ export async function fetchBlogPosts(): Promise<BuildTimeBlogPost[]> {
     }
   });
   return posts;
+}
+
+/**
+ * The public CMS data the site reads at runtime (blog posts, client brands,
+ * call settings), in the same shape the app's live subscriptions produce.
+ * The prerender hands it to each page, so pages render real content without
+ * opening their own database connection during the build. Every field here
+ * is publicly readable per firestore.rules.
+ */
+export interface CmsSnapshot {
+  blogPosts: Record<string, unknown>[];
+  clientBrands: Record<string, unknown>[];
+  callAvailability: Record<string, unknown> | null;
+}
+
+export async function fetchCmsSnapshot(): Promise<CmsSnapshot> {
+  const db = getBuildDb();
+  const [posts, brands, call] = await Promise.all([
+    getDocs(query(collection(db, "blogPosts"), orderBy("createdAt", "desc"))),
+    getDocs(collection(db, "clientBrands")),
+    getDoc(doc(db, "cms", "callAvailability")),
+  ]);
+  return {
+    blogPosts: posts.docs.map((d) => ({ ...d.data(), id: d.id })),
+    clientBrands: brands.docs.map((d) => ({ ...d.data(), id: d.id })),
+    callAvailability: call.exists() ? (call.data() as Record<string, unknown>) : null,
+  };
 }

@@ -25,7 +25,7 @@ const NotSure: React.FC = () => {
 export const ServicesHubPage: React.FC = () => (
   <SiteShell>
     <SEO title={servicesHub.seo.title} description={servicesHub.seo.description} path="/services" image={ogImage("services")} />
-    <Breadcrumbs currentPath="/services" items={[{ label: crumbs.home, to: "/home" }, { label: crumbs.services }]} />
+    <Breadcrumbs currentPath="/services" items={[{ label: crumbs.home, to: "/" }, { label: crumbs.services }]} />
     <PageHero tight title={servicesHub.title} subtitle={servicesHub.intro} />
     <Container className="mt-12">
       <ServiceLineCards large titleAs="h2" />

@@ -46,9 +46,8 @@ export default defineConfig(() => {
               if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) {
                 return 'react-vendor';
               }
-              if (id.includes('firebase')) {
-                return 'firebase-vendor';
-              }
+              // Firebase isn't grouped: the database, auth and analytics each
+              // load only where they're used (see src/lib/loadFirebase.ts).
               if (id.includes('react-markdown')) {
                 return 'markdown-vendor';
               }

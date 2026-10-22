@@ -161,7 +161,7 @@ const WebsitesContent: React.FC = () => {
       />
       <Breadcrumbs
         currentPath="/services/websites"
-        items={[{ label: crumbs.home, to: "/home" }, { label: crumbs.services, to: "/services" }, { label: pb.tag }]}
+        items={[{ label: crumbs.home, to: "/" }, { label: crumbs.services, to: "/services" }, { label: pb.tag }]}
       />
       <PageHero
         tight

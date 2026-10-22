@@ -6,6 +6,16 @@
       "cleanUrls": true,
       "redirects": [
         {
+          "source": "/home",
+          "destination": "/",
+          "type": 301
+        },
+        {
+          "source": "/home.html",
+          "destination": "/",
+          "type": 301
+        },
+        {
           "source": "/website-builds",
           "destination": "/services/websites",
           "type": 301
@@ -26,7 +36,7 @@
       "rewrites": [
         {
           "source": "**",
-          "destination": "/index.html"
+          "destination": "/app.html"
         }
       ],
       "headers": [

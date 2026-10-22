@@ -75,7 +75,7 @@ export const ResourcesPage: React.FC = () => {
   return (
     <SiteShell>
       <SEO title={t.seo.title} description={t.seo.description} path="/resources" image={ogImage("resources")} />
-      <Breadcrumbs currentPath="/resources" items={[{ label: crumbs.home, to: "/home" }, { label: t.crumb }]} />
+      <Breadcrumbs currentPath="/resources" items={[{ label: crumbs.home, to: "/" }, { label: t.crumb }]} />
       <PageHero tight title={t.title} subtitle={t.intro} />
 
       <Container className="mt-12">

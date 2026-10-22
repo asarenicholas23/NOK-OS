@@ -28,7 +28,7 @@ interface SiteShellProps {
 
 /**
  * On page change: scroll to the #section in the URL once it has rendered
- * (e.g. "/home#work" from another page), otherwise to the top.
+ * (e.g. "/#work" from another page), otherwise to the top.
  */
 const useScrollOnNavigate = () => {
   const { pathname, hash } = useLocation();

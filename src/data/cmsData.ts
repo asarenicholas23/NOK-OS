@@ -12,6 +12,8 @@ export interface BlogPost {
   excerpt: string;
   content: string[];
   coverImage?: string;
+  /** Optional shorter title for the browser tab and Google. Falls back to `title`. */
+  seoTitle?: string;
 }
 
 export interface ServicePackage {
