@@ -1,17 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useCms } from "../context/CmsContext";
-import { useTheme } from "../context/ThemeContext";
-import { Mail, Phone, MapPin, Sun, Moon } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 
 export const PublicFooter: React.FC = () => {
   const { agencyInfo } = useCms();
-  const { theme, setTheme } = useTheme();
   const cleanWhatsapp = agencyInfo.whatsapp.replace(/[^0-9+]/g, "");
-
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
 
   return (
     <footer className="px-4 sm:px-8 pt-16 pb-12 max-w-7xl mx-auto border-t border-[#1C1C22]">
@@ -121,29 +115,12 @@ export const PublicFooter: React.FC = () => {
         </div>
       </div>
 
-      {/* Copyright & Theme Toggle */}
+      {/* Copyright */}
       <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs font-mono text-zinc-200 gap-4">
         <div>
           © {new Date().getFullYear()} {agencyInfo.name} • {agencyInfo.address}. All rights reserved.
         </div>
         <div className="flex items-center space-x-4">
-          <button
-            onClick={toggleTheme}
-            className="neu-raised-sm px-2.5 py-1 rounded-lg text-xs flex items-center space-x-1.5 hover:text-[#B08D57] cursor-pointer"
-            aria-label="Toggle Day and Night mode"
-          >
-            {theme === "dark" ? (
-              <>
-                <Sun className="w-3 h-3 text-[#C5A065]" />
-                <span>Day Mode (Cream)</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-3 h-3 text-[#8C6428]" />
-                <span>Night Mode (Dark)</span>
-              </>
-            )}
-          </button>
           <Link to="/home" className="hover:text-[#F2F0EB]">Home</Link>
           <Link to="/blog" className="hover:text-[#F2F0EB]">Blog</Link>
           <Link to="/ighealthcheck" className="hover:text-[#F2F0EB]">Audit</Link>

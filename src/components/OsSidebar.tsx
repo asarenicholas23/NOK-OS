@@ -115,7 +115,7 @@ export const OsSidebar: React.FC<OsSidebarProps> = ({ activeView, onNavigate, co
       </div>
       <div className={collapsed ? "lg:hidden" : ""}>
         <div className="font-display font-bold text-[15px] leading-none text-[var(--fin-ink)]">NOK OS</div>
-        <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--fin-faint)] mt-1">NOK Social</div>
+        <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--fin-faint)] mt-1">N.O.K Social</div>
       </div>
     </div>
   );

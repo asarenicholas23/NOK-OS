@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { X, CheckCircle2, Send, MessageSquare, CalendarClock, Loader2, AlertTriangle } from "lucide-react";
 import { useCms } from "../context/CmsContext";
+import { booking as t } from "../content/siteContent";
 import { db, subscribeToTakenSlots } from "../lib/firebase";
 import {
   generateSlotIds,
@@ -14,6 +15,7 @@ import {
 interface ServiceItem {
   title: string;
   ghsPrice: string;
+  featured?: boolean;
 }
 
 interface DiscoveryModalProps {
@@ -40,7 +42,8 @@ export const DiscoveryModal: React.FC<DiscoveryModalProps> = ({
     name: "",
     email: "",
     businessName: "",
-    serviceTier: serviceTier || "Growth Retainer",
+    // Default to the "most picked" package when nothing is preselected.
+    serviceTier: serviceTier || (services.find((s) => s.featured) ?? services[0])?.title || "",
     notes: "",
   });
 
@@ -71,9 +74,27 @@ export const DiscoveryModal: React.FC<DiscoveryModalProps> = ({
   useEffect(() => {
     if (selectedSlot && takenSlots.has(selectedSlot) && !submitting && !submitted) {
       setSelectedSlot(null);
-      setError("Sorry, that time was just booked by someone else. Please pick another.");
+      setError(t.errors.slotTaken);
     }
   }, [takenSlots, selectedSlot, submitting, submitted]);
+
+  // Dialog behaviour: Escape closes, focus moves into the dialog on open and
+  // back to whatever opened it on close.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const fid = useId();
+  useEffect(() => {
+    if (!isOpen) return;
+    const opener = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeModal();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      opener?.focus?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -96,7 +117,7 @@ export const DiscoveryModal: React.FC<DiscoveryModalProps> = ({
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.businessName) return;
     if (!selectedSlot && !noSlotsAvailable) {
-      setError("Please choose a time for your call.");
+      setError(t.errors.chooseTime);
       return;
     }
 
@@ -124,12 +145,12 @@ export const DiscoveryModal: React.FC<DiscoveryModalProps> = ({
     } catch (err) {
       console.error("Discovery call booking failed:", err);
       if (timedOut) {
-        setError("This is taking longer than usual. Your connection may be down. Your booking may still go through once you're back online; if you don't hear from us, message us on WhatsApp.");
+        setError(t.errors.timeout);
       } else if (selectedSlot && (await isSlotTakenOnServer(selectedSlot))) {
         setSelectedSlot(null);
-        setError("Sorry, that time was just booked by someone else. Please pick another.");
+        setError(t.errors.slotTaken);
       } else {
-        setError("We couldn't save your booking. Please check your connection and try again, or message us on WhatsApp.");
+        setError(t.errors.failed);
       }
     } finally {
       setSubmitting(false);
@@ -138,204 +159,244 @@ export const DiscoveryModal: React.FC<DiscoveryModalProps> = ({
 
   const getWhatsappUrl = (booked: boolean) => {
     const rawPhone = (agencyInfo.whatsapp || "+233235337886").replace(/[^0-9]/g, "");
-    const intro = booked
-      ? "Hello NOK Social! I just booked a Discovery Call on your website."
-      : "Hello NOK Social! I tried to book a Discovery Call on your website but it didn't go through.";
+    const intro = booked ? t.whatsappMessage.booked : t.whatsappMessage.failed;
     const time = selectedSlot ? `\n*Call time:* ${formatSlotFull(selectedSlot)}` : "";
     const message = `${intro}\n\n*Name:* ${formData.name}\n*Brand:* ${formData.businessName}\n*Email:* ${formData.email}\n*Service Tier:* ${formData.serviceTier}${time}\n*Goals:* ${formData.notes || "N/A"}`;
     return `https://wa.me/${rawPhone}?text=${encodeURIComponent(message)}`;
   };
 
+  const field =
+    "w-full rounded-frame bg-site-paper px-4 py-3 text-base text-site-graphite placeholder:text-site-slate/70 outline-none ring-site-cyanotype focus-visible:ring-2";
+  const label = "mb-1.5 block text-[15px] font-semibold text-site-ink";
+  const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const req = <span className="text-site-slate font-normal"> ({t.required})</span>;
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-3xl neu-raised-lg p-6 sm:p-8 relative space-y-6 animate-in fade-in zoom-in-95 duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-site-ink/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && closeModal()}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-card bg-white p-6 font-site text-site-graphite outline-none sm:rounded-card sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-300 motion-reduce:animate-none"
+      >
         <button
+          type="button"
           onClick={closeModal}
-          className="absolute top-6 right-6 p-2 rounded-xl neu-raised text-zinc-200 hover:text-[#F2F0EB] cursor-pointer"
-          aria-label="Close modal"
+          className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-site-paper text-site-ink cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype"
+          aria-label={t.close}
         >
-          <X className="w-4 h-4" />
+          <X className="h-4 w-4" />
         </button>
 
         {submitted ? (
-          <div className="text-center py-8 space-y-4">
-            <div className="w-14 h-14 rounded-2xl neu-pressed text-[#B08D57] mx-auto flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8 text-[#B08D57]" />
+          <div className="space-y-4 py-4 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-site-amber text-site-ink">
+              <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
             </div>
-            <h3 className="font-display text-xl font-bold text-[#F2F0EB]">
-              {selectedSlot ? "Discovery Call Booked!" : "Request Received!"}
-            </h3>
-            <p className="text-xs text-zinc-200 max-w-sm mx-auto leading-relaxed">
-              Thank you, <span className="text-[#F2F0EB] font-semibold">{formData.name}</span>.{" "}
+            <h2 id={titleId} className="text-2xl font-bold text-site-ink">
+              {selectedSlot ? t.done.titleBooked : t.done.titleRequested}
+            </h2>
+            <p className="mx-auto max-w-sm text-base leading-relaxed text-site-slate">
+              {t.done.thanks} <span className="font-semibold text-site-ink">{formData.name}</span>.{" "}
               {selectedSlot ? (
                 <>
-                  Your call is booked for{" "}
-                  <span className="text-[#B08D57] font-semibold">{formatSlotFull(selectedSlot)}</span>
-                  {showLocalTime && <> ({formatSlotTime(selectedSlot, Intl.DateTimeFormat().resolvedOptions().timeZone)} your time)</>}.
-                  We'll send the call details to {formData.email}.
+                  {t.done.bookedFor} <span className="font-semibold text-site-ink">{formatSlotFull(selectedSlot)}</span>
+                  {showLocalTime && <> ({formatSlotTime(selectedSlot, localTz)} {t.yourTime})</>}. {t.done.detailsTo} {formData.email}.
                 </>
               ) : (
-                <>We'll reach out to {formData.email} to arrange a time for your call.</>
+                <>
+                  {t.done.willReachOut} {formData.email} {t.done.willReachOutEnd}
+                </>
               )}
             </p>
 
-            <div className="p-4 rounded-2xl neu-pressed bg-[#111115] border border-emerald-500/20 text-left space-y-2">
-              <div className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider flex items-center space-x-1">
-                <span>✓ Instant WhatsApp Connect</span>
-              </div>
-              <p className="text-[11px] text-zinc-300">
-                Want an immediate response? Connect directly with our lead strategist on WhatsApp right now:
-              </p>
+            <div className="rounded-frame bg-site-paper p-4 text-left">
+              <p className="font-semibold text-site-ink">{t.done.whatsappTitle}</p>
+              <p className="mt-1 text-[15px] text-site-slate">{t.done.whatsappBody}</p>
               <a
                 href={getWhatsappUrl(true)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center space-x-2 transition-colors cursor-pointer mt-2"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-site-ink px-5 py-3 font-semibold text-site-paper cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype focus-visible:ring-offset-2"
               >
-                <MessageSquare className="w-4 h-4" />
-                <span>Chat Directly on WhatsApp</span>
+                <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                {t.done.whatsappButton}
               </a>
             </div>
 
             <button
+              type="button"
               onClick={closeModal}
-              className="neu-gold-btn px-6 py-2.5 rounded-xl text-xs font-bold font-mono cursor-pointer mt-2"
+              className="rounded-full bg-site-paper px-6 py-3 font-semibold text-site-ink cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype"
             >
-              Close Window
+              {t.done.closeButton}
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <div className="text-xs font-mono text-[#B08D57] uppercase tracking-wider font-semibold">NOK Social Agency</div>
-              <h3 className="font-display text-xl font-bold text-[#F2F0EB]">Book a Discovery Call</h3>
-              <p className="text-xs text-zinc-200 mt-1">
-                A free {callAvailability.slotMinutes}-minute call to understand your brand. We'll follow up with a tailored proposal.
-              </p>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="pr-12">
+              <h2 id={titleId} className="text-2xl font-bold leading-tight text-site-ink sm:text-[28px]">
+                {t.title}
+              </h2>
+              <p className="mt-1.5 text-base leading-normal text-site-slate">{t.intro(callAvailability.slotMinutes)}</p>
             </div>
 
             {/* Call time picker */}
-            <div className="space-y-2 pt-2">
-              <label className="flex items-center space-x-1.5 text-[10px] font-mono uppercase text-zinc-200">
-                <CalendarClock className="w-3.5 h-3.5 text-[#B08D57]" />
-                <span>Choose a Call Time * <span className="normal-case text-zinc-400">(Ghana time, GMT)</span></span>
-              </label>
+            <fieldset className="min-w-0 space-y-2.5">
+              <legend className={`${label} flex items-center gap-1.5`}>
+                <CalendarClock className="h-4 w-4 text-site-cyanotype" aria-hidden="true" />
+                <span>
+                  {t.timeLabel} <span className="font-normal text-site-slate">· {t.timeZoneNote}</span>
+                </span>
+              </legend>
 
               {noSlotsAvailable ? (
-                <p className="p-3 rounded-xl neu-pressed text-[11px] text-zinc-300">
-                  No call times are open right now. Send your details and we'll reach out to arrange one.
-                </p>
+                <p className="rounded-frame bg-site-paper p-3 text-[15px] text-site-slate">{t.noSlots}</p>
               ) : (
                 <>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
+                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {days.map((day) => (
                       <button
                         key={day}
                         type="button"
+                        aria-pressed={activeDay === day}
                         onClick={() => setSelectedDay(day)}
-                        className={`px-3 py-2 rounded-xl text-[11px] font-mono font-semibold shrink-0 cursor-pointer transition-all ${
-                          activeDay === day ? "bg-[#B08D57] text-[#111115]" : "neu-raised text-zinc-200 hover:text-[#F2F0EB]"
+                        className={`shrink-0 rounded-full px-4 py-2 font-mono text-[13px] cursor-pointer transition-colors duration-300 ease-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype ${
+                          activeDay === day ? "bg-site-ink text-site-paper" : "bg-site-paper text-site-ink hover:bg-[#ece6d8]"
                         }`}
                       >
                         {formatSlotDay(slotsByDay.get(day)![0])}
                       </button>
                     ))}
                   </div>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {activeDay && slotsByDay.get(activeDay)!.map((id) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedSlot(id);
-                          setError(null);
-                        }}
-                        className={`py-2 rounded-xl text-[11px] font-mono font-semibold cursor-pointer transition-all ${
-                          selectedSlot === id ? "bg-[#B08D57] text-[#111115]" : "neu-pressed-deep text-[#F2F0EB] hover:ring-1 hover:ring-[#B08D57]"
-                        }`}
-                      >
-                        {formatSlotTime(id)}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {activeDay &&
+                      slotsByDay.get(activeDay)!.map((id) => (
+                        <button
+                          key={id}
+                          type="button"
+                          aria-pressed={selectedSlot === id}
+                          onClick={() => {
+                            setSelectedSlot(id);
+                            setError(null);
+                          }}
+                          className={`rounded-full py-2 font-mono text-[13px] cursor-pointer transition-colors duration-300 ease-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype ${
+                            selectedSlot === id ? "bg-site-amber text-site-ink" : "bg-site-paper text-site-ink hover:bg-[#ece6d8]"
+                          }`}
+                        >
+                          {formatSlotTime(id)}
+                        </button>
+                      ))}
                   </div>
                   {selectedSlot && (
-                    <p className="text-[11px] text-[#B08D57] font-mono">
-                      Selected: {formatSlotFull(selectedSlot)}
+                    <p className="text-[15px] text-site-ink" aria-live="polite">
+                      {t.selected} <span className="font-mono text-sm">{formatSlotFull(selectedSlot)}</span>
                       {showLocalTime && (
-                        <span className="text-zinc-400"> · {formatSlotTime(selectedSlot, Intl.DateTimeFormat().resolvedOptions().timeZone)} your time</span>
+                        <span className="text-site-slate">
+                          {" "}
+                          · {formatSlotTime(selectedSlot, localTz)} {t.yourTime}
+                        </span>
                       )}
                     </p>
                   )}
                 </>
               )}
-            </div>
+            </fieldset>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-mono uppercase text-zinc-200 mb-1">Your Full Name *</label>
+                <label htmlFor={`${fid}-name`} className={label}>
+                  {t.nameLabel}
+                  {req}
+                </label>
                 <input
+                  id={`${fid}-name`}
                   type="text"
                   required
-                  placeholder="e.g. Ama Osei"
+                  autoComplete="name"
+                  placeholder={t.namePlaceholder}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
+                  className={field}
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono uppercase text-zinc-200 mb-1">Email Address *</label>
+                <label htmlFor={`${fid}-email`} className={label}>
+                  {t.emailLabel}
+                  {req}
+                </label>
                 <input
+                  id={`${fid}-email`}
                   type="email"
                   required
-                  placeholder="e.g. ama@brand.com"
+                  autoComplete="email"
+                  placeholder={t.emailPlaceholder}
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
+                  className={field}
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono uppercase text-zinc-200 mb-1">Business or Brand Name *</label>
+                <label htmlFor={`${fid}-biz`} className={label}>
+                  {t.businessLabel}
+                  {req}
+                </label>
                 <input
+                  id={`${fid}-biz`}
                   type="text"
                   required
-                  placeholder="e.g. Osu Vintage Kicks"
+                  autoComplete="organization"
+                  placeholder={t.businessPlaceholder}
                   value={formData.businessName}
                   onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
+                  className={field}
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono uppercase text-zinc-200 mb-1">Service You're Interested In</label>
+                <label htmlFor={`${fid}-service`} className={label}>
+                  {t.serviceLabel}
+                </label>
                 <select
+                  id={`${fid}-service`}
                   value={formData.serviceTier}
                   onChange={(e) => setFormData({ ...formData, serviceTier: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] bg-[#121216] outline-none focus:ring-1 focus:ring-[#B08D57]"
+                  className={`${field} cursor-pointer`}
                 >
                   {services.map((s, i) => (
-                    <option key={i} value={s.title}>{s.title} ({s.ghsPrice})</option>
+                    <option key={i} value={s.title}>
+                      {s.title} ({s.ghsPrice})
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono uppercase text-zinc-200 mb-1">Primary Goal / Notes</label>
+                <label htmlFor={`${fid}-notes`} className={label}>
+                  {t.notesLabel}
+                </label>
                 <textarea
+                  id={`${fid}-notes`}
                   rows={3}
-                  placeholder="Tell us about your target channels or campaign goals..."
+                  placeholder={t.notesPlaceholder}
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
+                  className={`${field} resize-none`}
                 />
               </div>
             </div>
 
             {error && (
-              <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-[11px] text-rose-200 space-y-2">
-                <div className="flex items-start space-x-2">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <div role="alert" className="space-y-2 rounded-frame bg-[#FBE9E7] p-3.5 text-[15px] text-[#8A2B1E]">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                   <span>{error}</span>
                 </div>
                 {formData.name && formData.email && (
@@ -343,10 +404,10 @@ export const DiscoveryModal: React.FC<DiscoveryModalProps> = ({
                     href={getWhatsappUrl(false)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center space-x-1.5 text-emerald-300 hover:text-emerald-200 font-semibold"
+                    className="inline-flex items-center gap-1.5 font-semibold underline"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span>Send your details on WhatsApp instead</span>
+                    <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                    {t.whatsappInstead}
                   </a>
                 )}
               </div>
@@ -355,10 +416,10 @@ export const DiscoveryModal: React.FC<DiscoveryModalProps> = ({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 rounded-xl neu-gold-filled text-xs font-bold flex items-center justify-center space-x-2 cursor-pointer shadow-md mt-4 disabled:opacity-60 disabled:cursor-wait"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-site-amber px-6 py-3.5 text-base font-semibold text-site-ink cursor-pointer transition-[filter] hover:brightness-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
             >
-              {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              <span>{submitting ? "Booking…" : selectedSlot || noSlotsAvailable ? "Book My Discovery Call" : "Choose a Time Above"}</span>
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+              <span>{submitting ? t.submitting : selectedSlot || noSlotsAvailable ? t.submit : t.chooseTime}</span>
             </button>
           </form>
         )}

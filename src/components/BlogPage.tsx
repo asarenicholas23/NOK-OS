@@ -1,211 +1,223 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { PublicNavbar } from "./PublicNavbar";
-import { PublicFooter } from "./PublicFooter";
+import { ArrowRight, Search, Share2 } from "lucide-react";
 import { useCms } from "../context/CmsContext";
-import { BlogPost } from "../data/cmsData";
-import { Search, Calendar, Clock, ArrowRight, BookOpen, Share2 } from "lucide-react";
+import type { BlogPost } from "../data/cmsData";
+import { BLOG_CATEGORIES, blogCategory, postTitle, sortByPublishDate } from "../content/blog";
+import { blog, crumbs } from "../content/siteContent";
 import { shareArticle } from "../utils/share";
+import { SITE_URL, ogImage } from "../lib/seo";
 import { SEO } from "./SEO";
-import { SITE_URL } from "../lib/seo";
+import { Breadcrumbs, Container, FreeToolsStrip, ImageSlot, Reveal, SiteShell } from "./site";
 
-export const BlogPage: React.FC = () => {
-  const { blogPosts } = useCms();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [shareToast, setShareToast] = useState<string | null>(null);
-
-  const handleShare = async (post: BlogPost) => {
-    const url = `${SITE_URL}/blog/${post.slug}`;
-    const result = await shareArticle({ title: post.title, text: post.excerpt, url });
-    if (result === "copied") {
-      setShareToast("Link copied to clipboard!");
-      setTimeout(() => setShareToast(null), 2500);
-    } else if (result === "failed") {
-      setShareToast("Couldn't copy the link — please copy it from the address bar.");
-      setTimeout(() => setShareToast(null), 3000);
+/** Share via the device share sheet, or copy the link; reports back for a toast. */
+export const useShareToast = () => {
+  const [toast, setToast] = useState<string | null>(null);
+  const share = async (post: BlogPost) => {
+    const result = await shareArticle({ title: postTitle(post), text: post.excerpt, url: `${SITE_URL}/blog/${post.slug}` });
+    if (result === "copied" || result === "failed") {
+      setToast(result === "copied" ? blog.copied : blog.copyFailed);
+      setTimeout(() => setToast(null), 2800);
     }
   };
+  const node = toast ? (
+    <div role="status" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-site-ink px-5 py-2.5 text-[15px] text-site-paper shadow-lg">
+      {toast}
+    </div>
+  ) : null;
+  return { share, toastNode: node };
+};
 
-  const categories = ["All", ...Array.from(new Set(blogPosts.map((p) => p.category)))];
+export const Cover: React.FC<{ post: BlogPost; aspect?: string; priority?: boolean; className?: string }> = ({
+  post,
+  aspect = "16 / 9",
+  priority = false,
+  className = "",
+}) =>
+  post.coverImage ? (
+    <div className={`relative overflow-hidden rounded-frame bg-[#E9DCC7] ${className}`} style={{ aspectRatio: aspect }}>
+      <img
+        src={post.coverImage}
+        alt=""
+        width={800}
+        height={450}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+        {...(priority ? { fetchPriority: "high" as const } : {})}
+        referrerPolicy="no-referrer"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+    </div>
+  ) : (
+    <ImageSlot label="Cover image" aspect={aspect} className={className} />
+  );
 
-  const filteredPosts = blogPosts.filter((post) => {
-    const matchesSearch =
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || post.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+const Meta: React.FC<{ post: BlogPost; className?: string }> = ({ post, className = "" }) => (
+  <p className={`text-[15px] text-site-slate ${className}`}>
+    {post.date} · {post.readTime}
+  </p>
+);
+
+const PostCard: React.FC<{ post: BlogPost; onShare: (p: BlogPost) => void }> = ({ post, onShare }) => (
+  <article className="flex h-full flex-col rounded-card bg-white p-3.5 pb-6">
+    <Link to={`/blog/${post.slug}`} tabIndex={-1} aria-hidden="true">
+      <Cover post={post} />
+    </Link>
+    <div className="flex flex-1 flex-col px-3.5 pt-[18px]">
+      <p className="font-mono text-xs text-site-cyanotype">{blogCategory(post)}</p>
+      <h2 className="mt-1 text-[22px] font-semibold leading-tight text-site-ink">
+        <Link to={`/blog/${post.slug}`} className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype">
+          {postTitle(post)}
+        </Link>
+      </h2>
+      <p className="mt-2 line-clamp-3 text-base leading-normal text-site-slate">{post.excerpt}</p>
+      <div className="mt-auto flex items-center justify-between gap-3 pt-5">
+        <Meta post={post} />
+        <button
+          type="button"
+          onClick={() => onShare(post)}
+          aria-label={`${blog.share}: ${postTitle(post)}`}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-site-paper text-site-ink cursor-pointer hover:bg-[#ece6d8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype"
+        >
+          <Share2 className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  </article>
+);
+
+const Featured: React.FC<{ post: BlogPost }> = ({ post }) => (
+  <Reveal>
+    <article className="grid gap-6 rounded-card bg-white p-3.5 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] md:items-center md:gap-8 md:p-4">
+      <Link to={`/blog/${post.slug}`} tabIndex={-1} aria-hidden="true">
+        <Cover post={post} priority />
+      </Link>
+      <div className="px-3.5 pb-5 md:px-2 md:pb-0 md:pr-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-site-amber px-3 py-1 text-[13px] font-semibold text-site-ink">{blog.latest}</span>
+          <span className="font-mono text-xs text-site-cyanotype">{blogCategory(post)}</span>
+        </div>
+        <h2 className="mt-3 text-[28px] font-bold leading-[1.1] text-site-ink sm:text-[34px]">
+          <Link to={`/blog/${post.slug}`} className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype">
+            {postTitle(post)}
+          </Link>
+        </h2>
+        <p className="mt-3 text-lg leading-normal text-site-slate">{post.excerpt}</p>
+        <Meta post={post} className="mt-4" />
+        <Link
+          to={`/blog/${post.slug}`}
+          className="mt-5 inline-flex items-center gap-1.5 rounded-full font-semibold text-site-cyanotype hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype"
+        >
+          {blog.readArticle}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
+    </article>
+  </Reveal>
+);
+
+const BlogIndex: React.FC = () => {
+  const { blogPosts, blogPostsReady } = useCms();
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<string>(blog.all);
+  const { share, toastNode } = useShareToast();
+
+  const posts = useMemo(() => sortByPublishDate(blogPosts), [blogPosts]);
+  const filtering = category !== blog.all || query.trim() !== "";
+  const q = query.trim().toLowerCase();
+  const filtered = posts.filter(
+    (p) =>
+      (category === blog.all || blogCategory(p) === category) &&
+      (!q || postTitle(p).toLowerCase().includes(q) || p.excerpt.toLowerCase().includes(q)),
+  );
+  const [featured, ...rest] = filtering ? [undefined, ...filtered] : filtered;
 
   return (
-    <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
-      <SEO
-        title="NOK Social Growth Blog | Sales Funnels, Landing Pages & Social Commerce"
-        description="In-depth tactical guides on sales funnels, email sequences, landing page optimization, and West African social commerce from NOK Social."
-        path="/blog"
-      />
-      <PublicNavbar />
+    <>
+      <SEO title={blog.seo.title} description={blog.seo.description} path="/blog" image={ogImage("blog")} />
+      <Breadcrumbs currentPath="/blog" items={[{ label: crumbs.home, to: "/home" }, { label: blog.crumb }]} />
 
-      <main id="main-content">
-        {/* Blog Hero Header */}
-        <section className="px-4 sm:px-8 py-16 sm:py-20 max-w-7xl mx-auto border-b border-[#1C1C22]">
-          <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full neu-pressed text-[#C5A065] text-xs font-mono font-semibold">
-              <BookOpen className="w-3.5 h-3.5 text-[#B08D57]" />
-              <span>NOK Social Insights & Field Notes</span>
-            </div>
-            <h1 className="font-display text-3xl sm:text-5xl font-bold text-[#F2F0EB] tracking-tight">
-              Digital Marketing Strategy for Growing Brands
-            </h1>
-            <p className="text-sm sm:text-base text-zinc-200 leading-relaxed font-normal">
-              Practical guides, tactical positioning frameworks, and operational insights for small business owners, startups, artisans, and digital marketers.
-            </p>
-          </div>
+      <Container>
+        <header className="pt-6 sm:pt-10">
+          <h1 className="text-[40px] font-bold leading-tight text-site-ink sm:text-[54px]">{blog.title}</h1>
+          <p className="mt-2 max-w-[640px] text-lg leading-normal text-site-slate sm:text-xl">{blog.intro}</p>
+        </header>
 
-          {/* Filter & Search Bar */}
-          <div className="mt-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-3 rounded-2xl neu-raised">
-            {/* Categories */}
-            <div className="flex flex-wrap items-center gap-2">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                    selectedCategory === cat
-                      ? "neu-pressed text-[#C5A065] font-semibold"
-                      : "text-zinc-200 hover:text-[#F2F0EB]"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+        <FreeToolsStrip className="mt-8" />
 
-            {/* Search Box */}
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 text-zinc-200 absolute left-3 top-3" />
-              <input
-                type="text"
-                placeholder="Search articles..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] placeholder-zinc-300 outline-none focus:ring-1 focus:ring-[#B08D57]"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Blog Cards Grid */}
-        <section className="px-4 sm:px-8 py-16 max-w-7xl mx-auto">
-          {filteredPosts.length === 0 ? (
-            <div className="p-12 rounded-3xl neu-pressed text-center space-y-3">
-              <p className="text-sm text-zinc-200">No articles match your search criteria.</p>
+        <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div role="group" aria-label={blog.filterLabel} className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
+            {[blog.all, ...BLOG_CATEGORIES].map((c) => (
               <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setSelectedCategory("All");
-                }}
-                className="neu-gold-btn px-4 py-2 rounded-xl text-xs font-mono"
+                key={c}
+                type="button"
+                aria-pressed={category === c}
+                onClick={() => setCategory(c)}
+                className={`shrink-0 rounded-full px-4 py-2 text-[15px] font-medium cursor-pointer transition-colors duration-300 ease-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype ${
+                  category === c ? "bg-site-ink text-site-paper" : "bg-white text-site-ink hover:bg-white/70"
+                }`}
               >
-                Reset Filters
+                {c}
+              </button>
+            ))}
+          </div>
+          <label className="relative block w-full md:w-72">
+            <span className="sr-only">{blog.searchLabel}</span>
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-site-slate" aria-hidden="true" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={blog.searchPlaceholder}
+              className="w-full rounded-full bg-white py-2.5 pl-11 pr-4 text-base text-site-graphite placeholder:text-site-slate/70 outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype"
+            />
+          </label>
+        </div>
+
+        <div className="mt-8" aria-busy={!blogPostsReady}>
+          {!blogPostsReady ? (
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label={blog.loading}>
+              {[0, 1, 2].map((i) => (
+                <li key={i} className="h-[380px] animate-pulse rounded-card bg-white/70 motion-reduce:animate-none" />
+              ))}
+            </ul>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-card bg-white p-10 text-center">
+              <p className="text-lg text-site-slate">{blog.empty}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setCategory(blog.all);
+                }}
+                className="mt-4 rounded-full bg-site-ink px-5 py-2.5 font-semibold text-site-paper cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype focus-visible:ring-offset-2"
+              >
+                {blog.reset}
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {filteredPosts.map((post, idx) => (
-                <article
-                  key={post.slug}
-                  className="p-6 sm:p-8 rounded-3xl neu-raised flex flex-col justify-between space-y-6 group hover:translate-y-[-2px] transition-all duration-300"
-                >
-                  <div className="space-y-4">
-                    {/* Article Cover Image with explicit performance loading attributes */}
-                    {post.coverImage && (
-                      <div className="w-full h-48 sm:h-56 rounded-2xl overflow-hidden neu-pressed mb-4 relative group-hover:scale-[1.01] transition-transform">
-                        <img 
-                          src={post.coverImage} 
-                          alt={post.title}
-                          width="800"
-                          height="450"
-                          loading={idx === 0 ? "eager" : "lazy"}
-                          decoding="async"
-                          {...(idx === 0 ? { fetchPriority: "high" as const } : {})}
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                    )}
-
-                    {/* Category & Read Time */}
-                    <div className="flex items-center justify-between text-xs font-mono text-zinc-200">
-                      <span className="px-2.5 py-1 rounded-lg neu-pressed text-[#C5A065] font-semibold">
-                        {post.category}
-                      </span>
-                      <div className="flex items-center space-x-3">
-                        <span className="flex items-center space-x-1">
-                          <Calendar className="w-3.5 h-3.5" />
-                          <span>{post.date}</span>
-                        </span>
-                        <span className="flex items-center space-x-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>{post.readTime}</span>
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Title & Excerpt */}
-                    <div>
-                      <h2 className="font-display font-bold text-xl sm:text-2xl text-[#F2F0EB] group-hover:text-[#B08D57] transition-colors leading-snug">
-                        <Link to={`/blog/${post.slug}`}>{post.title}</Link>
-                      </h2>
-                      <p className="text-xs sm:text-sm text-zinc-200 mt-3 leading-relaxed">
-                        {post.excerpt}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Author & Read More Action */}
-                  <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-semibold text-[#F2F0EB]">{post.author.name}</div>
-                      <div className="text-[10px] text-zinc-200 font-mono">{post.author.role}</div>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => handleShare(post)}
-                        title="Share this article"
-                        aria-label="Share this article"
-                        className="neu-raised-sm hover:neu-pressed p-2 rounded-xl text-zinc-200 hover:text-[#B08D57] transition-all cursor-pointer"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                      </button>
-
-                      <Link
-                        to={`/blog/${post.slug}`}
-                        className="neu-gold-btn px-4 py-2 rounded-xl text-xs font-mono font-semibold flex items-center space-x-1.5"
-                      >
-                        <span>Read Article</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
+            <>
+              {featured && <Featured post={featured} />}
+              {rest.length > 0 && (
+                <ul className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${featured ? "mt-4" : ""}`}>
+                  {rest.map((p, i) => (
+                    <Reveal as="li" key={p.slug} delay={(i % 3) * 0.06} className="h-full">
+                      <PostCard post={p} onShare={share} />
+                    </Reveal>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
-        </section>
-      </main>
-
-      {/* Footer */}
-      <PublicFooter />
-
-      {/* Share Toast */}
-      {shareToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl neu-raised-lg bg-[#111115] border border-[#B08D57]/30 text-xs font-mono text-[#F2F0EB] shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
-          {shareToast}
         </div>
-      )}
-    </div>
+      </Container>
+      {toastNode}
+    </>
   );
 };
+
+export const BlogPage: React.FC = () => (
+  <SiteShell>
+    <BlogIndex />
+  </SiteShell>
+);

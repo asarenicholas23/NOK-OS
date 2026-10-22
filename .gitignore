@@ -7,3 +7,7 @@ coverage/
 .env*
 !.env.example
 .firebase/
+.claude/settings.local.json
+
+# Local browser-check output
+.playwright-mcp/

@@ -7,15 +7,11 @@ import {
   ClientBrand,
   CallAvailability,
   INITIAL_CALL_AVAILABILITY,
-  INITIAL_AGENCY_INFO,
-  INITIAL_SERVICES,
   INITIAL_BLOG_POSTS,
   INITIAL_CLIENT_BRANDS
 } from "../data/cmsData";
 import {
   auth,
-  subscribeToAgencyInfo,
-  subscribeToServices,
   subscribeToBlogPosts,
   subscribeToClientBrands,
   subscribeToDiscoveryRequests,
@@ -24,19 +20,32 @@ import {
   cleanFirestoreData
 } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { brand, contact, home } from "../content/siteContent";
+import { SERVICE_PACKAGES } from "../content/services";
+
+// Contact details and service packages are set in code (src/content), not the
+// CMS. They're exposed here under the same names so every screen that already
+// reads them (proposals, booking form, Add Client, public pages) keeps working.
+const AGENCY_INFO: AgencyInfo = {
+  name: brand.name,
+  locationCity: brand.descriptor,
+  email: contact.email,
+  whatsapp: contact.whatsapp,
+  address: contact.address,
+  heroTitle: [home.hero.titleBefore, home.hero.titleHighlight, home.hero.titleAfter].filter(Boolean).join(" "),
+  heroSubtitle: home.hero.subtitle,
+};
 
 interface CmsContextType {
   agencyInfo: AgencyInfo;
   services: ServicePackage[];
   blogPosts: BlogPost[];
+  /** True once the live blog posts have loaded (or failed to). Until then `blogPosts` may be the built-in fallback list. */
+  blogPostsReady: boolean;
   discoveryRequests: DiscoveryRequest[];
   clientBrands: ClientBrand[];
   callAvailability: CallAvailability;
   updateCallAvailability: (availability: CallAvailability) => Promise<void>;
-  updateAgencyInfo: (info: Partial<AgencyInfo>) => Promise<void>;
-  addService: (service: Omit<ServicePackage, "id">) => Promise<void>;
-  updateService: (id: string, updated: Partial<ServicePackage>) => Promise<void>;
-  deleteService: (id: string) => Promise<void>;
   addBlogPost: (post: Omit<BlogPost, "id">) => Promise<void>;
   updateBlogPost: (id: string, updated: Partial<BlogPost>) => Promise<void>;
   deleteBlogPost: (id: string) => Promise<void>;
@@ -54,32 +63,12 @@ interface CmsContextType {
 const CmsContext = createContext<CmsContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_BLOG_KEY = "nok_cms_blog_posts_v1";
-const LOCAL_STORAGE_INFO_KEY = "nok_cms_agency_info_v1";
-const LOCAL_STORAGE_SERVICES_KEY = "nok_cms_services_v2";
 const LOCAL_STORAGE_REQUESTS_KEY = "nok_cms_discovery_requests_v1";
 const LOCAL_STORAGE_BRANDS_KEY = "nok_cms_client_brands_v2";
 
 export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // agencyInfo & services live in Firestore so edits sync across browsers/devices.
-  // The local values (from this browser's pre-existing localStorage, if any) are
-  // used as the seed for a one-time migration the first time Firestore is empty.
-  const [agencyInfo, setAgencyInfo] = useState<AgencyInfo>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_INFO_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_AGENCY_INFO;
-    } catch (e) {
-      return INITIAL_AGENCY_INFO;
-    }
-  });
-
-  const [services, setServices] = useState<ServicePackage[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_SERVICES_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_SERVICES;
-    } catch (e) {
-      return INITIAL_SERVICES;
-    }
-  });
+  const agencyInfo = AGENCY_INFO;
+  const services: ServicePackage[] = SERVICE_PACKAGES;
 
   // blogPosts, discoveryRequests & clientBrands also live in Firestore so edits
   // (new posts, brand updates, inbound call bookings) sync across browsers/devices
@@ -108,6 +97,7 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [callAvailability, setCallAvailability] = useState<CallAvailability>(INITIAL_CALL_AVAILABILITY);
+  const [blogPostsReady, setBlogPostsReady] = useState(false);
 
   const didMigrateCms = useRef(false);
   const [staffUser, setStaffUser] = useState<import("firebase/auth").User | null>(null);
@@ -121,20 +111,19 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setStaffUser(user);
       if (user && !didMigrateCms.current) {
         didMigrateCms.current = true;
-        migrateCmsToFirestoreIfEmpty(agencyInfo, services, blogPosts, clientBrands);
+        migrateCmsToFirestoreIfEmpty(blogPosts, clientBrands);
       }
     });
-    const unsubInfo = subscribeToAgencyInfo(setAgencyInfo);
-    const unsubServices = subscribeToServices(setServices);
-    const unsubBlogPosts = subscribeToBlogPosts(setBlogPosts);
+    const unsubBlogPosts = subscribeToBlogPosts(setBlogPosts, () => setBlogPostsReady(true));
+    // If Firestore never answers (offline), stop waiting and show what we have.
+    const readyFallback = window.setTimeout(() => setBlogPostsReady(true), 8000);
     const unsubClientBrands = subscribeToClientBrands(setClientBrands);
     const unsubCallAvailability = subscribeToCallAvailability(setCallAvailability);
     return () => {
       unsubCallAvailability();
       unsubAuth();
-      unsubInfo();
-      unsubServices();
       unsubBlogPosts();
+      window.clearTimeout(readyFallback);
       unsubClientBrands();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,32 +137,6 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubDiscoveryRequests = subscribeToDiscoveryRequests(setDiscoveryRequests);
     return () => unsubDiscoveryRequests();
   }, [staffUser]);
-
-  const updateAgencyInfo = async (info: Partial<AgencyInfo>) => {
-    const { db } = await import("../lib/firebase");
-    const { doc, setDoc } = await import("firebase/firestore");
-    await setDoc(doc(db, "cms", "agencyInfo"), cleanFirestoreData({ ...agencyInfo, ...info }), { merge: true });
-  };
-
-  const addService = async (service: Omit<ServicePackage, "id">) => {
-    const { db } = await import("../lib/firebase");
-    const { doc, setDoc } = await import("firebase/firestore");
-    const id = "service-" + Date.now();
-    await setDoc(doc(db, "services", id), cleanFirestoreData({ ...service, id, order: services.length }));
-  };
-
-  const updateService = async (id: string, updated: Partial<ServicePackage>) => {
-    const current = services.find((s) => s.id === id);
-    const { db } = await import("../lib/firebase");
-    const { doc, setDoc } = await import("firebase/firestore");
-    await setDoc(doc(db, "services", id), cleanFirestoreData({ ...current, ...updated }), { merge: true });
-  };
-
-  const deleteService = async (id: string) => {
-    const { db } = await import("../lib/firebase");
-    const { doc, deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(doc(db, "services", id));
-  };
 
   const addBlogPost = async (post: Omit<BlogPost, "id">) => {
     const { db } = await import("../lib/firebase");
@@ -294,10 +257,6 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const resetToDefaults = async () => {
     const { db } = await import("../lib/firebase");
     const { doc, setDoc, deleteDoc } = await import("firebase/firestore");
-    await setDoc(doc(db, "cms", "agencyInfo"), INITIAL_AGENCY_INFO);
-    await Promise.all(services.map((s) => deleteDoc(doc(db, "services", s.id))));
-    await Promise.all(INITIAL_SERVICES.map((s, i) => setDoc(doc(db, "services", s.id), { ...s, order: i })));
-
     await Promise.all(blogPosts.map((p) => deleteDoc(doc(db, "blogPosts", p.id))));
     await Promise.all(INITIAL_BLOG_POSTS.map((p, i) =>
       setDoc(doc(db, "blogPosts", p.id), cleanFirestoreData({ ...p, createdAt: new Date(Date.now() - i * 1000).toISOString() }))
@@ -320,14 +279,11 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         agencyInfo,
         services,
         blogPosts,
+        blogPostsReady,
         discoveryRequests,
         clientBrands,
         callAvailability,
         updateCallAvailability,
-        updateAgencyInfo,
-        addService,
-        updateService,
-        deleteService,
         addBlogPost,
         updateBlogPost,
         deleteBlogPost,

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Send, Loader2, CheckCircle2 } from "lucide-react";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { freeTools } from "../content/siteContent";
 
 const LEAD_EMAIL_STORAGE_KEY = "nok_lead_email";
 
@@ -61,79 +62,59 @@ export const ResourceCaptureForm: React.FC<ResourceCaptureFormProps> = ({
       onUnlock();
     } catch (err) {
       console.error("Failed to save lead:", err);
-      setError("Something went wrong submitting your details. Please try again.");
+      setError(freeTools.form.error);
       setSubmitting(false);
     }
   };
 
+  const f = freeTools.form;
+  const inputCls =
+    "w-full rounded-2xl bg-site-paper px-4 py-3 text-base text-site-graphite placeholder:text-site-slate/70 outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype";
+  const labelCls = "mb-1.5 block text-[15px] font-medium text-site-ink";
+
   if (savedEmail) {
     return (
-      <div className="text-center py-8 space-y-3">
-        <div className="w-12 h-12 rounded-2xl neu-pressed text-[#B08D57] mx-auto flex items-center justify-center">
-          <CheckCircle2 className="w-6 h-6 text-[#B08D57]" />
-        </div>
-        <p className="text-xs text-zinc-200">Welcome back — unlocking your resource...</p>
+      <div className="space-y-3 py-8 text-center" role="status">
+        <CheckCircle2 className="mx-auto h-8 w-8 text-site-cyanotype" aria-hidden="true" />
+        <p className="text-base text-site-slate">{f.welcomeBack}</p>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <div className="text-xs font-mono text-[#B08D57] uppercase tracking-wider font-semibold">Free Resource</div>
-        <h3 className="font-display text-xl font-bold text-[#F2F0EB]">Unlock "{resourceTitle}"</h3>
-        <p className="text-xs text-zinc-200 mt-1">
-          Enter your details once and every future resource unlocks instantly.
-        </p>
+      <div className="pr-10">
+        <p className="font-mono text-xs text-site-cyanotype">{f.tag}</p>
+        <h2 id="unlock-title" className="mt-1 text-2xl font-semibold leading-tight text-site-ink">
+          {f.title(resourceTitle)}
+        </h2>
+        <p className="mt-1.5 text-base leading-normal text-site-slate">{f.body}</p>
       </div>
 
-      <div className="space-y-3 pt-2">
+      <div className="space-y-3 pt-1">
         <div>
-          <label className="block text-[10px] font-mono uppercase text-zinc-200 mb-1">Your Full Name *</label>
-          <input
-            type="text"
-            required
-            placeholder="e.g. Ama Osei"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-          />
+          <label htmlFor="rcf-name" className={labelCls}>{f.name}</label>
+          <input id="rcf-name" type="text" required autoComplete="name" placeholder={f.namePlaceholder} value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
         </div>
-
         <div>
-          <label className="block text-[10px] font-mono uppercase text-zinc-200 mb-1">Email Address *</label>
-          <input
-            type="email"
-            required
-            placeholder="e.g. ama@brand.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-          />
+          <label htmlFor="rcf-email" className={labelCls}>{f.email}</label>
+          <input id="rcf-email" type="email" required autoComplete="email" placeholder={f.emailPlaceholder} value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
         </div>
-
         <div>
-          <label className="block text-[10px] font-mono uppercase text-zinc-200 mb-1">Business or Brand Name *</label>
-          <input
-            type="text"
-            required
-            placeholder="e.g. Osu Vintage Kicks"
-            value={businessName}
-            onChange={(e) => setBusinessName(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-          />
+          <label htmlFor="rcf-business" className={labelCls}>{f.business}</label>
+          <input id="rcf-business" type="text" required autoComplete="organization" placeholder={f.businessPlaceholder} value={businessName} onChange={(e) => setBusinessName(e.target.value)} className={inputCls} />
         </div>
       </div>
 
-      {error && <p className="text-[11px] text-rose-400">{error}</p>}
+      {error && <p role="alert" className="text-[15px] text-[#B42318]">{error}</p>}
 
       <button
         type="submit"
         disabled={submitting}
-        className="w-full py-3 rounded-xl neu-gold-filled text-xs font-bold flex items-center justify-center space-x-2 cursor-pointer shadow-md mt-4 disabled:opacity-60"
+        className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full bg-site-amber px-6 py-3.5 text-base font-semibold text-site-ink cursor-pointer transition-[filter] duration-300 ease-soft hover:brightness-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype focus-visible:ring-offset-2 disabled:opacity-60"
       >
-        {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-        <span>{submitting ? "Unlocking..." : "Unlock Resource"}</span>
+        {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+        {submitting ? f.submitting : f.submit}
       </button>
     </form>
   );

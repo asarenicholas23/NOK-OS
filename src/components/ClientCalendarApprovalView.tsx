@@ -251,7 +251,7 @@ export const ClientCalendarApprovalView: React.FC = () => {
 
       showToast(
         "Day Approved",
-        `"${brief.title}" has been marked approved. Your NOK Social team will pick it up for production.`,
+        `"${brief.title}" has been marked approved. Your N.O.K Social team will pick it up for production.`,
         "success"
       );
     } catch (err: any) {
@@ -365,7 +365,7 @@ export const ClientCalendarApprovalView: React.FC = () => {
 
       showToast(
         "Master Approval Complete",
-        `All ${proposed.length} proposed campaign briefs have been marked approved. Your NOK Social team will pick them up for production.`,
+        `All ${proposed.length} proposed campaign briefs have been marked approved. Your N.O.K Social team will pick them up for production.`,
         "success"
       );
     } catch (err: any) {

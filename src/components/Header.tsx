@@ -77,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({ viewLabel }) => {
         <Link
           to="/home"
           className="fin-btn-ghost px-3 py-2 rounded-full text-xs font-medium text-[#667085] hover:text-[#4F46E5] flex items-center space-x-1.5"
-          title="Return to NOK Social Agency Site"
+          title="Return to N.O.K Social Agency Site"
         >
           <Globe className="w-3.5 h-3.5 text-[#4F46E5]" />
           <span className="hidden md:inline">Agency Site</span>

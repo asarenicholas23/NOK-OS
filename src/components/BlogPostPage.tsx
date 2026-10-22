@@ -1,49 +1,168 @@
-import React, { useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import React from "react";
+import { Link, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import { PublicNavbar } from "./PublicNavbar";
-import { PublicFooter } from "./PublicFooter";
+import { Share2, User } from "lucide-react";
 import { useCms } from "../context/CmsContext";
-import { ArrowLeft, Calendar, Clock, User, Sparkles, Quote, Share2 } from "lucide-react";
-import { shareArticle } from "../utils/share";
-import { SEO } from "./SEO";
+import type { BlogPost } from "../data/cmsData";
+import { blogCategory, postTitle, sortByPublishDate, type BlogCategory } from "../content/blog";
+import { blog, crumbs } from "../content/siteContent";
 import { buildArticleJsonLd, SITE_URL, toCrawlableImage, toIsoDate, truncateDescription } from "../lib/seo";
+import { SEO } from "./SEO";
+import { Breadcrumbs, Container, PillButton, Reveal, Section, SiteShell, useBooking } from "./site";
+import { Cover, useShareToast } from "./BlogPage";
 
-export const BlogPostPage: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
-  const { blogPosts } = useCms();
-  const [shareToast, setShareToast] = useState<string | null>(null);
+/** Older posts store "NOK Social" in the author role. */
+const brandFix = (s: string) => s.replace(/\bNOK Social\b/g, "N.O.K Social");
 
-  const post = blogPosts.find((p) => p.slug === slug);
+const isBareImageUrl = (s: string) =>
+  s.startsWith("data:image/") ||
+  (s.startsWith("http") && (s.includes("unsplash.com") || s.includes("images.") || /\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(s)));
 
-  if (!post) {
-    return (
-      <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans">
-        <SEO
-          title="Article Not Found | NOK Social Blog"
-          description="The article you are looking for does not exist or has been moved."
-          path={`/blog/${slug ?? ""}`}
-          noindex
-        />
-        <PublicNavbar />
-        <main className="max-w-3xl mx-auto px-4 py-24 text-center space-y-4">
-          <h1 className="font-display text-3xl font-bold">Article Not Found</h1>
-          <p className="text-sm text-zinc-200">The post you are looking for does not exist or has been moved.</p>
-          <Link to="/blog" className="neu-gold-btn px-6 py-2.5 rounded-xl text-xs font-mono inline-block">
-            Back to Articles
-          </Link>
-        </main>
+const ArticleImage: React.FC<{ src?: string; alt?: string; caption?: string }> = ({ src, alt, caption }) => (
+  <figure className="my-8">
+    <img
+      src={src}
+      alt={alt || ""}
+      width={1000}
+      height={562}
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      className="h-auto max-h-[520px] w-full rounded-card object-cover"
+    />
+    {caption && <figcaption className="mt-2 text-center text-[15px] text-site-slate">{caption}</figcaption>}
+  </figure>
+);
+
+const md: React.ComponentProps<typeof ReactMarkdown>["components"] = {
+  h1: ({ children }) => <h2 className="mb-4 mt-10 text-[28px] font-bold leading-tight text-site-ink sm:text-[32px]">{children}</h2>,
+  h2: ({ children }) => <h3 className="mb-3 mt-9 text-[24px] font-bold leading-tight text-site-ink sm:text-[26px]">{children}</h3>,
+  h3: ({ children }) => <h4 className="mb-2 mt-7 text-xl font-semibold text-site-ink">{children}</h4>,
+  p: ({ children }) => {
+    if (typeof children === "string" && isBareImageUrl(children.trim())) return <ArticleImage src={children.trim()} />;
+    return <p className="mb-5 text-lg leading-[1.8] text-site-graphite">{children}</p>;
+  },
+  blockquote: ({ children }) => (
+    <blockquote className="my-7 rounded-card bg-[#E6EDF7] px-6 py-5 text-lg text-site-ink [&_p]:mb-0 [&_p]:text-site-ink">{children}</blockquote>
+  ),
+  ul: ({ children }) => <ul className="mb-5 space-y-2.5">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-5 list-decimal space-y-2.5 pl-6 text-lg leading-relaxed text-site-graphite marker:text-site-cyanotype">{children}</ol>,
+  li: ({ children, node }) => {
+    // Ordered-list items keep their numbers; bullets get a cyanotype dot.
+    const ordered = (node as { parent?: { tagName?: string } } | undefined)?.parent?.tagName === "ol";
+    return ordered ? (
+      <li className="pl-1">{children}</li>
+    ) : (
+      <li className="flex items-start gap-3 text-lg leading-relaxed text-site-graphite">
+        <span className="mt-[0.7em] h-2 w-2 shrink-0 rounded-full bg-site-cyanotype" aria-hidden="true" />
+        <span className="flex-1">{children}</span>
+      </li>
+    );
+  },
+  strong: ({ children }) => <strong className="font-semibold text-site-ink">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-site-cyanotype underline underline-offset-2 hover:text-site-ink">
+      {children}
+    </a>
+  ),
+  img: ({ src, alt }) => <ArticleImage src={typeof src === "string" ? src : undefined} alt={alt} caption={alt} />,
+  code: ({ children }) => <code className="rounded-md bg-white px-1.5 py-0.5 font-mono text-[0.9em] text-site-ink">{children}</code>,
+  hr: () => <hr className="my-10 h-px border-0 bg-site-ink/10" />,
+};
+
+const CTA_FOR: Record<BlogCategory, keyof Omit<typeof blog.cta, "book">> = {
+  "Social media": "marketing",
+  Campaigns: "marketing",
+  Websites: "websites",
+  "Running your business": "business",
+};
+
+const ArticleCta: React.FC<{ category: BlogCategory }> = ({ category }) => {
+  const { openBooking } = useBooking();
+  const c = blog.cta[CTA_FOR[category]];
+  return (
+    <Section tone="ink" className="mt-14" innerClassName="text-center" aria-labelledby="article-cta">
+      <h2 id="article-cta" className="text-[28px] font-bold leading-[1.1] sm:text-[36px]">
+        {c.title}
+      </h2>
+      <p className="mx-auto mt-2.5 max-w-[540px] text-lg text-site-paper/75">{c.body}</p>
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <PillButton variant="primary" size="lg" to={c.to} className="focus-visible:ring-offset-site-ink">
+          {c.button}
+        </PillButton>
+        <PillButton variant="soft" size="lg" onClick={() => openBooking()} className="focus-visible:ring-offset-site-ink">
+          {blog.cta.book}
+        </PillButton>
       </div>
+    </Section>
+  );
+};
+
+const KeepReading: React.FC<{ current: BlogPost }> = ({ current }) => {
+  const { blogPosts } = useCms();
+  const cat = blogCategory(current);
+  const others = sortByPublishDate(blogPosts.filter((p) => p.slug !== current.slug));
+  const picks = [...others.filter((p) => blogCategory(p) === cat), ...others.filter((p) => blogCategory(p) !== cat)].slice(0, 3);
+  if (picks.length === 0) return null;
+  return (
+    <section aria-labelledby="keep-reading" className="mt-16">
+      <Container>
+        <h2 id="keep-reading" className="text-[28px] font-bold text-site-ink sm:text-[34px]">
+          {blog.article.keepReading}
+        </h2>
+        <ul className="mt-5 grid gap-4 md:grid-cols-3">
+          {picks.map((p, i) => (
+            <Reveal as="li" key={p.slug} delay={i * 0.06} className="h-full">
+              <Link to={`/blog/${p.slug}`} className="block h-full rounded-card bg-white p-3.5 pb-5 hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype">
+                <Cover post={p} />
+                <p className="mt-4 px-2 font-mono text-xs text-site-cyanotype">{blogCategory(p)}</p>
+                <p className="mt-1 px-2 text-lg font-semibold leading-snug text-site-ink">{postTitle(p)}</p>
+              </Link>
+            </Reveal>
+          ))}
+        </ul>
+      </Container>
+    </section>
+  );
+};
+
+const NotFound: React.FC<{ slug?: string }> = ({ slug }) => (
+  <>
+    <SEO title={`${blog.notFound.title} | N.O.K Social`} description={blog.notFound.body} path={`/blog/${slug ?? ""}`} noindex />
+    <Container className="max-w-[720px] py-24 text-center">
+      <h1 className="text-[36px] font-bold text-site-ink">{blog.notFound.title}</h1>
+      <p className="mt-2 text-lg text-site-slate">{blog.notFound.body}</p>
+      <PillButton variant="dark" size="lg" to="/blog" className="mt-6">
+        {blog.notFound.back}
+      </PillButton>
+    </Container>
+  </>
+);
+
+const Article: React.FC = () => {
+  const { slug } = useParams<{ slug: string }>();
+  const { blogPosts, blogPostsReady } = useCms();
+  const { share, toastNode } = useShareToast();
+  const post = blogPosts.find((p) => p.slug === slug);
+  if (!post && !blogPostsReady) {
+    // Live posts still loading: hold a quiet placeholder (no "not found", no noindex).
+    return (
+      <Container className="max-w-[820px] py-24" aria-busy="true">
+        <div className="h-4 w-28 animate-pulse rounded-full bg-white motion-reduce:animate-none" />
+        <div className="mt-4 h-12 w-full animate-pulse rounded-2xl bg-white motion-reduce:animate-none" />
+        <div className="mt-3 h-12 w-2/3 animate-pulse rounded-2xl bg-white motion-reduce:animate-none" />
+        <span className="sr-only">{blog.loading}</span>
+      </Container>
     );
   }
+  if (!post) return <NotFound slug={slug} />;
 
-  // Combine post content array into single markdown string
-  const markdownContent = post.content.join("\n\n");
-
+  const title = postTitle(post);
+  const category = blogCategory(post);
   const canonicalUrl = `${SITE_URL}/blog/${post.slug}`;
   const articleJsonLd = buildArticleJsonLd({
-    title: post.title,
+    title,
     description: post.excerpt.trim(),
     datePublished: toIsoDate(post.date),
     authorName: post.author.name,
@@ -51,268 +170,73 @@ export const BlogPostPage: React.FC = () => {
     canonicalUrl,
   });
 
-  const handleShare = async () => {
-    const url = `${SITE_URL}/blog/${post.slug}`;
-    const result = await shareArticle({ title: post.title, text: post.excerpt, url });
-    if (result === "copied") {
-      setShareToast("Link copied to clipboard!");
-      setTimeout(() => setShareToast(null), 2500);
-    } else if (result === "failed") {
-      setShareToast("Couldn't copy the link — please copy it from the address bar.");
-      setTimeout(() => setShareToast(null), 3000);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
-      <SEO
-        title={`${post.title} | NOK Social Blog`}
-        description={truncateDescription(post.excerpt)}
-        path={`/blog/${post.slug}`}
-        image={toCrawlableImage(post.coverImage)}
-        type="article"
+    <>
+      <SEO title={`${title} | N.O.K Social`} description={truncateDescription(post.excerpt)} path={`/blog/${post.slug}`} image={toCrawlableImage(post.coverImage)} type="article" />
+      <script type="application/ld+json">{JSON.stringify(articleJsonLd).replace(/</g, "\\u003c")}</script>
+      <Breadcrumbs
+        currentPath={`/blog/${post.slug}`}
+        items={[{ label: crumbs.home, to: "/home" }, { label: blog.crumb, to: "/blog" }, { label: title.length > 48 ? title.slice(0, 46).trimEnd() + "…" : title }]}
       />
-      <script type="application/ld+json">
-        {JSON.stringify(articleJsonLd).replace(/</g, "\\u003c")}
-      </script>
-      <PublicNavbar />
 
-      <main id="main-content" className="px-4 sm:px-8 py-12 max-w-4xl mx-auto">
-        {/* Navigation back */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate("/blog")}
-            className="neu-raised-sm px-4 py-2 rounded-xl text-xs font-mono text-zinc-200 hover:text-[#F2F0EB] inline-flex items-center space-x-2 transition-all cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Articles</span>
-          </button>
-        </div>
-
-        {/* Post Header */}
-        <header className="space-y-6 pb-8 border-b border-[#1C1C22]">
-          <div className="flex items-center space-x-3 text-xs font-mono">
-            <span className="px-3 py-1 rounded-full neu-pressed text-[#C5A065] font-semibold">
-              {post.category}
-            </span>
-            <span className="text-zinc-200">•</span>
-            <span className="flex items-center space-x-1 text-zinc-200">
-              <Calendar className="w-3.5 h-3.5" />
-              <span>{post.date}</span>
-            </span>
-            <span className="text-zinc-200">•</span>
-            <span className="flex items-center space-x-1 text-zinc-200">
-              <Clock className="w-3.5 h-3.5" />
-              <span>{post.readTime}</span>
-            </span>
-          </div>
-
-          <h1 className="font-display text-3xl sm:text-5xl font-bold text-[#F2F0EB] tracking-tight leading-tight">
-            {post.title}
-          </h1>
-
-          {/* Cover Image Banner with Preload & High Priority */}
-          {post.coverImage && (
-            <div className="w-full h-64 sm:h-96 rounded-3xl overflow-hidden neu-pressed my-6 relative">
-              <img 
-                src={post.coverImage} 
-                alt={post.title}
-                width="1200"
-                height="675"
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
+      <article>
+        <Container className="max-w-[820px]">
+          <header className="pt-6 sm:pt-10">
+            <p className="font-mono text-xs text-site-cyanotype">{category}</p>
+            <h1 className="mt-2 text-[34px] font-bold leading-[1.08] text-site-ink sm:text-[48px]">{title}</h1>
+            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3">
+              <span className="flex items-center gap-2.5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-site-ink" aria-hidden="true">
+                  <User className="h-5 w-5" />
+                </span>
+                <span className="leading-tight">
+                  <span className="block font-semibold text-site-ink">
+                    <span className="sr-only">{blog.article.by} </span>
+                    {post.author.name}
+                  </span>
+                  <span className="block text-[15px] text-site-slate">{brandFix(post.author.role)}</span>
+                </span>
+              </span>
+              <span className="text-[15px] text-site-slate">
+                {post.date} · {post.readTime}
+              </span>
             </div>
-          )}
+          </header>
+        </Container>
 
-          {/* Author Card */}
-          <div className="flex items-center space-x-3 pt-2">
-            <div className="w-10 h-10 rounded-xl neu-pressed flex items-center justify-center text-[#B08D57]">
-              <User className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-[#F2F0EB]">{post.author.name}</div>
-              <div className="text-xs text-zinc-200">{post.author.role}</div>
-            </div>
-          </div>
-        </header>
+        {post.coverImage && (
+          <Container className="mt-8 max-w-[1000px]">
+            <Cover post={post} priority className="rounded-card" />
+          </Container>
+        )}
 
-        {/* Clean, breathable article body with full Markdown styling */}
-        <article className="py-10 max-w-3xl mx-auto space-y-6 text-base sm:text-lg text-[#F2F0EB]/90 leading-relaxed font-sans font-normal">
-          {/* Summary Excerpt Callout */}
-          <p className="text-lg sm:text-xl font-medium text-[#F2F0EB] p-5 sm:p-6 rounded-2xl neu-pressed leading-relaxed border-l-4 border-[#B08D57]">
-            {post.excerpt}
-          </p>
+        <Container className="mt-10 max-w-[720px]">
+          <p className="mb-8 text-xl font-medium leading-relaxed text-site-ink sm:text-[22px]">{post.excerpt}</p>
+          <ReactMarkdown components={md}>{post.content.join("\n\n")}</ReactMarkdown>
 
-          <div className="space-y-6 pt-4">
-            <ReactMarkdown
-              components={{
-                h1: ({ children }) => (
-                  <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#F2F0EB] mt-8 mb-4 pb-2 border-b border-[#B08D57]/30 flex items-center gap-2">
-                    <span className="w-2 h-6 rounded-full bg-[#B08D57] inline-block" />
-                    <span>{children}</span>
-                  </h2>
-                ),
-                h2: ({ children }) => (
-                  <h3 className="font-display text-xl sm:text-2xl font-bold text-[#F2F0EB] mt-8 mb-3 flex items-center gap-2">
-                    <span className="text-[#C5A065] font-mono">#</span>
-                    <span>{children}</span>
-                  </h3>
-                ),
-                h3: ({ children }) => (
-                  <h4 className="font-display text-lg font-bold text-[#C5A065] mt-6 mb-2">
-                    {children}
-                  </h4>
-                ),
-                p: ({ children }) => {
-                  if (typeof children === "string") {
-                    const trimmed = children.trim();
-                    const isImg = trimmed.startsWith("data:image/") ||
-                      (trimmed.startsWith("http") && (
-                        trimmed.includes("unsplash.com") ||
-                        trimmed.includes("images.") ||
-                        trimmed.match(/\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i)
-                      ));
-                    if (isImg) {
-                      return (
-                        <div className="my-6 rounded-2xl overflow-hidden neu-pressed border border-white/5">
-                          <img 
-                            src={trimmed} 
-                            alt="Article visual content" 
-                            width="1000"
-                            height="562"
-                            loading="lazy"
-                            decoding="async"
-                            className="w-full h-auto max-h-[500px] object-cover" 
-                            referrerPolicy="no-referrer" 
-                          />
-                        </div>
-                      );
-                    }
-                  }
-                  return (
-                    <p className="text-[#F2F0EB]/90 text-base sm:text-lg leading-[1.8] tracking-normal mb-4">
-                      {children}
-                    </p>
-                  );
-                },
-                blockquote: ({ children }) => (
-                  <blockquote className="my-6 p-5 sm:p-6 rounded-2xl neu-pressed border-l-4 border-[#B08D57] bg-[#111115] text-[#F2F0EB] italic text-base sm:text-lg relative">
-                    <div className="text-xs font-mono text-[#C5A065] uppercase font-bold not-italic mb-2 flex items-center space-x-1.5">
-                      <Quote className="w-3.5 h-3.5 text-[#B08D57]" />
-                      <span>Key Callout & Insight</span>
-                    </div>
-                    {children}
-                  </blockquote>
-                ),
-                ul: ({ children }) => (
-                  <ul className="my-4 space-y-2.5 pl-2">
-                    {children}
-                  </ul>
-                ),
-                ol: ({ children }) => (
-                  <ol className="my-4 space-y-2.5 pl-2 list-decimal list-inside text-[#F2F0EB]/90">
-                    {children}
-                  </ol>
-                ),
-                li: ({ children }) => (
-                  <li className="flex items-start space-x-3 text-base sm:text-lg text-[#F2F0EB]/90 leading-relaxed">
-                    <span className="w-2 h-2 rounded-full bg-[#B08D57] mt-2.5 shrink-0" />
-                    <span className="flex-1">{children}</span>
-                  </li>
-                ),
-                strong: ({ children }) => (
-                  <strong className="font-bold bg-[#B08D57]/20 px-1.5 py-0.5 rounded text-[#C5A065]">
-                    {children}
-                  </strong>
-                ),
-                em: ({ children }) => (
-                  <em className="italic text-[#E0D8C8]">{children}</em>
-                ),
-                a: ({ href, children }) => (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#C5A065] underline underline-offset-2 hover:text-[#F2F0EB] transition-colors"
-                  >
-                    {children}
-                  </a>
-                ),
-                img: ({ src, alt }) => (
-                  <div className="my-6 rounded-2xl overflow-hidden neu-pressed border border-white/5">
-                    <img 
-                      src={src} 
-                      alt={alt || "Article illustration"} 
-                      width="1000"
-                      height="562"
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-auto max-h-[500px] object-cover" 
-                      referrerPolicy="no-referrer" 
-                    />
-                    {alt && <div className="p-2.5 text-center text-xs font-mono text-zinc-200 bg-[#111115]">{alt}</div>}
-                  </div>
-                ),
-                code: ({ children }) => (
-                  <code className="px-2 py-0.5 rounded-md neu-pressed font-mono text-xs text-[#C5A065]">
-                    {children}
-                  </code>
-                )
-              }}
+          <div className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-card bg-white px-6 py-4">
+            <span className="font-semibold text-site-ink">{blog.article.foundUseful}</span>
+            <button
+              type="button"
+              onClick={() => share(post)}
+              className="inline-flex items-center gap-2 rounded-full bg-site-ink px-5 py-2.5 font-semibold text-site-paper cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype focus-visible:ring-offset-2"
             >
-              {markdownContent}
-            </ReactMarkdown>
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              {blog.shareArticle}
+            </button>
           </div>
-        </article>
+        </Container>
+      </article>
 
-        {/* Share This Article */}
-        <div className="max-w-3xl mx-auto flex items-center justify-between flex-wrap gap-3 py-6 border-t border-b border-[#1C1C22]">
-          <span className="text-xs font-mono text-zinc-200 uppercase tracking-wide">Found this useful?</span>
-          <button
-            type="button"
-            onClick={handleShare}
-            className="neu-raised px-5 py-2.5 rounded-xl text-xs font-mono font-semibold text-[#F2F0EB] hover:text-[#B08D57] inline-flex items-center space-x-2 transition-all cursor-pointer"
-          >
-            <Share2 className="w-3.5 h-3.5 text-[#B08D57]" />
-            <span>Share This Article</span>
-          </button>
-        </div>
-
-        {/* Footer Author & CTA Banner */}
-        <div className="mt-12 p-8 rounded-3xl neu-raised space-y-6 max-w-3xl mx-auto">
-          <div className="flex items-center space-x-3 text-[#C5A065]">
-            <Sparkles className="w-5 h-5" />
-            <span className="font-mono text-xs uppercase font-bold tracking-wider">NOK Social Agency</span>
-          </div>
-          <h2 className="font-display text-xl font-bold text-[#F2F0EB]">
-            Want a custom social media engine built for your brand?
-          </h2>
-          <p className="text-xs text-zinc-200 leading-relaxed">
-            NOK Social provides end-to-end digital marketing infrastructure, creative briefs, and campaign execution for growing businesses in Ghana.
-          </p>
-          <div className="flex flex-wrap items-center gap-4 pt-2">
-            <Link to="/home#services" className="neu-gold-filled px-5 py-2.5 rounded-xl text-xs font-bold">
-              Explore Our Services
-            </Link>
-            <Link to="/ighealthcheck" className="neu-raised px-5 py-2.5 rounded-xl text-xs font-mono text-[#F2F0EB] hover:text-[#B08D57]">
-              Instagram Audit
-            </Link>
-          </div>
-        </div>
-      </main>
-
-      <PublicFooter />
-
-      {/* Share Toast */}
-      {shareToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl neu-raised-lg bg-[#111115] border border-[#B08D57]/30 text-xs font-mono text-[#F2F0EB] shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
-          {shareToast}
-        </div>
-      )}
-    </div>
+      <ArticleCta category={category} />
+      <KeepReading current={post} />
+      {toastNode}
+    </>
   );
 };
+
+export const BlogPostPage: React.FC = () => (
+  <SiteShell>
+    <Article />
+  </SiteShell>
+);

@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useCms } from "../context/CmsContext";
 import { apiFetch } from "../lib/apiBase";
-import { BlogPost, ServicePackage, DiscoveryRequest, ClientBrand, isWebsiteBuild } from "../data/cmsData";
+import { BlogPost, DiscoveryRequest, ClientBrand } from "../data/cmsData";
+import { BLOG_CATEGORIES, blogCategory } from "../content/blog";
 import { CallAvailabilityPanel } from "./CallAvailabilityPanel";
 import { ProposalsTab } from "./ProposalsTab";
 import { AddClientPanel } from "./AddClientPanel";
@@ -23,7 +24,6 @@ import {
   X,
   RotateCcw,
   BookOpen,
-  Layers,
   Upload,
   Image as ImageIcon,
   Heading1,
@@ -49,15 +49,9 @@ import {
 
 export const CmsPage: React.FC = () => {
   const { 
-    agencyInfo, 
-    services, 
     blogPosts, 
     discoveryRequests,
     clientBrands,
-    updateAgencyInfo, 
-    addService, 
-    updateService, 
-    deleteService, 
     addBlogPost, 
     updateBlogPost, 
     deleteBlogPost,
@@ -70,7 +64,7 @@ export const CmsPage: React.FC = () => {
     resetToDefaults
   } = useCms();
 
-  const [activeTab, setActiveTab] = useState<"leads" | "proposals" | "blog" | "agency" | "services" | "brands">("leads");
+  const [activeTab, setActiveTab] = useState<"leads" | "proposals" | "blog" | "brands">("leads");
   const [proposalSeedLead, setProposalSeedLead] = useState<DiscoveryRequest | null>(null);
   const clearProposalSeed = React.useCallback(() => setProposalSeedLead(null), []);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -89,13 +83,12 @@ export const CmsPage: React.FC = () => {
   const [importPasteText, setImportPasteText] = useState("");
   const [importing, setImporting] = useState(false);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
-  const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<"write" | "preview">("write");
   const [blogFormData, setBlogFormData] = useState({
     title: "",
-    category: "Sales Funnel Mastery",
+    category: BLOG_CATEGORIES[0] as string,
     authorName: "Osei Kofi",
-    authorRole: "Lead Strategist, NOK Social",
+    authorRole: "Lead Strategist, N.O.K Social",
     readTime: "5 min read",
     coverImage: "",
     excerpt: "",
@@ -123,23 +116,6 @@ export const CmsPage: React.FC = () => {
     });
   };
 
-  // Agency info form state
-  const [agencyFormData, setAgencyFormData] = useState({ ...agencyInfo });
-
-  // Service editing state
-  const [editingService, setEditingService] = useState<ServicePackage | null>(null);
-  const [isAddingService, setIsAddingService] = useState(false);
-  const [serviceFormData, setServiceFormData] = useState({
-    title: "",
-    tier: "Tier 1",
-    ghsPrice: "GH₵ 1,500",
-    period: "per month",
-    desc: "",
-    featuresRaw: "",
-    featured: false,
-    category: "social" as "social" | "website"
-  });
-
   // Brand editing state
   const [editingBrand, setEditingBrand] = useState<ClientBrand | null>(null);
   const [isAddingBrand, setIsAddingBrand] = useState(false);
@@ -156,13 +132,7 @@ export const CmsPage: React.FC = () => {
     bannerColor: "#0D0D12",
     logoUrl: "",
     servicesRaw: "",
-    deliverablesRaw: "",
-    metric1Val: "",
-    metric1Label: "",
-    metric2Val: "",
-    metric2Label: "",
-    metric3Val: "",
-    metric3Label: ""
+    deliverablesRaw: ""
   });
 
   const showNotification = (msg: string) => {
@@ -304,9 +274,9 @@ export const CmsPage: React.FC = () => {
         const data = await resp.json();
         setBlogFormData({
           title: data.title || "Migrated Article",
-          category: data.category || "Substack Series",
+          category: blogCategory({ slug: "", category: data.category || "" }),
           authorName: data.authorName || "Osei Kofi",
-          authorRole: data.authorRole || "Lead Strategist, NOK Social",
+          authorRole: data.authorRole || "Lead Strategist, N.O.K Social",
           readTime: data.readTime || "5 min read",
           coverImage: data.coverImage || "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1000&q=80",
           excerpt: data.excerpt || "",
@@ -354,9 +324,9 @@ export const CmsPage: React.FC = () => {
 
       setBlogFormData({
         title: inferredTitle,
-        category: inferredCategory,
+        category: blogCategory({ slug: "", category: inferredCategory }),
         authorName: "Osei Kofi",
-        authorRole: "Lead Strategist, NOK Social",
+        authorRole: "Lead Strategist, N.O.K Social",
         readTime: "5 min read",
         coverImage: inferredCover,
         excerpt: bodyText.slice(0, 180) + "...",
@@ -441,7 +411,7 @@ export const CmsPage: React.FC = () => {
     setEditingBlog(post);
     setBlogFormData({
       title: post.title,
-      category: post.category,
+      category: blogCategory(post),
       authorName: post.author.name,
       authorRole: post.author.role,
       readTime: post.readTime,
@@ -456,90 +426,15 @@ export const CmsPage: React.FC = () => {
     setEditingBlog(null);
     setBlogFormData({
       title: "",
-      category: "Sales Funnel Mastery",
+      category: BLOG_CATEGORIES[0] as string,
       authorName: "Osei Kofi",
-      authorRole: "Lead Strategist, NOK Social",
+      authorRole: "Lead Strategist, N.O.K Social",
       readTime: "5 min read",
       coverImage: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1000&q=80",
       excerpt: "",
       contentRaw: ""
     });
     setIsAddingBlog(true);
-  };
-
-  // Save Agency Info
-  const handleSaveAgencyInfo = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateAgencyInfo(agencyFormData);
-    showNotification("Agency contact details & hero text updated!");
-  };
-
-  // Service submission
-  const handleSaveService = (e: React.FormEvent) => {
-    e.preventDefault();
-    const featuresList = serviceFormData.featuresRaw
-      .split("\n")
-      .map((f) => f.trim())
-      .filter((f) => f.length > 0);
-
-    if (editingService) {
-      updateService(editingService.id, {
-        title: serviceFormData.title,
-        tier: serviceFormData.tier,
-        ghsPrice: serviceFormData.ghsPrice,
-        period: serviceFormData.period,
-        desc: serviceFormData.desc,
-        featured: serviceFormData.featured,
-        category: serviceFormData.category,
-        features: featuresList
-      });
-      showNotification("Service package updated!");
-    } else {
-      addService({
-        title: serviceFormData.title,
-        tier: serviceFormData.tier,
-        ghsPrice: serviceFormData.ghsPrice,
-        period: serviceFormData.period,
-        desc: serviceFormData.desc,
-        featured: serviceFormData.featured,
-        category: serviceFormData.category,
-        features: featuresList
-      });
-      showNotification("New service package created!");
-    }
-
-    setEditingService(null);
-    setIsAddingService(false);
-  };
-
-  const startEditService = (service: ServicePackage) => {
-    setEditingService(service);
-    setServiceFormData({
-      title: service.title,
-      tier: service.tier,
-      ghsPrice: service.ghsPrice,
-      period: service.period,
-      desc: service.desc,
-      featured: !!service.featured,
-      featuresRaw: service.features.join("\n"),
-      category: isWebsiteBuild(service) ? "website" : "social"
-    });
-    setIsAddingService(true);
-  };
-
-  const openNewServiceForm = () => {
-    setEditingService(null);
-    setServiceFormData({
-      title: "",
-      tier: "Tier 1",
-      ghsPrice: "GH₵ 1,500",
-      period: "per month",
-      desc: "",
-      featured: false,
-      featuresRaw: "",
-      category: "social"
-    });
-    setIsAddingService(true);
   };
 
   // Brand handlers
@@ -554,12 +449,6 @@ export const CmsPage: React.FC = () => {
       .split("\n")
       .map((d) => d.trim())
       .filter((d) => d.length > 0);
-
-    const metricsList = [
-      { value: brandFormData.metric1Val, label: brandFormData.metric1Label },
-      { value: brandFormData.metric2Val, label: brandFormData.metric2Label },
-      { value: brandFormData.metric3Val, label: brandFormData.metric3Label }
-    ].filter((m) => m.value.trim() && m.label.trim());
 
     const slug = brandFormData.slug.trim() || brandFormData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
@@ -577,8 +466,7 @@ export const CmsPage: React.FC = () => {
           bannerColor: brandFormData.bannerColor,
           logoUrl: brandFormData.logoUrl,
           servicesProvided: servicesList,
-          deliverables: deliverablesList,
-          metrics: metricsList.length > 0 ? metricsList : [{ value: "100%", label: "Strategy Alignment" }]
+          deliverables: deliverablesList
         });
         showNotification("Client brand updated successfully!");
       } else {
@@ -594,8 +482,7 @@ export const CmsPage: React.FC = () => {
           bannerColor: brandFormData.bannerColor,
           logoUrl: brandFormData.logoUrl,
           servicesProvided: servicesList,
-          deliverables: deliverablesList,
-          metrics: metricsList.length > 0 ? metricsList : [{ value: "100%", label: "Strategy Alignment" }]
+          deliverables: deliverablesList
         });
         showNotification("New client brand added to showcase!");
       }
@@ -622,13 +509,7 @@ export const CmsPage: React.FC = () => {
       bannerColor: brand.bannerColor || "#0D0D12",
       logoUrl: brand.logoUrl || "",
       servicesRaw: brand.servicesProvided.join("\n"),
-      deliverablesRaw: brand.deliverables.join("\n"),
-      metric1Val: brand.metrics[0]?.value || "",
-      metric1Label: brand.metrics[0]?.label || "",
-      metric2Val: brand.metrics[1]?.value || "",
-      metric2Label: brand.metrics[1]?.label || "",
-      metric3Val: brand.metrics[2]?.value || "",
-      metric3Label: brand.metrics[2]?.label || ""
+      deliverablesRaw: brand.deliverables.join("\n")
     });
     setIsAddingBrand(true);
   };
@@ -647,13 +528,7 @@ export const CmsPage: React.FC = () => {
       bannerColor: "#0D0D12",
       logoUrl: "",
       servicesRaw: "Social Engine\nContent Strategy",
-      deliverablesRaw: "Visual Assets\nPublishing Cadence",
-      metric1Val: "+120%",
-      metric1Label: "Growth",
-      metric2Val: "3.2x",
-      metric2Label: "Engagement",
-      metric3Val: "100%",
-      metric3Label: "Delivery"
+      deliverablesRaw: "Visual Assets\nPublishing Cadence"
     });
     setIsAddingBrand(true);
   };
@@ -719,30 +594,6 @@ export const CmsPage: React.FC = () => {
         >
           <FileText className="w-3.5 h-3.5" />
           <span>Blog Articles ({blogPosts.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("agency")}
-          className={`px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2 transition-all cursor-pointer ${
-            activeTab === "agency"
-              ? "fin-tab-active-solid"
-              : "fin-tab"
-          }`}
-        >
-          <Globe className="w-3.5 h-3.5" />
-          <span>Contact & Address Info</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("services")}
-          className={`px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2 transition-all cursor-pointer ${
-            activeTab === "services"
-              ? "fin-tab-active-solid"
-              : "fin-tab"
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          <span>Services & Pricing ({services.length})</span>
         </button>
 
         <button
@@ -852,10 +703,10 @@ export const CmsPage: React.FC = () => {
 
                 const callTimeLine = req.slotStart && !req.slotReleased ? `\n\nYour call is booked for *${formatSlotFull(req.slotStart)}*.` : "";
                 const whatsappMsg = req.source === "manual"
-                  ? `Hello ${req.name}! Great to connect about ${req.businessName} and the *${req.serviceTier}* package with NOK Social.`
-                  : `Hello ${req.name}! Thank you for booking a Discovery Call for ${req.businessName} with NOK Social.${callTimeLine}\n\nRegarding your interest in the *${req.serviceTier}* tier...`;
+                  ? `Hello ${req.name}! Great to connect about ${req.businessName} and the *${req.serviceTier}* package with N.O.K Social.`
+                  : `Hello ${req.name}! Thank you for booking a Discovery Call for ${req.businessName} with N.O.K Social.${callTimeLine}\n\nRegarding your interest in the *${req.serviceTier}* tier...`;
                 const whatsappUrl = `https://wa.me/${(req.phone || "").replace(/[^0-9]/g, "")}?text=${encodeURIComponent(whatsappMsg)}`;
-                const mailtoUrl = `mailto:${req.email}?subject=${encodeURIComponent(`NOK Social — Discovery Call for ${req.businessName}`)}&body=${encodeURIComponent(`Hello ${req.name},\n\nThank you for booking a Discovery Call with NOK Social regarding ${req.businessName}.\n\n${req.slotStart && !req.slotReleased ? `This confirms your call on ${formatSlotFull(req.slotStart)}.` : "When would be the best time for our strategy team to connect?"}`)}`;
+                const mailtoUrl = `mailto:${req.email}?subject=${encodeURIComponent(`N.O.K Social — Discovery Call for ${req.businessName}`)}&body=${encodeURIComponent(`Hello ${req.name},\n\nThank you for booking a Discovery Call with N.O.K Social regarding ${req.businessName}.\n\n${req.slotStart && !req.slotReleased ? `This confirms your call on ${formatSlotFull(req.slotStart)}.` : "When would be the best time for our strategy team to connect?"}`)}`;
 
                 return (
                   <div
@@ -1191,14 +1042,16 @@ export const CmsPage: React.FC = () => {
                     <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
                       Category
                     </label>
-                    <input
-                      type="text"
+                    <select
                       required
-                      placeholder="e.g. Sales Funnel Mastery, Digital Strategy"
                       value={blogFormData.category}
                       onChange={(e) => setBlogFormData({ ...blogFormData, category: e.target.value })}
-                      className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                    />
+                      className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] bg-[#121216] outline-none focus:ring-1 focus:ring-[#B08D57] cursor-pointer"
+                    >
+                      {BLOG_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -1624,7 +1477,7 @@ export const CmsPage: React.FC = () => {
 
                   <div className="flex items-center justify-between text-[11px] font-mono">
                     <span className="px-2.5 py-0.5 rounded-full neu-pressed text-[#B08D57] font-semibold">
-                      {post.category}
+                      {blogCategory(post)}
                     </span>
                     <span className="text-[#8A8A93]">{post.date} • {post.readTime}</span>
                   </div>
@@ -1691,377 +1544,6 @@ export const CmsPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: AGENCY CONTACT & ADDRESS */}
-      {activeTab === "agency" && (
-        <div className="p-6 sm:p-8 rounded-3xl neu-raised space-y-6 max-w-3xl">
-          <div>
-            <h2 className="text-lg font-bold font-display text-[#F2F0EB]">Agency Contact & Address Information</h2>
-            <p className="text-xs text-[#8A8A93]">This details appear in headers, footers, and contact links across the public agency site.</p>
-          </div>
-
-          <form onSubmit={handleSaveAgencyInfo} className="space-y-5">
-            <div>
-              <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
-                Agency Name
-              </label>
-              <input
-                type="text"
-                required
-                value={agencyFormData.name}
-                onChange={(e) => setAgencyFormData({ ...agencyFormData, name: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1 flex items-center space-x-1">
-                  <MapPin className="w-3 h-3 text-[#B08D57]" />
-                  <span>Physical Address / Office Location</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Konongo Low cost"
-                  value={agencyFormData.address}
-                  onChange={(e) => setAgencyFormData({ ...agencyFormData, address: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1 flex items-center space-x-1">
-                  <Phone className="w-3 h-3 text-[#B08D57]" />
-                  <span>WhatsApp & Phone Call Number</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="+233235337886"
-                  value={agencyFormData.whatsapp}
-                  onChange={(e) => setAgencyFormData({ ...agencyFormData, whatsapp: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1 flex items-center space-x-1">
-                <Mail className="w-3 h-3 text-[#B08D57]" />
-                <span>Primary Agency Email Address</span>
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="oseikofi0235@gmail.com"
-                value={agencyFormData.email}
-                onChange={(e) => setAgencyFormData({ ...agencyFormData, email: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
-                Homepage Hero Headline
-              </label>
-              <input
-                type="text"
-                required
-                value={agencyFormData.heroTitle}
-                onChange={(e) => setAgencyFormData({ ...agencyFormData, heroTitle: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
-                Homepage Hero Subtitle / Pitch
-              </label>
-              <textarea
-                rows={3}
-                required
-                value={agencyFormData.heroSubtitle}
-                onChange={(e) => setAgencyFormData({ ...agencyFormData, heroSubtitle: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="neu-gold-filled px-6 py-3 rounded-xl text-xs font-bold font-mono flex items-center space-x-2 cursor-pointer shadow-md"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save Agency Details</span>
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* TAB 3: SERVICES & PRICING PACKAGES */}
-      {activeTab === "services" && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold font-display text-[#F2F0EB]">Services & Package Prices</h2>
-              <p className="text-xs text-[#8A8A93]">Manage packages shown on the homepage pricing grid (Highest tier set to 5000+ GH₵).</p>
-            </div>
-            <button
-              onClick={openNewServiceForm}
-              className="neu-gold-filled px-4 py-2 rounded-xl text-xs font-bold font-mono flex items-center space-x-2 cursor-pointer shadow-md"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Package</span>
-            </button>
-          </div>
-
-          {/* Service Modal / Form */}
-          {isAddingService && (
-            <div className="p-6 rounded-3xl neu-raised space-y-4 border border-[#B08D57]/30 bg-[#15151A]">
-              <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                <h3 className="text-sm font-bold font-display text-[#B08D57]">
-                  {editingService ? "Edit Service Package" : "Create New Package"}
-                </h3>
-                <button
-                  onClick={() => setIsAddingService(false)}
-                  className="p-1 rounded-lg fin-tab"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveService} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
-                      Package Title
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Starter Ignition Package"
-                      value={serviceFormData.title}
-                      onChange={(e) => setServiceFormData({ ...serviceFormData, title: e.target.value })}
-                      className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
-                      Tier Badge / Subtitle
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Tier 1 • Essential"
-                      value={serviceFormData.tier}
-                      onChange={(e) => setServiceFormData({ ...serviceFormData, tier: e.target.value })}
-                      className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
-                      GHS Price Amount
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="GH₵ 5,000+"
-                      value={serviceFormData.ghsPrice}
-                      onChange={(e) => setServiceFormData({ ...serviceFormData, ghsPrice: e.target.value })}
-                      className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
-                      Billing Period
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="per month, One-time"
-                      value={serviceFormData.period}
-                      onChange={(e) => setServiceFormData({ ...serviceFormData, period: e.target.value })}
-                      className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                    />
-                  </div>
-
-                  <div className="flex items-center space-x-2 pt-5">
-                    <input
-                      type="checkbox"
-                      id="featured-check"
-                      checked={serviceFormData.featured}
-                      onChange={(e) => setServiceFormData({ ...serviceFormData, featured: e.target.checked })}
-                      className="w-4 h-4 accent-[#B08D57] rounded cursor-pointer"
-                    />
-                    <label htmlFor="featured-check" className="text-xs font-mono text-[#F2F0EB] cursor-pointer">
-                      Highlight as Featured
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
-                      Site Section
-                    </label>
-                    <select
-                      value={serviceFormData.category}
-                      onChange={(e) => setServiceFormData({ ...serviceFormData, category: e.target.value as "social" | "website" })}
-                      className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] bg-[#121216] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                    >
-                      <option value="social">Social & Growth (gets a NOK OS brand workspace)</option>
-                      <option value="website">Website & Systems Builds (standalone project)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
-                    Package Description
-                  </label>
-                  <textarea
-                    rows={2}
-                    required
-                    value={serviceFormData.desc}
-                    onChange={(e) => setServiceFormData({ ...serviceFormData, desc: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-mono text-[#8A8A93] uppercase mb-1">
-                    Bullet Features (One per line)
-                  </label>
-                  <textarea
-                    rows={4}
-                    required
-                    placeholder="Feature 1\nFeature 2\nFeature 3"
-                    value={serviceFormData.featuresRaw}
-                    onChange={(e) => setServiceFormData({ ...serviceFormData, featuresRaw: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingService(false)}
-                    className="px-4 py-2 rounded-xl neu-raised-sm text-xs font-mono text-[#8A8A93]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="neu-gold-filled px-6 py-2 rounded-xl text-xs font-bold font-mono flex items-center space-x-2 cursor-pointer"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    <span>Save Service Package</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Service package grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {services.map((svc) => (
-              <div 
-                key={svc.id} 
-                className={`p-6 rounded-3xl space-y-4 flex flex-col justify-between ${
-                  svc.featured ? "neu-raised border border-[#B08D57]/40 relative" : "neu-pressed"
-                }`}
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono uppercase text-[#B08D57] font-bold">
-                      {svc.tier}
-                    </span>
-                    {svc.featured && (
-                      <span className="text-[9px] font-mono bg-[#B08D57] text-[#15151A] font-bold px-2 py-0.5 rounded-full">
-                        POPULAR
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="font-display font-bold text-lg text-[#F2F0EB]">
-                    {svc.title}
-                  </h3>
-
-                  <div className="pt-1">
-                    <span className="font-display text-2xl font-bold text-[#F2F0EB]">
-                      {svc.ghsPrice}
-                    </span>
-                    <span className="text-xs text-[#8A8A93] font-mono ml-1.5">
-                      / {svc.period}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-[#8A8A93] leading-relaxed">
-                    {svc.desc}
-                  </p>
-
-                  <ul className="space-y-1.5 pt-2 text-xs text-[#F2F0EB]/80">
-                    {svc.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-start space-x-2">
-                        <Check className="w-3.5 h-3.5 text-[#B08D57] shrink-0 mt-0.5" />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {deletingServiceId === svc.id ? (
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs space-y-2.5 animate-in fade-in duration-150">
-                    <p className="font-semibold font-mono text-[11px] text-rose-300">
-                      Delete package "{svc.title}"?
-                    </p>
-                    <div className="flex items-center space-x-2 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setDeletingServiceId(null)}
-                        className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[#F2F0EB] font-mono text-[10px] cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          deleteService(svc.id);
-                          setDeletingServiceId(null);
-                          showNotification("Package deleted successfully");
-                        }}
-                        className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-mono text-[10px] font-bold cursor-pointer shadow-sm"
-                      >
-                        Confirm Delete
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="pt-4 border-t border-white/5 flex items-center justify-end space-x-2">
-                    <button
-                      onClick={() => startEditService(svc)}
-                      className="p-2 rounded-lg neu-raised-sm text-[#B08D57] hover:text-[#F2F0EB] cursor-pointer"
-                      title="Edit package"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setDeletingServiceId(svc.id)}
-                      className="p-2 rounded-lg neu-raised-sm text-rose-400 hover:text-rose-300 cursor-pointer"
-                      title="Delete package"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* TAB 4: CLIENT BRANDS SHOWCASE */}
       {activeTab === "brands" && (
         <div className="space-y-6">
@@ -2074,7 +1556,7 @@ export const CmsPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-[#8A8A93] mt-0.5">
-                Manage partner logos, brand case studies, deliverables, and performance metrics displayed on the public landing page.
+                Manage partner logos, brand case studies and deliverables. The public site shows each brand under its display name from src/content/siteContent.ts.
               </p>
             </div>
 
@@ -2205,66 +1687,9 @@ export const CmsPage: React.FC = () => {
                     rows={3}
                     value={brandFormData.overview}
                     onChange={(e) => setBrandFormData({ ...brandFormData, overview: e.target.value })}
-                    placeholder="Comprehensive description of what NOK Social built and achieved for this brand..."
+                    placeholder="Comprehensive description of what N.O.K Social built and achieved for this brand..."
                     className="w-full px-4 py-2.5 rounded-xl neu-pressed bg-transparent text-sm focus:outline-none text-[#F2F0EB] resize-none"
                   />
-                </div>
-
-                {/* Metrics */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-mono text-[#8A8A93]">Key Results / Metrics (Up to 3)</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="p-3 rounded-xl neu-pressed space-y-2">
-                      <input
-                        type="text"
-                        value={brandFormData.metric1Val}
-                        onChange={(e) => setBrandFormData({ ...brandFormData, metric1Val: e.target.value })}
-                        placeholder="+140%"
-                        className="w-full px-2 py-1 rounded bg-[#15151A] text-xs font-mono font-bold text-[#F2F0EB]"
-                      />
-                      <input
-                        type="text"
-                        value={brandFormData.metric1Label}
-                        onChange={(e) => setBrandFormData({ ...brandFormData, metric1Label: e.target.value })}
-                        placeholder="Community Growth"
-                        className="w-full px-2 py-1 rounded bg-[#15151A] text-[10px] text-zinc-300"
-                      />
-                    </div>
-
-                    <div className="p-3 rounded-xl neu-pressed space-y-2">
-                      <input
-                        type="text"
-                        value={brandFormData.metric2Val}
-                        onChange={(e) => setBrandFormData({ ...brandFormData, metric2Val: e.target.value })}
-                        placeholder="3.4x"
-                        className="w-full px-2 py-1 rounded bg-[#15151A] text-xs font-mono font-bold text-[#F2F0EB]"
-                      />
-                      <input
-                        type="text"
-                        value={brandFormData.metric2Label}
-                        onChange={(e) => setBrandFormData({ ...brandFormData, metric2Label: e.target.value })}
-                        placeholder="Drop ROAS"
-                        className="w-full px-2 py-1 rounded bg-[#15151A] text-[10px] text-zinc-300"
-                      />
-                    </div>
-
-                    <div className="p-3 rounded-xl neu-pressed space-y-2">
-                      <input
-                        type="text"
-                        value={brandFormData.metric3Val}
-                        onChange={(e) => setBrandFormData({ ...brandFormData, metric3Val: e.target.value })}
-                        placeholder="100%"
-                        className="w-full px-2 py-1 rounded bg-[#15151A] text-xs font-mono font-bold text-[#F2F0EB]"
-                      />
-                      <input
-                        type="text"
-                        value={brandFormData.metric3Label}
-                        onChange={(e) => setBrandFormData({ ...brandFormData, metric3Label: e.target.value })}
-                        placeholder="Pipeline Automation"
-                        className="w-full px-2 py-1 rounded bg-[#15151A] text-[10px] text-zinc-300"
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2361,15 +1786,6 @@ export const CmsPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Metrics preview */}
-                  <div className="grid grid-cols-3 gap-1.5 pt-1">
-                    {brand.metrics.map((m, i) => (
-                      <div key={i} className="p-1.5 rounded-lg neu-pressed text-center">
-                        <div className="text-xs font-bold font-mono" style={{ color: brand.accentColor }}>{m.value}</div>
-                        <div className="text-[8px] text-zinc-300 truncate">{m.label}</div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Actions */}

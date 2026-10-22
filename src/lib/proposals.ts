@@ -1,4 +1,5 @@
 import { collection, doc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc, writeBatch } from "firebase/firestore";
+import { withCurrentServiceNames } from "../content/services";
 import { db, cleanFirestoreData } from "./firebase";
 import { SITE_URL } from "./seo";
 import {
@@ -20,7 +21,7 @@ import {
 export const subscribeToProposals = (onUpdate: (proposals: Proposal[]) => void) => {
   const q = query(collection(db, "proposals"), orderBy("updatedAt", "desc"));
   return onSnapshot(q, (snapshot) => {
-    onUpdate(snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as Proposal)));
+    onUpdate(snapshot.docs.map((d) => withCurrentServiceNames({ ...d.data(), id: d.id } as Proposal)));
   }, (err) => {
     console.warn("Firestore subscription error on proposals:", err);
   });

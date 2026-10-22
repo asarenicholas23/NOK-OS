@@ -105,10 +105,6 @@ export interface ClientBrand {
   featured?: boolean;
   servicesProvided: string[];
   deliverables: string[];
-  metrics: {
-    label: string;
-    value: string;
-  }[];
   overview: string;
   socialHandle?: string;
   website?: string;
@@ -135,11 +131,6 @@ export const INITIAL_CLIENT_BRANDS: ClientBrand[] = [
       "Monthly Content Calendar & Queues",
       "Drop Announcement Campaign Briefs"
     ],
-    metrics: [
-      { label: "Community Growth", value: "+140%" },
-      { label: "Apparel Drops", value: "4 Sold Out" },
-      { label: "IG Reel Reach", value: "85K+ Views" }
-    ],
     overview: "Nkabom World ('Nkabom' meaning unity in Twi) combines authentic cultural heritage with contemporary streetwear silhouettes. NOK Social architected an end-to-end content production queue and seasonal drop campaign system.",
     socialHandle: "@nkabomworldd",
     website: "https://nkabomworld-store.web.app"
@@ -163,11 +154,6 @@ export const INITIAL_CLIENT_BRANDS: ClientBrand[] = [
       "High-Conversion Video Ad Briefs",
       "Order Intake Routing via WhatsApp",
       "Lookbook Creative Direction"
-    ],
-    metrics: [
-      { label: "Sales Conversion", value: "+85%" },
-      { label: "ROAS (Return on Ad Spend)", value: "3.4x" },
-      { label: "Repeat Buyers", value: "42%" }
     ],
     overview: "Standout Clothing delivers high-energy graphic apparel and bold streetwear. NOK Social designed their multi-tiered campaign roadmap, direct-to-consumer sales funnels, and automated WhatsApp order intake workflows.",
     socialHandle: "@standoutclothing",
@@ -193,97 +179,9 @@ export const INITIAL_CLIENT_BRANDS: ClientBrand[] = [
       "Lead Magnet Distribution Engine",
       "Multi-Channel Publishing System"
     ],
-    metrics: [
-      { label: "Pipeline Automation", value: "100%" },
-      { label: "Inbound Leads", value: "+210%" },
-      { label: "Content Cadence", value: "3x / Week" }
-    ],
     overview: "Vividel Inc. specializes in cutting-edge digital enterprise media, tech platforms, and business systems. NOK Social built their structured content architecture and multi-platform publishing cadence.",
     socialHandle: "@vividelinc",
     website: "https://vividel-system.vercel.app/"
-  }
-];
-
-export const INITIAL_AGENCY_INFO: AgencyInfo = {
-  name: "NOK Social",
-  heroTitle: "Building Systems to Transform your Marketing",
-  heroSubtitle: "We replace guesswork with structured content engines, data-backed campaign workflows, and high-conversion creative brief systems — tailored for startups, fashion, beauty, artisans, and scaling brands.",
-  address: "Konongo Low cost",
-  whatsapp: "+233235337886",
-  email: "oseikofi0235@gmail.com",
-  locationCity: "Digital Marketing Agency"
-};
-
-export const INITIAL_SERVICES: ServicePackage[] = [
-  {
-    id: "brand-foundation",
-    title: "Brand Foundation",
-    tier: "STAGE 1 · FOUNDATION",
-    ghsPrice: "GH¢ 400–600",
-    period: "One-time",
-    desc: "Audience profiles, brand voice, and visual identity — the starting point for every engagement.",
-    features: [
-      "Audience & competitor profiles",
-      "Brand voice guidelines",
-      "Content pillars",
-      "Visual brand guide"
-    ]
-  },
-  {
-    id: "digital-presence-setup",
-    title: "Digital Presence Setup",
-    tier: "STAGE 2 · SETUP",
-    ghsPrice: "GH¢ 500–800",
-    period: "One-time",
-    desc: "Get found and get orderable — Google, Instagram/Facebook Shop, and Mobile Money order flow.",
-    features: [
-      "Google Business Profile",
-      "Instagram/Facebook Shop setup",
-      "Meta Commerce Manager & catalog",
-      "Mobile Money order flow"
-    ]
-  },
-  {
-    id: "growth-retainer",
-    title: "Growth Retainer",
-    tier: "STAGE 3 · ONGOING",
-    ghsPrice: "GH¢ 1,200",
-    period: "per month",
-    featured: true,
-    desc: "Analytics-led content and community management, month over month.",
-    features: [
-      "Content calendar (NOK OS analytics-led)",
-      "Scheduled posting",
-      "Engagement management",
-      "Monthly performance summary"
-    ]
-  },
-  {
-    id: "campaign-package",
-    title: "Campaign Package",
-    tier: "STAGE 4 · CAMPAIGNS",
-    ghsPrice: "GH¢ 600–900",
-    period: "per campaign (ads spend billed separately)",
-    desc: "Focused awareness pushes, backed by data.",
-    features: [
-      "Analytics-led campaign strategy",
-      "Meta ads plan",
-      "Ads management: 15–20% of spend or GH¢300–500/mo"
-    ]
-  },
-  {
-    id: "custom-infrastructure-build",
-    title: "Website & Systems Build",
-    tier: "WEBSITE BUILDS",
-    ghsPrice: "GH¢ 2,500+",
-    period: "Project-based",
-    category: "website",
-    desc: "Websites and bespoke booking, ordering or client systems for brands that have outgrown manual workflows. Scoped individually.",
-    features: [
-      "Firebase-backed system architecture",
-      "Booking, contracts & e-signature",
-      "Transactional email/SMS"
-    ]
   }
 ];
 

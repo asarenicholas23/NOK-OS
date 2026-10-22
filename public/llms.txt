@@ -1,26 +1,31 @@
-# NOK Social - Digital Marketing Infrastructure & NOK OS
+# N.O.K Social
 
-> NOK Social provides end-to-end digital marketing infrastructure, content growth engines, and NOK OS management tools for high-performing brands in Ghana and West Africa.
+> N.O.K Social is a marketing and web studio that helps startups and growing businesses worldwide. It plans marketing strategy and campaigns around research and data, and builds custom websites (booking, online ordering, payments, customer data) and affordable business toolkits so founders can automate their marketing and focus on running the business. Founded by Nicholas Osei Kofi Asare, based in Ghana, working with clients anywhere.
 
-## Overview & Core Platform Capabilities
+## About
 
-NOK Social empowers small and medium enterprises, boutique fashion brands, craft artisans, and service providers with data-driven social media growth strategies, high-converting sales funnel architectures, and brand management operating software.
+- Founder: Nicholas Osei Kofi Asare (BSc International Business, MSc Business and Data Analytics). "NOK" is short for his name.
+- Focus: startups, so the marketing and operational foundations are right from day one.
+- Approach: research first (market research, audience profiling, customer language), strategy before posting, and analytics that shape every campaign. Digital marketing is treated as real marketing done online, not just social media management.
 
-## Key Public Resources
+## Services
 
-- [NOK Social Homepage](https://nok-os.web.app/home): Overview of our 5-tier digital growth infrastructure packages, strategic positioning frameworks, and client portfolio.
-- [NOK Social Growth Blog](https://nok-os.web.app/blog): In-depth tactical guides on sales funnels, email sequences, landing page optimization, and West African social commerce.
-- [Instagram Health Check Tool](https://nok-os.web.app/ighealthcheck): Automated profile audit and engagement benchmarking utility tailored for Ghanaian businesses.
-- [Free Resources](https://nok-os.web.app/resources): Free tools and templates for growing brands — lead trackers, audit checklists, and other resources.
+- [Marketing](https://noksocial.com/services/marketing): brand setup, shop and Google setup, monthly marketing (content, social media and reporting), and ad campaigns.
+- [Websites](https://noksocial.com/services/websites): custom websites at the heart of the business, with online booking, orders and payments (card and mobile money), automatic email/SMS updates and customer data. Business toolkits are the affordable first step: automations built with tools like Google Sheets, Forms and Apps Script, with an upgrade path to a full website. Clients own the code and domain after the build. Builds take at least 4 weeks depending on scope; optional monthly maintenance is available after launch.
+- [All services](https://noksocial.com/services)
 
-## Service Tiers
-1. Brand Foundation (one-time): Audience profiles, brand voice, and visual identity — the starting point for every engagement.
-2. Digital Presence Setup (one-time): Get found and get orderable — Google, Instagram/Facebook Shop, and Mobile Money order flow.
-3. Growth Retainer (monthly): Analytics-led content and community management, month over month.
-4. Campaign Package (per campaign): Focused awareness pushes, backed by data.
-5. Custom Infrastructure Build (project-based): Bespoke systems for brands that have outgrown manual workflows, scoped individually.
+Work starts with a free discovery call, then a written proposal. A 40% deposit starts the work and the balance is paid on completion.
 
-## Contact & Location
-- Headquarters: Konongo Low Cost, Ghana
-- Contact Email: oseikofi0235@gmail.com
-- Primary Markets: Ghana, Nigeria, and West African digital commerce markets.
+## Key pages
+
+- [Home](https://noksocial.com/home): what N.O.K Social does, client work and how projects run.
+- [About](https://noksocial.com/about): the founder's story and approach.
+- [Blog](https://noksocial.com/blog): practical guides on social media, campaigns, websites and running a business.
+- [Free tools](https://noksocial.com/resources): free templates, including a leads management tracker.
+- [Instagram health check](https://noksocial.com/ighealthcheck): a free Instagram profile audit tool in development, with a waitlist.
+
+## Contact
+
+- Email: info@noksocial.com
+- WhatsApp: +233235337886
+- Based in: Konongo Low Cost, Ghana. Works with clients worldwide.

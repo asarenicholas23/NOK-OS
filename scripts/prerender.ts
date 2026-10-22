@@ -50,10 +50,15 @@ async function renderRoute(
       console.warn(`  retrying ${route} (slow load)`);
     }
   }
+  // Pages that load live data mark themselves aria-busy until it arrives
+  // (e.g. the blog). Wait for that so the snapshot holds real content.
+  await page
+    .waitForFunction(() => !document.querySelector('[aria-busy="true"]'), undefined, { timeout: 15000 })
+    .catch(() => {});
   if (expectedTitleText) {
     await page
       .waitForFunction(
-        (text) => document.querySelector("h1")?.textContent?.trim() === text,
+        (text) => document.querySelector("h1")?.textContent?.trim() === text.trim(),
         expectedTitleText,
         { timeout: 15000 }
       )
@@ -88,7 +93,7 @@ async function main() {
   const page = await browser.newPage();
 
   try {
-    const staticRoutes = ["/home", "/blog", "/resources", "/ighealthcheck", "/website-builds"];
+    const staticRoutes = ["/home", "/services", "/services/marketing", "/services/websites", "/about", "/blog", "/resources", "/ighealthcheck"];
     for (const route of staticRoutes) {
       await renderRoute(page, route);
     }

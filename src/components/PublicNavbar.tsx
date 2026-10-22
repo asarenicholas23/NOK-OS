@@ -1,17 +1,10 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, Menu, X, Sun, Moon } from "lucide-react";
-import { useTheme } from "../context/ThemeContext";
+import { ArrowRight, Menu, X } from "lucide-react";
 
 export const PublicNavbar: React.FC = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { theme, setTheme } = useTheme();
-
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
-
   const isActive = (path: string) => {
     if (path === "/home" && (location.pathname === "/home" || location.pathname === "/")) return true;
     return location.pathname.startsWith(path);
@@ -33,7 +26,7 @@ export const PublicNavbar: React.FC = () => {
           </div>
           <div>
             <span className="font-display font-bold text-lg text-[#F2F0EB] tracking-tight group-hover:text-[#B08D57] transition-colors">
-              NOK Social
+              N.O.K Social
             </span>
             <span className="block text-[10px] font-mono text-[#C5C3B8] -mt-1 tracking-wider uppercase font-medium">
               Digital Marketing Agency
@@ -66,9 +59,9 @@ export const PublicNavbar: React.FC = () => {
             Services
           </a>
           <Link
-            to="/website-builds"
+            to="/services/websites"
             className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${
-              isActive("/website-builds")
+              isActive("/services/websites")
                 ? "neu-pressed text-[#C5A065] font-semibold"
                 : "text-zinc-200 hover:text-[#F2F0EB]"
             }`}
@@ -99,27 +92,6 @@ export const PublicNavbar: React.FC = () => {
 
         {/* Right Action buttons & Theme Switcher */}
         <div className="hidden md:flex items-center space-x-3">
-          {/* Day / Night Mode Switcher */}
-          <button
-            id="theme-switcher-desktop"
-            onClick={toggleTheme}
-            className="p-2.5 rounded-xl neu-raised text-zinc-200 hover:text-[#B08D57] transition-all flex items-center space-x-2 cursor-pointer group"
-            title={theme === "dark" ? "Switch to Day Mode (Light Cream)" : "Switch to Night Mode (Dark/Black)"}
-            aria-label={theme === "dark" ? "Switch to Day Mode" : "Switch to Night Mode"}
-          >
-            {theme === "dark" ? (
-              <>
-                <Sun className="w-4 h-4 text-[#C5A065] group-hover:rotate-45 transition-transform duration-300" />
-                <span className="text-[11px] font-mono font-medium hidden lg:inline">Day Mode</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-4 h-4 text-[#8C6428] group-hover:-rotate-12 transition-transform duration-300" />
-                <span className="text-[11px] font-mono font-medium hidden lg:inline">Night Mode</span>
-              </>
-            )}
-          </button>
-
           <a
             href="/home#services"
             className="neu-gold-btn px-4 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center space-x-2"
@@ -131,21 +103,6 @@ export const PublicNavbar: React.FC = () => {
 
         {/* Mobile Toggle & Theme Buttons */}
         <div className="md:hidden flex items-center space-x-2">
-          {/* Quick Mobile Theme Switcher */}
-          <button
-            id="theme-switcher-mobile-quick"
-            onClick={toggleTheme}
-            className="p-2.5 rounded-xl neu-raised text-zinc-200 hover:text-[#B08D57] cursor-pointer"
-            aria-label={theme === "dark" ? "Switch to Day Mode" : "Switch to Night Mode"}
-            title={theme === "dark" ? "Switch to Day Mode" : "Switch to Night Mode"}
-          >
-            {theme === "dark" ? (
-              <Sun className="w-4 h-4 text-[#C5A065]" />
-            ) : (
-              <Moon className="w-4 h-4 text-[#8C6428]" />
-            )}
-          </button>
-
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2.5 rounded-xl neu-raised text-zinc-200 hover:text-[#F2F0EB] cursor-pointer"
@@ -182,10 +139,10 @@ export const PublicNavbar: React.FC = () => {
               Services & Packages
             </a>
             <Link
-              to="/website-builds"
+              to="/services/websites"
               onClick={() => setMobileMenuOpen(false)}
               className={`block px-4 py-2.5 rounded-xl text-xs font-medium ${
-                isActive("/website-builds") ? "neu-pressed text-[#C5A065] font-semibold" : "text-zinc-200 hover:text-[#F2F0EB]"
+                isActive("/services/websites") ? "neu-pressed text-[#C5A065] font-semibold" : "text-zinc-200 hover:text-[#F2F0EB]"
               }`}
             >
               Website Builds
@@ -208,20 +165,6 @@ export const PublicNavbar: React.FC = () => {
             >
               Free Resources
             </Link>
-
-            {/* Mobile Theme Toggle Pill inside menu */}
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl neu-pressed text-xs font-mono font-medium text-[#F2F0EB] cursor-pointer"
-            >
-              <span className="flex items-center space-x-2">
-                {theme === "dark" ? <Sun className="w-4 h-4 text-[#C5A065]" /> : <Moon className="w-4 h-4 text-[#8C6428]" />}
-                <span>Appearance: {theme === "dark" ? "Night Mode" : "Day Mode (Cream)"}</span>
-              </span>
-              <span className="text-[10px] text-[#B08D57] font-bold uppercase">
-                {theme === "dark" ? "Switch to Day" : "Switch to Night"}
-              </span>
-            </button>
 
             <div className="pt-2 border-t border-white/5">
               <a

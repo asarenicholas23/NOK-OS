@@ -29,7 +29,7 @@ export const ProposalDocument: React.FC<{
   onSelectAll?: () => void;
 }> = ({
   proposal,
-  agencyName = "NOK Social",
+  agencyName = "N.O.K Social",
   selectedIds,
   onToggleItem,
   onSelectAll

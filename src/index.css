@@ -29,6 +29,25 @@
   --color-graphite: #F2F0EB;
   --color-line: #23232C;
   --color-ink: #15151A;
+
+  /* ---- Public site (redesign) ----------------------------------------
+     Prefixed "site-" on purpose: the unprefixed ink/paper/cyanotype/amber
+     tokens above hold the old dark values and are still used by the client
+     review and proposal pages. */
+  --font-site: "Baloo 2", ui-sans-serif, system-ui, sans-serif;
+
+  --color-site-ink: #14213D;       /* dark sections, headlines, dark button */
+  --color-site-cyanotype: #2E5EAA; /* labels, links. Not for text on ink (2.5:1) */
+  --color-site-paper: #F5F1E8;     /* default page background */
+  --color-site-slate: #5B6270;     /* supporting text: 5.4:1 on paper, 6.1:1 on white */
+  --color-site-amber: #E8A33D;     /* one accent per section. Fill only on paper (text 1.9:1) */
+  --color-site-graphite: #14171A;  /* body text on light */
+
+  --radius-section: 28px;
+  --radius-card: 24px;
+  --radius-frame: 16px;
+
+  --ease-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* ==========================================================================
@@ -992,4 +1011,12 @@ html.light .fin-scope .neu-gold-btn {
   .fin-scope ::after {
     border-color: var(--fin-line);
   }
+}
+
+/* Public site (html.site-public, set in index.html and kept in sync by
+   SiteToneSync). The paper body background itself is inline in index.html
+   so it applies before this stylesheet loads. */
+html.site-public body ::selection {
+  background-color: rgb(46 94 170 / 0.2);
+  color: var(--color-site-ink);
 }

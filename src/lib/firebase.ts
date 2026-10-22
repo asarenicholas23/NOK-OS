@@ -17,18 +17,15 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, User } from "firebase/aut
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getAnalytics, isSupported as isAnalyticsSupported, logEvent } from "firebase/analytics";
 import {
-  AgencyInfo,
-  ServicePackage,
   BlogPost,
   ClientBrand,
   DiscoveryRequest,
   CallAvailability,
   INITIAL_CALL_AVAILABILITY,
-  INITIAL_AGENCY_INFO,
-  INITIAL_SERVICES,
   INITIAL_BLOG_POSTS,
   INITIAL_CLIENT_BRANDS
 } from "../data/cmsData";
+import { withCurrentServiceNames } from "../content/services";
 
 // Config parsed from firebase-applet-config.json
 const firebaseConfig = {
@@ -1012,35 +1009,8 @@ export const subscribeToIdeas = (brandId: string, onUpdate: (ideas: CreativeIdea
   });
 };
 
-// Firestore helper: Listen to public site agency info (live streaming).
-// Falls back silently (keeps whatever local/default state the caller already has)
-// until the document exists, so a transient read error never stomps local edits.
-export const subscribeToAgencyInfo = (onUpdate: (info: AgencyInfo) => void) => {
-  return onSnapshot(doc(db, "cms", "agencyInfo"), (snap) => {
-    if (snap.exists()) {
-      onUpdate(snap.data() as AgencyInfo);
-    }
-  }, (err) => {
-    console.warn("Firestore subscription error on agencyInfo:", err);
-  });
-};
-
-// Firestore helper: Listen to public site services/pricing (live streaming).
-export const subscribeToServices = (onUpdate: (services: ServicePackage[]) => void) => {
-  const q = query(collection(db, "services"), orderBy("order"));
-  return onSnapshot(q, (snapshot) => {
-    if (!snapshot.empty) {
-      const list: ServicePackage[] = [];
-      snapshot.forEach((d) => list.push({ ...d.data(), id: d.id } as ServicePackage));
-      onUpdate(list);
-    }
-  }, (err) => {
-    console.warn("Firestore subscription error on services:", err);
-  });
-};
-
 // Firestore helper: Listen to public blog posts (live streaming).
-export const subscribeToBlogPosts = (onUpdate: (posts: BlogPost[]) => void) => {
+export const subscribeToBlogPosts = (onUpdate: (posts: BlogPost[]) => void, onSettled?: () => void) => {
   const q = query(collection(db, "blogPosts"), orderBy("createdAt", "desc"));
   return onSnapshot(q, (snapshot) => {
     if (!snapshot.empty) {
@@ -1048,8 +1018,10 @@ export const subscribeToBlogPosts = (onUpdate: (posts: BlogPost[]) => void) => {
       snapshot.forEach((d) => list.push({ ...d.data(), id: d.id } as BlogPost));
       onUpdate(list);
     }
+    onSettled?.();
   }, (err) => {
     console.warn("Firestore subscription error on blogPosts:", err);
+    onSettled?.();
   });
 };
 
@@ -1073,7 +1045,7 @@ export const subscribeToDiscoveryRequests = (onUpdate: (requests: DiscoveryReque
   const q = query(collection(db, "discoveryRequests"), orderBy("createdAt", "desc"));
   return onSnapshot(q, (snapshot) => {
     const list: DiscoveryRequest[] = [];
-    snapshot.forEach((d) => list.push({ ...d.data(), id: d.id } as DiscoveryRequest));
+    snapshot.forEach((d) => list.push(withCurrentServiceNames({ ...d.data(), id: d.id } as DiscoveryRequest)));
     onUpdate(list);
   }, (err) => {
     console.warn("Firestore subscription error on discoveryRequests:", err);
@@ -1113,27 +1085,16 @@ export const subscribeToTakenSlots = (onUpdate: (slotIds: Set<string>) => void) 
 // (or "staff cleared them") — never "needs placeholder data". Seeding them here made
 // deleted calls reappear on the next staff sign-in.
 export const migrateCmsToFirestoreIfEmpty = async (
-  currentAgencyInfo: AgencyInfo,
-  currentServices: ServicePackage[],
   currentBlogPosts?: BlogPost[],
   currentClientBrands?: ClientBrand[]
 ) => {
   try {
-    const [agencySnap, servicesSnap, blogSnap, brandsSnap] = await Promise.all([
-      getDoc(doc(db, "cms", "agencyInfo")),
-      getDocs(collection(db, "services")),
+    // Agency info and services are set in code now (src/content), so they're
+    // deliberately not seeded: re-creating them would undo deleting them.
+    const [blogSnap, brandsSnap] = await Promise.all([
       getDocs(collection(db, "blogPosts")),
       getDocs(collection(db, "clientBrands"))
     ]);
-    if (!agencySnap.exists()) {
-      await setDoc(doc(db, "cms", "agencyInfo"), currentAgencyInfo || INITIAL_AGENCY_INFO);
-    }
-    if (servicesSnap.empty) {
-      const services = currentServices && currentServices.length > 0 ? currentServices : INITIAL_SERVICES;
-      for (let i = 0; i < services.length; i++) {
-        await setDoc(doc(db, "services", services[i].id), { ...services[i], order: i });
-      }
-    }
     if (blogSnap.empty) {
       const posts = currentBlogPosts && currentBlogPosts.length > 0 ? currentBlogPosts : INITIAL_BLOG_POSTS;
       for (let i = 0; i < posts.length; i++) {

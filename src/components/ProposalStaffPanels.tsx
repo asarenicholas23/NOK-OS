@@ -60,7 +60,7 @@ export const ProposalSendPanel: React.FC<{
     }
   };
 
-  const shareText = `Hello ${editing.clientName}! Here's your proposal from NOK Social: ${link}\n\nYou can leave comments or request changes right on the page.`;
+  const shareText = `Hello ${editing.clientName}! Here's your proposal from N.O.K Social: ${link}\n\nYou can leave comments or request changes right on the page.`;
 
   return (
     <div className="space-y-3 pt-3 border-t border-white/5">
@@ -152,7 +152,7 @@ export const ProposalComments: React.FC<{ proposal: Proposal; onNotify: (msg: st
     setPosting(true);
     try {
       const user = auth.currentUser;
-      const name = user?.displayName || user?.email?.split("@")[0] || "NOK Social team";
+      const name = user?.displayName || user?.email?.split("@")[0] || "N.O.K Social team";
       await addStaffReply(proposal, name, reply.trim());
       setReply("");
     } catch (err) {

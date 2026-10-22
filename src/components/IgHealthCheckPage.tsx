@@ -1,127 +1,133 @@
 import React, { useState } from "react";
-import { PublicNavbar } from "./PublicNavbar";
-import { PublicFooter } from "./PublicFooter";
-import { Instagram, Sparkles, Send, CheckCircle2, BarChart3, Radio } from "lucide-react";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { BarChart3, CheckCircle2, Clock, LayoutGrid, Link2, Loader2, Send } from "lucide-react";
+import { db } from "../lib/firebase";
+import { crumbs, freeTools, igHealthCheck as t } from "../content/siteContent";
 import { SEO } from "./SEO";
+import { ogImage } from "../lib/seo";
+import { Breadcrumbs, Container, H2, PageHero, Reveal, SiteShell } from "./site";
 
-export const IgHealthCheckPage: React.FC = () => {
+const FEATURE_ICONS = [BarChart3, Link2, LayoutGrid];
+
+const inputCls =
+  "w-full rounded-2xl bg-site-paper px-4 py-3 text-base text-site-graphite placeholder:text-site-slate/70 outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype";
+const labelCls = "mb-1.5 block text-[15px] font-medium text-site-ink";
+
+/** Waitlist form. Entries go to the same "leads" list as the free tools, tagged as waitlist. */
+const Waitlist: React.FC = () => {
+  const f = t.form;
   const [email, setEmail] = useState("");
   const [handle, setHandle] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const cleanHandle = handle.trim().replace(/^@+/, "");
+
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && handle) {
-      setSubmitted(true);
+    if (!email.trim() || !cleanHandle) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await addDoc(collection(db, "leads"), {
+        name: "",
+        email: email.trim(),
+        businessName: `@${cleanHandle}`,
+        instagramHandle: cleanHandle,
+        resourceId: "ig-health-check",
+        resourceTitle: "Instagram health check (waitlist)",
+        source: "ig-health-check-waitlist",
+        timestamp: serverTimestamp(),
+      });
+      setDone(true);
+    } catch (err) {
+      console.error("Failed to join waitlist:", err);
+      setError(f.error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  if (done) {
+    return (
+      <div role="status" className="rounded-card bg-white p-7 text-center sm:p-9">
+        <CheckCircle2 className="mx-auto h-9 w-9 text-site-cyanotype" aria-hidden="true" />
+        <h2 className="mt-3 text-2xl font-semibold text-site-ink">{f.doneTitle}</h2>
+        <p className="mt-1.5 text-base leading-normal text-site-slate">{f.done(email.trim(), cleanHandle)}</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
-      <SEO
-        title="Instagram Account Health Check & Audit Tool | NOK Social"
-        description="An automated audit engine for Ghanaian brands evaluating profile bio conversion, grid visual rhythm, engagement consistency, and hashtag reach."
-        path="/ighealthcheck"
-      />
-      <PublicNavbar />
-
-      <main id="main-content" className="px-4 sm:px-8 py-16 sm:py-24 max-w-4xl mx-auto">
-        <div className="p-8 sm:p-12 rounded-3xl neu-raised-lg space-y-8 text-center relative overflow-hidden">
-          {/* Status Badge */}
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full neu-pressed text-[#C5A065] text-xs font-mono font-semibold">
-            <Radio className="w-3.5 h-3.5 text-[#B08D57] animate-pulse" />
-            <span>Public Utility • Launching Q3 2026</span>
-          </div>
-
-          <div className="space-y-3 max-w-2xl mx-auto">
-            <h1 className="font-display text-3xl sm:text-5xl font-bold text-[#F2F0EB] tracking-tight">
-              Instagram Account Health Check & Audit Tool
-            </h1>
-            <p className="font-display text-lg text-[#C5A065] font-semibold">
-              Automated Audit Engine for Ghanaian Digital Brands
-            </p>
-            <p className="text-xs sm:text-sm text-zinc-200 leading-relaxed font-normal">
-              We're building an automated audit engine for Ghanaian brands to evaluate profile bio conversion rates, grid visual rhythm, engagement consistency, and hashtag reach.
-            </p>
-          </div>
-
-          {/* Features Preview Tiles */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left max-w-3xl mx-auto pt-4">
-            <div className="p-4 rounded-2xl neu-pressed space-y-2">
-              <BarChart3 className="w-5 h-5 text-[#B08D57]" />
-              <h2 className="text-xs font-bold text-[#F2F0EB]">Engagement Benchmark</h2>
-              <p className="text-[11px] text-zinc-200">Compares your likes & comments against Ghanaian sector averages.</p>
-            </div>
-            <div className="p-4 rounded-2xl neu-pressed space-y-2">
-              <Instagram className="w-5 h-5 text-[#B08D57]" />
-              <h2 className="text-xs font-bold text-[#F2F0EB]">Bio & Link Conversion</h2>
-              <p className="text-[11px] text-zinc-200">Audits CTA strength and link-in-bio navigation speed.</p>
-            </div>
-            <div className="p-4 rounded-2xl neu-pressed space-y-2">
-              <Sparkles className="w-5 h-5 text-[#B08D57]" />
-              <h2 className="text-xs font-bold text-[#F2F0EB]">AI Grid Rhythm Score</h2>
-              <p className="text-[11px] text-zinc-200">Analyzes color consistency, typography contrast, and visual flow.</p>
-            </div>
-          </div>
-
-          {/* Early Access Form */}
-          <div className="max-w-md mx-auto pt-4">
-            {submitted ? (
-              <div className="p-6 rounded-2xl neu-pressed space-y-3 text-center">
-                <CheckCircle2 className="w-8 h-8 text-[#B08D57] mx-auto" />
-                <h2 className="text-sm font-bold text-[#F2F0EB]">You're on the Priority List!</h2>
-                <p className="text-xs text-zinc-200">
-                  We'll notify <span className="text-[#F2F0EB]">{email}</span> as soon as the audit tool opens for @{handle.replace("@", "")}.
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="p-6 rounded-2xl neu-pressed space-y-4 text-left">
-                <h2 className="text-xs font-mono text-[#C5A065] uppercase font-bold">
-                  Get Early Access & Free Audit Report
-                </h2>
-
-                <div>
-                  <label className="block text-[10px] font-mono text-zinc-200 uppercase mb-1 font-medium">
-                    Instagram Handle
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="@yourbrand"
-                    value={handle}
-                    onChange={(e) => setHandle(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-mono text-zinc-200 uppercase mb-1 font-medium">
-                    Work Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="you@brand.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl neu-pressed-deep text-xs text-[#F2F0EB] outline-none focus:ring-1 focus:ring-[#B08D57]"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-xl neu-gold-filled text-xs font-bold flex items-center justify-center space-x-2 cursor-pointer shadow-md"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Notify Me at Launch</span>
-                </button>
-              </form>
-            )}
-          </div>
+    <form onSubmit={onSubmit} aria-labelledby="waitlist-title" className="rounded-card bg-white p-6 sm:p-9">
+      <h2 id="waitlist-title" className="text-2xl font-semibold leading-tight text-site-ink">
+        {f.title}
+      </h2>
+      <p className="mt-1.5 text-base leading-normal text-site-slate">{f.body}</p>
+      <div className="mt-5 space-y-3">
+        <div>
+          <label htmlFor="ig-handle" className={labelCls}>{f.handle}</label>
+          <input id="ig-handle" type="text" required autoComplete="off" placeholder={f.handlePlaceholder} value={handle} onChange={(e) => setHandle(e.target.value)} className={inputCls} />
         </div>
-      </main>
-
-      <PublicFooter />
-    </div>
+        <div>
+          <label htmlFor="ig-email" className={labelCls}>{f.email}</label>
+          <input id="ig-email" type="email" required autoComplete="email" placeholder={f.emailPlaceholder} value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
+        </div>
+      </div>
+      {error && <p role="alert" className="mt-3 text-[15px] text-[#B42318]">{error}</p>}
+      <button
+        type="submit"
+        disabled={submitting}
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-site-amber px-6 py-3.5 text-base font-semibold text-site-ink cursor-pointer transition-[filter] duration-300 ease-soft hover:brightness-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype focus-visible:ring-offset-2 disabled:opacity-60"
+      >
+        {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+        {submitting ? f.submitting : f.submit}
+      </button>
+    </form>
   );
 };
+
+export const IgHealthCheckPage: React.FC = () => (
+  <SiteShell>
+    <SEO title={t.seo.title} description={t.seo.description} path="/ighealthcheck" image={ogImage("ighealthcheck")} />
+    <Breadcrumbs
+      currentPath="/ighealthcheck"
+      items={[{ label: crumbs.home, to: "/home" }, { label: freeTools.page.crumb, to: "/resources" }, { label: t.crumb }]}
+    />
+    <PageHero tight tag={t.tag} title={t.title} subtitle={t.subtitle} />
+
+    <Container className="mt-12 grid items-start gap-8 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:gap-10">
+      <section aria-labelledby="ig-features">
+        <H2 id="ig-features" className="flex items-center gap-2.5">
+          {t.featuresTitle}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-site-ink">
+            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+            {t.tag}
+          </span>
+        </H2>
+        <ul className="mt-5 space-y-3">
+          {t.features.map((feat, i) => {
+            const Icon = FEATURE_ICONS[i] ?? BarChart3;
+            return (
+              <Reveal as="li" key={feat.title} delay={i * 0.08}>
+                <article className="flex gap-4 rounded-card bg-white p-5 sm:p-6">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#E4ECF7] text-site-cyanotype">
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 className="text-xl font-semibold leading-tight text-site-ink">{feat.title}</h3>
+                    <p className="mt-1 text-base leading-normal text-site-slate">{feat.desc}</p>
+                  </div>
+                </article>
+              </Reveal>
+            );
+          })}
+        </ul>
+      </section>
+      <Reveal delay={0.1} className="md:sticky md:top-28">
+        <Waitlist />
+      </Reveal>
+    </Container>
+  </SiteShell>
+);

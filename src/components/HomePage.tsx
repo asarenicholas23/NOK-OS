@@ -1,339 +1,272 @@
-import React, { useState, lazy, Suspense } from "react";
-import { Link } from "react-router-dom";
-import { PublicFooter } from "./PublicFooter";
+import React from "react";
+import { ArrowUpRight, Check, MessageCircle, TrendingUp } from "lucide-react";
 import { useCms } from "../context/CmsContext";
-import { isWebsiteBuild } from "../data/cmsData";
-import { 
-  ArrowRight, 
-  PhoneCall, 
-  CheckCircle2, 
-  MapPin
-} from "lucide-react";
-import { PublicNavbar } from "./PublicNavbar";
-import { WebsiteBuildsSection } from "./WebsiteBuildsSection";
-import { ClientBrandsSection } from "./ClientBrandsSection";
+import { DEFAULT_DEPOSIT_PERCENT } from "../data/cmsData";
+import { about, contact, home } from "../content/siteContent";
+import { buildBusinessJsonLd, ogImage } from "../lib/seo";
 import { SEO } from "./SEO";
-import { buildFaqJsonLd, truncateDescription } from "../lib/seo";
-import { FAQSection, buildHomeFaqItems } from "./FAQSection";
+import {
+  BrowserFrame,
+  Container,
+  CtaBlock,
+  FAQAccordion,
+  FloatingStat,
+  FreeToolCard,
+  H2,
+  JsonLd,
+  Highlight,
+  ImageSlot,
+  Lead,
+  PhoneFrame,
+  PillButton,
+  Reveal,
+  ScrollFillText,
+  Section,
+  ServiceLineCards,
+  SiteShell,
+  StepPanel,
+  useBooking,
+  WorkGrid,
+} from "./site";
 
-// Lazy-load modal to reduce initial main-thread JS parse time
-const DiscoveryModal = lazy(() => import("./DiscoveryModal"));
-
-export const HomePage: React.FC = () => {
-  const { agencyInfo, services } = useCms();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedServiceTier, setSelectedServiceTier] = useState("Growth Retainer");
-
-  const targetAudience = [
-    {
-      title: "Startups",
-      desc: "Early-stage founders building their first real digital presence",
-      img: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=600&q=80"
-    },
-    {
-      title: "Small & Local Businesses",
-      desc: "Established retail/service brands needing consistent systems",
-      img: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=600&q=80"
-    },
-    {
-      title: "Creative & Independent Brands",
-      desc: "Artisans, fashion, photography, and craft-led businesses",
-      img: "https://images.unsplash.com/photo-1529374255404-311a2a4f1fd9?auto=format&fit=crop&w=600&q=80"
-    },
-    {
-      title: "Growth-Stage Teams",
-      desc: "Brands past the startup phase, needing a strategic framework to direct execution",
-      img: "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80"
-    }
-  ];
-
-  const faqItems = buildHomeFaqItems(agencyInfo, services);
-  const socialServices = services.filter((s) => !isWebsiteBuild(s));
-
+const Hero: React.FC = () => {
+  const { openBooking } = useBooking();
+  const h = home.hero;
+  const [reach, paid] = h.stats;
 
   return (
-    <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
-      <SEO
-        title={`${agencyInfo.name} | Digital Marketing Infrastructure & NOK OS`}
-        description={truncateDescription(agencyInfo.heroSubtitle)}
-        path="/home"
-      />
-      <script type="application/ld+json">
-        {JSON.stringify(buildFaqJsonLd(faqItems)).replace(/</g, "\\u003c")}
-      </script>
-      <PublicNavbar />
-
-      {/* Main Page Landmark */}
-      <main id="main-content">
-        {/* Hero Section */}
-        <section className="px-4 sm:px-8 py-16 sm:py-24 max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-7 space-y-6">
-              {/* Location & Status Tag - High Contrast Text */}
-              <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full neu-pressed text-[#C5A065] text-xs font-mono font-medium">
-                <MapPin className="w-3.5 h-3.5 text-[#B08D57]" />
-                <span>{agencyInfo.name} • Digital Marketing Agency</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
-              </div>
-
-              {/* Headline */}
-              <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#F2F0EB] leading-[1.15]">
-                {agencyInfo.heroTitle}
-              </h1>
-
-              {/* Subheading - Elevated contrast for WCAG AA+ */}
-              <p className="text-base sm:text-lg text-zinc-200 leading-relaxed max-w-2xl font-normal">
-                {agencyInfo.heroSubtitle}
-              </p>
-
-              {/* Action Buttons */}
-              <div className="pt-2 flex flex-wrap items-center gap-4">
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="neu-gold-filled px-6 py-3.5 rounded-xl text-sm font-bold flex items-center space-x-2 cursor-pointer shadow-lg"
-                >
-                  <PhoneCall className="w-4 h-4" />
-                  <span>Book a Discovery Call</span>
-                </button>
-
-                <Link
-                  to="/blog"
-                  className="neu-raised px-6 py-3.5 rounded-xl text-sm font-semibold text-[#F2F0EB] hover:text-[#B08D57] flex items-center space-x-2 transition-all"
-                >
-                  <span>Read Strategy Blog</span>
-                  <ArrowRight className="w-4 h-4 text-[#B08D57]" />
-                </Link>
-              </div>
-
-              {/* Quick trust metrics */}
-              <div className="pt-6 grid grid-cols-3 gap-4 border-t border-[#1C1C22]">
-                <div>
-                  <div className="text-xl sm:text-2xl font-bold font-mono text-[#F2F0EB]">5 Tiers</div>
-                  <div className="text-xs text-zinc-200 mt-0.5">Service Infrastructure</div>
-                </div>
-                <div>
-                  <div className="text-xl sm:text-2xl font-bold font-mono text-[#C5A065]">100%</div>
-                  <div className="text-xs text-zinc-200 mt-0.5">Data-Backed Workflows</div>
-                </div>
-                <div>
-                  <div className="text-xl sm:text-2xl font-bold font-mono text-[#F2F0EB]">Direct</div>
-                  <div className="text-xs text-zinc-200 mt-0.5">Strategy Support</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Hero Soft-Pressed Graphic Card - Who We Serve */}
-            <div className="lg:col-span-5">
-              <div className="p-6 sm:p-8 rounded-3xl neu-raised-lg relative space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-white/5">
-                  <div>
-                    <h2 className="font-display font-semibold text-base text-[#F2F0EB]">Who We Serve</h2>
-                    <p className="text-[11px] font-mono text-zinc-200 mt-0.5">Startups, Local Businesses, Creatives & Growth Teams</p>
-                  </div>
-                  <span className="bg-[#B08D57]/20 text-[#C5A065] font-mono text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase">
-                    TARGET AUDIENCE
-                  </span>
-                </div>
-
-                {/* Target Audience Image Cards */}
-                <div className="space-y-3">
-
-                  <div className="grid grid-cols-2 gap-3">
-                    {targetAudience.map((audience, i) => (
-                      <div key={i} className="p-3 rounded-xl neu-pressed flex flex-col justify-between space-y-2 group hover:border-[#B08D57]/30 transition-all">
-                        <img 
-                          src={audience.img} 
-                          alt={audience.title} 
-                          className="w-full h-20 object-cover rounded-lg neu-pressed bg-[#111115]"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            target.src = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=600&q=80";
-                          }}
-                        />
-                        <div>
-                          <div className="text-xs font-semibold text-[#F2F0EB] leading-tight">{audience.title}</div>
-                          <div className="text-[10px] text-zinc-300 mt-1 line-clamp-2 leading-tight">{audience.desc}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+    <>
+      <Container>
+        <Reveal as="section" className="mx-auto max-w-[760px] pt-12 text-center sm:pt-[72px]">
+          <h1 className="text-[38px] font-bold leading-[1.06] text-site-ink sm:text-[60px] sm:leading-[1.02]">
+            {h.titleBefore} <Highlight>{h.titleHighlight}</Highlight>
+            {h.titleAfter}
+          </h1>
+          <p className="mx-auto mt-[18px] max-w-[600px] text-lg leading-normal text-site-slate sm:text-xl">{h.subtitle}</p>
+          <div className="mt-[26px] flex flex-wrap justify-center gap-3">
+            <PillButton variant="primary" size="lg" onClick={() => openBooking()}>
+              {h.primaryCta}
+            </PillButton>
+            <PillButton variant="soft" size="lg" href="#work">
+              {h.secondaryCta}
+            </PillButton>
           </div>
-        </section>
+        </Reveal>
+      </Container>
 
-        {/* Brands We've Worked With Section */}
-        <ClientBrandsSection />
+      {/* Collage: client site, Instagram grid, and two real results */}
+      <Container>
+        <Reveal delay={0.25} className="relative mx-auto mt-10 max-w-[960px] sm:mt-12 sm:h-[460px]">
+          <BrowserFrame className="relative mr-[16%] sm:absolute sm:left-[4%] sm:right-[20%] sm:top-2.5 sm:mr-0">
+            <ImageSlot
+              label="Screenshot: client website"
+              src={home.work.images["standout-clothing"].src}
+              width={1200}
+              height={750}
+              alt={h.siteImageAlt}
+              aspect="16 / 9"
+              objectPosition="top"
+              priority
+            />
+          </BrowserFrame>
 
-        {/* Services Section */}
-        <section id="services" className="px-4 sm:px-8 py-20 max-w-7xl mx-auto border-t border-[#1C1C22]">
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <h2 className="font-display text-2xl sm:text-4xl font-bold text-[#F2F0EB] tracking-tight">
-              Social & Growth Services
-            </h2>
-            <p className="text-sm sm:text-base text-zinc-200">
-              Structured support for every stage of your brand, from foundation to monthly growth retainers. Every engagement starts with a free discovery call and a proposal tailored to you.
-            </p>
+          <div className="absolute right-0 top-6 w-[104px] sm:right-[4%] sm:top-[50px] sm:w-[190px]">
+            <PhoneFrame className="rounded-[24px] p-1.5 sm:rounded-[32px] sm:p-2.5">
+              <img
+                src={h.grid.src}
+                width={h.grid.width}
+                height={h.grid.height}
+                alt={h.grid.alt}
+                loading="eager"
+                decoding="async"
+                className="block w-full rounded-md"
+              />
+              <p className="mt-2 text-center font-mono text-[9px] leading-tight text-site-slate sm:text-[11px]">{h.gridLabel}</p>
+            </PhoneFrame>
           </div>
 
-          {/* Pressed Tile Service Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {socialServices.map((service, sIdx) => {
-              return (
-                <div
-                  key={service.id}
-                  className={`p-6 sm:p-8 rounded-2xl neu-raised flex flex-col justify-between space-y-6 relative group transition-all duration-300 ${
-                    service.featured ? "border border-[#B08D57]/40" : ""
-                  }`}
-                >
-                  {service.featured && (
-                    <span className="absolute -top-3 right-6 bg-[#B08D57] text-[#15151A] text-[10px] font-mono font-bold uppercase px-3 py-1 rounded-full shadow-md">
-                      Recommended
-                    </span>
-                  )}
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold text-[#B08D57] bg-[#15151A] px-3 py-1 rounded-lg neu-pressed">
-                        Stage 0{sIdx + 1}
-                      </span>
-                      <span className="text-[10px] font-mono text-zinc-200 uppercase tracking-wider bg-[#15151A] px-2.5 py-1 rounded-lg neu-pressed">
-                        {service.tier}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h3 className="font-display font-bold text-lg text-[#F2F0EB] group-hover:text-[#B08D57] transition-colors">
-                        {service.title}
-                      </h3>
-                      <p className="text-xs text-zinc-200 mt-2 leading-relaxed">
-                        {service.desc}
-                      </p>
-                    </div>
-
-                    {/* Pricing Box */}
-                    <div className="p-3.5 rounded-xl neu-pressed space-y-1">
-                      <div className="text-xl font-bold font-mono text-[#C5A065]">
-                        {service.ghsPrice}
-                      </div>
-                      <div className="text-[10px] font-mono text-zinc-200">
-                        Billing: {service.period}
-                      </div>
-                    </div>
-
-                    {/* Features List */}
-                    <div className="space-y-2 pt-2">
-                      <div className="text-[10px] font-mono text-[#C5A065] uppercase tracking-wider font-semibold">
-                        Includes:
-                      </div>
-                      {service.features.map((feat, fIdx) => (
-                        <div key={fIdx} className="flex items-start space-x-2 text-xs text-[#F2F0EB]">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#B08D57] shrink-0 mt-0.5" />
-                          <span>{feat}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setSelectedServiceTier(service.title);
-                      setIsModalOpen(true);
-                    }}
-                    className="w-full py-3 px-4 rounded-xl neu-raised-sm hover:neu-pressed text-xs font-bold text-[#F2F0EB] hover:text-[#B08D57] transition-all flex items-center justify-center space-x-2 cursor-pointer border border-[#B08D57]/30"
-                  >
-                    <span>Discuss {service.title}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Website & Systems Builds: standalone projects, separate from the social services */}
-        <WebsiteBuildsSection
-          onBook={(serviceTitle) => {
-            setSelectedServiceTier(serviceTitle);
-            setIsModalOpen(true);
-          }}
-          learnMoreLink
-        />
-
-        {/* Free Resources Banner */}
-        <section className="px-4 sm:px-8 py-20 max-w-7xl mx-auto">
-          <Link
-            to="/resources"
-            className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 p-8 sm:p-12 rounded-3xl neu-raised-lg hover:neu-pressed transition-all duration-200"
-          >
-            <div className="space-y-3">
-              <span className="text-xs font-mono text-[#C5A065] uppercase tracking-wider font-semibold">
-                Free Tools & Templates
-              </span>
-              <h2 className="font-display text-2xl sm:text-4xl font-bold text-[#F2F0EB]">
-                Grab our free resources — no strings attached.
-              </h2>
-              <p className="text-sm text-zinc-200 leading-relaxed max-w-xl">
-                Lead trackers, audit checklists, and other tools we use ourselves — free to unlock in seconds.
-              </p>
-            </div>
-            <div className="shrink-0">
-              <span className="neu-gold-btn px-5 py-3 rounded-xl text-xs font-bold font-mono inline-flex items-center space-x-2">
-                <span>Browse Free Resources</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-              </span>
-            </div>
-          </Link>
-        </section>
-
-        {/* FAQ Section */}
-        <FAQSection items={faqItems} />
-
-        {/* CTA Section */}
-        <section className="px-4 sm:px-8 py-16 max-w-7xl mx-auto border-t border-[#1C1C22]">
-          <div className="p-8 sm:p-12 rounded-3xl neu-raised text-center space-y-6">
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#F2F0EB]">
-              Ready to upgrade your digital presence?
-            </h2>
-            <p className="text-sm text-zinc-200 max-w-xl mx-auto leading-relaxed">
-              Book a 30-minute discovery session with NOK Social. We'll audit your current social channels and outline a step-by-step roadmap.
-            </p>
-            <div className="pt-2 flex flex-wrap justify-center gap-4">
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="neu-gold-filled px-6 py-3.5 rounded-xl text-sm font-bold flex items-center space-x-2 cursor-pointer"
-              >
-                <PhoneCall className="w-4 h-4" />
-                <span>Book Discovery Call</span>
-              </button>
-
-              <Link
-                to="/ighealthcheck"
-                className="neu-raised px-6 py-3.5 rounded-xl text-sm font-semibold text-[#F2F0EB] hover:text-[#B08D57] transition-all"
-              >
-                <span>Get IG Account Audit</span>
-              </Link>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      {/* Footer Navigation */}
-      <PublicFooter />
-
-      {/* Discovery Call Modal with Suspense Lazy Loading */}
-      {isModalOpen && (
-        <Suspense fallback={null}>
-          <DiscoveryModal
-            isOpen={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
-            serviceTier={selectedServiceTier}
-            services={services}
+          <div className="mt-4 flex flex-col items-start gap-3 sm:contents">
+          <FloatingStat
+            className="sm:absolute sm:bottom-2.5 sm:left-0"
+            icon={<TrendingUp className="h-4 w-4" />}
+            title={reach.title}
+            titleMono
+            detail={reach.detail}
+            period={6}
+            delay={1}
           />
-        </Suspense>
-      )}
-    </div>
+          <FloatingStat
+            className="self-end sm:absolute sm:bottom-0 sm:right-[16%]"
+            icon={<Check className="h-4 w-4" />}
+            accent="amber"
+            title={paid.title}
+            detail={paid.detail}
+            period={5.5}
+            delay={0.5}
+          />
+          </div>
+        </Reveal>
+      </Container>
+    </>
   );
 };
+
+const Work: React.FC = () => (
+  <section id="work" aria-labelledby="work-title" className="mt-16 scroll-mt-6 sm:mt-20">
+    <Container>
+      <H2 id="work-title">{home.work.title}</H2>
+      <Lead>{home.work.intro}</Lead>
+      <WorkGrid className="mt-6" />
+    </Container>
+  </section>
+);
+
+const CaseStudy: React.FC = () => {
+  const c = home.caseStudy;
+  return (
+    <Section
+      tone="ink"
+      className="mt-16 sm:mt-20"
+      aria-labelledby="case-title"
+      innerClassName="flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-px-6 [scrollbar-width:none] md:grid md:snap-none md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-center md:gap-8 md:overflow-visible [&::-webkit-scrollbar]:hidden"
+    >
+      {/* Phones: two slides (story, then the shop) in a swipe row. md+: side by side. */}
+      <Reveal className="w-[86%] shrink-0 snap-start md:w-auto">
+        <p className="font-mono text-xs text-site-amber">{c.tag}</p>
+        <h2 id="case-title" className="mt-2 text-[30px] font-bold leading-[1.08] sm:text-[40px]">
+          {c.title}
+        </h2>
+        <p className="mt-4 max-w-[480px] text-lg leading-normal text-site-paper/75">{c.body}</p>
+        <dl className="mt-8 grid max-w-[480px] grid-cols-2 items-start gap-5 sm:gap-6">
+          {c.stats.map((st) => (
+            <div key={st.label} className="flex flex-col-reverse">
+              <dt className="mt-1.5 text-[15px] leading-snug text-site-paper/75">{st.label}</dt>
+              <dd className="whitespace-nowrap font-mono text-[28px] leading-none text-site-amber sm:text-[40px]">{st.value}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-7 max-w-[480px]">
+          <div>
+            <h3 className="text-[15px] font-semibold text-site-paper">{c.whatWeDidTitle}</h3>
+            <ul className="mt-2 space-y-1.5">
+              {c.whatWeDid.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-[15px] leading-snug text-site-paper/75">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-site-amber" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <PillButton
+          variant="soft"
+          href={c.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-8 focus-visible:ring-offset-site-ink"
+        >
+          {c.linkLabel}
+          <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+        </PillButton>
+      </Reveal>
+
+      <Reveal delay={0.15} className="flex w-[62%] shrink-0 snap-start items-center justify-center md:w-auto">
+        <PhoneFrame className="w-full max-w-[230px] bg-[#0c1426] sm:max-w-[260px]">
+          <div className="overflow-hidden rounded-[16px]" style={{ aspectRatio: "9 / 16" }}>
+            <img
+              src="/images/site/case-standout-phone.webp"
+              width={520}
+              height={1125}
+              alt="Standout Clothing's shop on a phone, showing products with prices"
+              loading="lazy"
+              decoding="async"
+              className="block w-full"
+            />
+          </div>
+        </PhoneFrame>
+      </Reveal>
+    </Section>
+  );
+};
+
+const HomeContent: React.FC = () => {
+  const { services, callAvailability } = useCms();
+  const { openBooking } = useBooking();
+  const faqItems = home.faq.items(services, DEFAULT_DEPOSIT_PERCENT);
+
+  return (
+    <>
+      <SEO title={home.seo.title} description={home.seo.description} path="/home" image={ogImage("home")} />
+      <JsonLd
+        data={buildBusinessJsonLd({
+          description: home.seo.description,
+          email: contact.email,
+          telephone: contact.whatsapp,
+          founder: about.founder.name,
+        })}
+      />
+
+      <Hero />
+
+      <Section tone="ink" className="mt-14 sm:mt-16" aria-label="Why we exist">
+        <ScrollFillText
+          text={home.problem.text}
+          className="max-w-[900px] text-[24px] font-semibold leading-[1.25] sm:text-[34px]"
+        />
+      </Section>
+
+      <Container className="mt-4">
+        <h2 className="sr-only">{home.serviceLines.srTitle}</h2>
+        <ServiceLineCards />
+      </Container>
+
+      <Work />
+
+      <CaseStudy />
+
+      <section aria-labelledby="how-title" className="mt-16 sm:mt-20">
+        <Container>
+          <H2 id="how-title">{home.howWeWork.title}</H2>
+          <Lead className="mb-6">{home.howWeWork.intro}</Lead>
+          <StepPanel steps={home.howWeWork.steps(DEFAULT_DEPOSIT_PERCENT)} stepLabel={home.howWeWork.stepLabel} />
+        </Container>
+      </section>
+
+      <Container className="mt-16 sm:mt-20">
+        <FreeToolCard />
+      </Container>
+
+      <section aria-labelledby="faq-title" className="mt-16 sm:mt-20">
+        {/* Phones: heading, questions, then the "still have a question" panel.
+            md+: heading and panel in the left column, questions on the right. */}
+        <Container className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)] md:grid-rows-[auto_1fr] md:gap-x-10">
+          <H2 id="faq-title" className="md:col-start-1 md:row-start-1">
+            {home.faq.title}
+          </H2>
+          <FAQAccordion items={faqItems} className="mt-1 md:col-start-2 md:row-span-2 md:row-start-1 md:mt-0" />
+          <div className="mt-4 self-start rounded-card bg-white p-6 md:col-start-1 md:row-start-2 md:mt-0">
+            <p className="text-lg font-semibold text-site-ink">{home.faq.asideTitle}</p>
+            <p className="mt-1.5 text-base leading-normal text-site-slate">{home.faq.asideBody}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <PillButton variant="dark" href={`https://wa.me/${contact.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                {home.faq.asideWhatsapp}
+              </PillButton>
+              <PillButton variant="soft" onClick={() => openBooking()} className="bg-site-paper! hover:bg-[#ece6d8]!">
+                {home.faq.asideBook}
+              </PillButton>
+            </div>
+          </div>
+        </Container>
+      </section>
+
+      <CtaBlock title={home.cta.title} body={home.cta.body(callAvailability.slotMinutes)} button={home.cta.button} />
+    </>
+  );
+};
+
+export const HomePage: React.FC = () => (
+  <SiteShell>
+    <HomeContent />
+  </SiteShell>
+);

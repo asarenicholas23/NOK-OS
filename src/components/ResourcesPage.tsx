@@ -1,15 +1,70 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { PublicNavbar } from "./PublicNavbar";
-import { PublicFooter } from "./PublicFooter";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Clock, ExternalLink, Lock, X } from "lucide-react";
 import { ResourceCaptureForm } from "./ResourceCaptureForm";
-import { RESOURCES, Resource } from "../data/resourcesData";
-import { Gift, Lock, ExternalLink, X, FileSpreadsheet, Clock } from "lucide-react";
+import { RESOURCES, type Resource } from "../data/resourcesData";
+import { crumbs, freeTools } from "../content/siteContent";
 import { SEO } from "./SEO";
+import { ogImage } from "../lib/seo";
+import { Breadcrumbs, Card, Container, PageHero, PillButton, Reveal, SiteShell, ToolIcon } from "./site";
+
+const t = freeTools.page;
+
+/** Rounded dialog for the unlock form. Escape or the backdrop closes it. */
+const UnlockDialog: React.FC<{ resource: Resource; onClose: () => void; onUnlock: () => void }> = ({ resource, onClose, onUnlock }) => {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      prev?.focus?.();
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-site-ink/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="unlock-title"
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg rounded-card bg-white p-6 shadow-xl sm:p-8"
+      >
+        <button
+          ref={closeRef}
+          type="button"
+          onClick={onClose}
+          aria-label={t.close}
+          className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-site-paper text-site-ink cursor-pointer hover:bg-[#ece6d8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-site-cyanotype"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <ResourceCaptureForm resourceId={resource.id} resourceTitle={resource.title} onUnlock={onUnlock} />
+      </div>
+    </div>
+  );
+};
 
 export const ResourcesPage: React.FC = () => {
+  const [params, setParams] = useSearchParams();
   const [activeResource, setActiveResource] = useState<Resource | null>(null);
   const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
+
+  // Links like /resources?unlock=leads-tracker (from the blog strip and homepage card) open that tool's form.
+  useEffect(() => {
+    const id = params.get("unlock");
+    if (!id) return;
+    const r = RESOURCES.find((x) => x.id === id && !x.comingSoon);
+    if (r) setActiveResource(r);
+    params.delete("unlock");
+    setParams(params, { replace: true });
+  }, [params, setParams]);
+
+  const closeDialog = useCallback(() => setActiveResource(null), []);
 
   const handleUnlock = (resource: Resource) => {
     setUnlockedIds((prev) => (prev.includes(resource.id) ? prev : [...prev, resource.id]));
@@ -18,118 +73,55 @@ export const ResourcesPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans selection:bg-[#B08D57]/30">
-      <SEO
-        title="Free Tools & Templates for Growing Brands | NOK Social"
-        description="Practical, no-fluff resources we use ourselves — unlock free tools and templates for growing your brand's digital marketing."
-        path="/resources"
-      />
-      <PublicNavbar />
+    <SiteShell>
+      <SEO title={t.seo.title} description={t.seo.description} path="/resources" image={ogImage("resources")} />
+      <Breadcrumbs currentPath="/resources" items={[{ label: crumbs.home, to: "/home" }, { label: t.crumb }]} />
+      <PageHero tight title={t.title} subtitle={t.intro} />
 
-      <main id="main-content" className="px-4 sm:px-8 py-16 sm:py-24 max-w-6xl mx-auto">
-        {/* Hero */}
-        <div className="text-center max-w-2xl mx-auto space-y-4 mb-14">
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full neu-pressed text-[#C5A065] text-xs font-mono font-semibold">
-            <Gift className="w-3.5 h-3.5 text-[#B08D57]" />
-            <span>Free Resources</span>
-          </div>
-          <h1 className="font-display text-3xl sm:text-5xl font-bold text-[#F2F0EB] tracking-tight">
-            Free Tools & Templates for Growing Brands
-          </h1>
-          <p className="text-xs sm:text-sm text-zinc-200 leading-relaxed">
-            Practical, no-fluff resources we use ourselves — unlock any of them below with one quick form. New resources are added regularly.
-          </p>
-        </div>
-
-        {/* Resource Card Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {RESOURCES.map((resource) => {
-            const unlocked = unlockedIds.includes(resource.id);
+      <Container className="mt-12">
+        <ul className="grid gap-4 md:grid-cols-2">
+          {RESOURCES.map((r, i) => {
+            const unlocked = unlockedIds.includes(r.id);
             return (
-              <div
-                key={resource.id}
-                className={`p-6 rounded-3xl neu-raised-lg space-y-4 flex flex-col ${resource.comingSoon ? "opacity-80" : ""}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="w-11 h-11 rounded-xl neu-pressed flex items-center justify-center text-[#B08D57]">
-                    <FileSpreadsheet className="w-5 h-5" />
+              <Reveal as="li" key={r.id} delay={i * 0.08} className="h-full">
+                <Card as="article" className="flex h-full flex-col" bodyClassName="flex h-full flex-col">
+                  <div className="flex items-start justify-between gap-3">
+                    <ToolIcon id={r.id} />
+                    {r.comingSoon && (
+                      <span className="rounded-full bg-site-paper px-3 py-1 text-[13px] font-semibold text-site-ink">{t.soon}</span>
+                    )}
                   </div>
-                  {resource.comingSoon && (
-                    <span className="text-[9px] font-mono bg-[#B08D57]/20 text-[#C5A065] px-2 py-1 rounded-full font-semibold uppercase tracking-wider">
-                      Coming Soon
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-1.5 flex-1">
-                  <span className="text-[10px] font-mono text-[#C5A065] uppercase tracking-wider font-semibold">
-                    {resource.category}
-                  </span>
-                  <h2 className="font-display text-lg font-bold text-[#F2F0EB]">{resource.title}</h2>
-                  <p className="text-xs text-zinc-200 leading-relaxed">{resource.description}</p>
-                </div>
-
-                {resource.comingSoon ? (
-                  <Link
-                    to={resource.fileUrl}
-                    className="w-full py-3 rounded-xl neu-pressed text-xs font-bold text-zinc-200 hover:text-[#F2F0EB] flex items-center justify-center space-x-2 cursor-pointer"
-                  >
-                    <Clock className="w-3.5 h-3.5 text-[#B08D57]" />
-                    <span>Join the Waitlist</span>
-                  </Link>
-                ) : unlocked ? (
-                  <a
-                    href={resource.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-3 rounded-xl neu-gold-filled text-xs font-bold flex items-center justify-center space-x-2 cursor-pointer shadow-md"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>Open Resource</span>
-                  </a>
-                ) : (
-                  <button
-                    onClick={() => setActiveResource(resource)}
-                    className="w-full py-3 rounded-xl neu-gold-filled text-xs font-bold flex items-center justify-center space-x-2 cursor-pointer shadow-md"
-                  >
-                    <Lock className="w-3.5 h-3.5" />
-                    <span>Unlock</span>
-                  </button>
-                )}
-              </div>
+                  <p className="mt-5 font-mono text-xs text-site-cyanotype">{r.category}</p>
+                  <h2 className="mt-1 text-2xl font-semibold leading-tight text-site-ink">{r.title}</h2>
+                  <p className="mt-2 flex-1 text-base leading-normal text-site-slate">{r.description}</p>
+                  <div className="mt-6">
+                    {r.comingSoon ? (
+                      <PillButton variant="soft" to={r.fileUrl} className="bg-site-paper! hover:bg-[#ece6d8]!">
+                        <Clock className="h-4 w-4" aria-hidden="true" />
+                        {t.waitlist}
+                      </PillButton>
+                    ) : unlocked ? (
+                      <PillButton variant="primary" href={r.fileUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                        {t.open}
+                      </PillButton>
+                    ) : (
+                      <PillButton variant="dark" onClick={() => setActiveResource(r)}>
+                        <Lock className="h-4 w-4" aria-hidden="true" />
+                        {t.unlock}
+                      </PillButton>
+                    )}
+                  </div>
+                </Card>
+              </Reveal>
             );
           })}
-        </div>
-      </main>
+        </ul>
+      </Container>
 
-      {/* Capture Form Modal, scoped to whichever resource was clicked */}
       {activeResource && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setActiveResource(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg rounded-3xl neu-raised-lg p-6 sm:p-8 relative animate-in fade-in zoom-in-95 duration-200"
-          >
-            <button
-              onClick={() => setActiveResource(null)}
-              className="absolute top-6 right-6 p-2 rounded-xl neu-raised text-zinc-200 hover:text-[#F2F0EB] cursor-pointer"
-              aria-label="Close modal"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <ResourceCaptureForm
-              resourceId={activeResource.id}
-              resourceTitle={activeResource.title}
-              onUnlock={() => handleUnlock(activeResource)}
-            />
-          </div>
-        </div>
+        <UnlockDialog resource={activeResource} onClose={closeDialog} onUnlock={() => handleUnlock(activeResource)} />
       )}
-
-      <PublicFooter />
-    </div>
+    </SiteShell>
   );
 };

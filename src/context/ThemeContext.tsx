@@ -1,27 +1,33 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 interface ThemeContextType {
   theme: "dark" | "light";
   setTheme: (theme: "dark" | "light") => void;
+  setPathname: (pathname: string) => void;
 }
+
+const THEMED_ROUTES = /^\/(os|review|approve|proposal)(\/|$)/;
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-// Plain localStorage-backed light/dark preference shared by the public site
-// and the /os dashboard. Deliberately has no dependency on Firestore/auth —
-// both surfaces just read/write the same "nok-os-theme" key independently.
+// Plain localStorage-backed light/dark preference for the /os workspace
+// (and the client review/proposal pages). No dependency on Firestore/auth.
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("nok-os-theme") as "dark" | "light") || "dark";
   });
 
+  // Day Mode only applies to the /os workspace and the client review/proposal
+  // pages. The public site has no toggle: it uses fixed paper/ink sections.
+  // ThemeProvider sits outside the router, so ThemeClassSync (rendered inside
+  // it) re-applies the class whenever the route changes.
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+
   useEffect(() => {
-    if (theme === "light") {
-      document.documentElement.classList.add("light");
-    } else {
-      document.documentElement.classList.remove("light");
-    }
-  }, [theme]);
+    const light = theme === "light" && THEMED_ROUTES.test(pathname);
+    document.documentElement.classList.toggle("light", light);
+  }, [theme, pathname]);
 
   const setTheme = (newTheme: "dark" | "light") => {
     setThemeState(newTheme);
@@ -29,7 +35,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, setPathname }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -41,4 +47,12 @@ export const useTheme = () => {
     throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
+};
+
+/** Render inside <BrowserRouter> so the theme class follows route changes. */
+export const ThemeClassSync: React.FC = () => {
+  const { pathname } = useLocation();
+  const { setPathname } = useTheme();
+  useEffect(() => setPathname(pathname), [pathname, setPathname]);
+  return null;
 };

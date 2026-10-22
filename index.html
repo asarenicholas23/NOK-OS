@@ -4,27 +4,59 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#15151A" />
+    <script>
+      // Public pages paint on paper from the first frame; the admin and client review pages keep the dark theme.
+      (function () {
+        if (/^\/(os|proposal|review|approve)(\/|$)/.test(location.pathname)) return;
+        document.documentElement.classList.add("site-public");
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute("content", "#F5F1E8");
+      })();
+    </script>
+    <!-- Baloo 2 is self-hosted and preloaded so it's ready before the page
+         renders; a late font swap was moving content (layout shift). -->
+    <link rel="preload" href="/fonts/baloo2-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <style>
+      @font-face {
+        font-family: "Baloo 2";
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: url(/fonts/baloo2-latin-ext.woff2) format("woff2");
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      @font-face {
+        font-family: "Baloo 2";
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: url(/fonts/baloo2-latin.woff2) format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* Inline so it applies before the main stylesheet loads. */
+      html.site-public body { background-color: #f5f1e8; color: #14171a; }
+    </style>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>NOK Social | Digital Marketing Infrastructure & NOK OS</title>
-    <meta name="description" content="NOK Social provides end-to-end digital marketing infrastructure, automated content growth engines, and NOK OS management tools for high-performing brands in Ghana and West Africa." />
+    <title>N.O.K Social | Marketing strategies, campaigns and websites for growing businesses</title>
+    <meta name="description" content="We plan your content, run your ads and build the website behind them, so more people find your business and more of them pay." />
     <meta name="robots" content="index, follow" />
     <meta name="google-site-verification" content="SskH91xecP2VpuW5lZVk5rBU5IpOPqL4vYoTfPcqMEA" />
 
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="NOK Social | Digital Marketing Infrastructure & NOK OS" />
-    <meta property="og:description" content="High-converting digital growth engines, sales funnels, and brand management tools built for Ghanaian businesses." />
+    <meta property="og:title" content="N.O.K Social | Marketing strategies, campaigns and websites for growing businesses" />
+    <meta property="og:description" content="We plan your content, run your ads and build the website behind them, so more people find your business and more of them pay." />
     <meta property="og:url" content="https://noksocial.com" />
-    <meta property="og:image" content="https://noksocial.com/og-cover.jpg" />
+    <meta property="og:image" content="https://noksocial.com/images/og/home.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="NOK Social | Digital Marketing Infrastructure & NOK OS" />
-    <meta name="twitter:description" content="High-converting digital growth engines, sales funnels, and brand management tools built for Ghanaian businesses." />
-    <meta name="twitter:image" content="https://noksocial.com/og-cover.jpg" />
+    <meta name="twitter:title" content="N.O.K Social | Marketing strategies, campaigns and websites for growing businesses" />
+    <meta name="twitter:description" content="We plan your content, run your ads and build the website behind them, so more people find your business and more of them pay." />
+    <meta name="twitter:image" content="https://noksocial.com/images/og/home.jpg" />
 
     <!-- Preconnect to critical external origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -4,6 +4,7 @@ import { Loader2, MessageSquare, Send, PenLine, AlertTriangle, CheckCircle2, Inf
 import { API_BASE_URL } from "../lib/apiBase";
 import { useCms } from "../context/CmsContext";
 import { ProposalSnapshot, ProposalComment, ProposalStatus, PaymentKind, proposalTotals, selectedLineItems, formatGhs } from "../data/cmsData";
+import { withCurrentServiceNames } from "../content/services";
 import { ProposalDocument } from "./ProposalDocument";
 import { SEO } from "./SEO";
 
@@ -65,7 +66,7 @@ export const ProposalReviewPage: React.FC = () => {
     }
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
-    setProposal(data.proposal);
+    setProposal(withCurrentServiceNames(data.proposal));
     setSelectedIds(data.proposal.lineItems.map((li: { id: string }) => li.id));
     setStatus(data.status);
     setPayment(data.payment);
@@ -159,7 +160,7 @@ export const ProposalReviewPage: React.FC = () => {
     const items = proposal && chosen.length < proposal.lineItems.length
       ? ` with these items: ${chosen.map((li) => li.title).join(", ")}`
       : "";
-    const text = `Hello NOK Social! I'm looking at my proposal "${proposal?.title || ""}" and I'm ready to go ahead${items}.`;
+    const text = `Hello N.O.K Social! I'm looking at my proposal "${proposal?.title || ""}" and I'm ready to go ahead${items}.`;
     return `https://wa.me/${rawPhone}?text=${encodeURIComponent(text)}`;
   };
 
@@ -174,10 +175,10 @@ export const ProposalReviewPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#15151A] text-[#F2F0EB] font-sans">
-      <SEO title="Your Proposal | NOK Social" description="Your private proposal from NOK Social." path={`/proposal/${token}`} noindex />
+      <SEO title="Your Proposal | N.O.K Social" description="Your private proposal from N.O.K Social." path={`/proposal/${token}`} noindex />
 
       <header className="px-4 sm:px-8 py-5 max-w-4xl mx-auto flex items-center justify-between">
-        <span className="font-display font-bold text-lg">{agencyInfo.name || "NOK Social"}</span>
+        <span className="font-display font-bold text-lg">{agencyInfo.name || "N.O.K Social"}</span>
         <span className="text-[10px] font-mono uppercase tracking-wider text-[#8A8A93]">Private proposal</span>
       </header>
 
@@ -359,7 +360,7 @@ export const ProposalReviewPage: React.FC = () => {
             <section className="p-6 rounded-3xl neu-raised space-y-5">
               <div>
                 <h2 className="font-display text-lg font-bold">Questions, comments & changes</h2>
-                <p className="text-xs text-zinc-400 mt-1">Only you and the NOK Social team can see this conversation.</p>
+                <p className="text-xs text-zinc-400 mt-1">Only you and the N.O.K Social team can see this conversation.</p>
               </div>
 
               {comments.length > 0 && (
@@ -371,7 +372,7 @@ export const ProposalReviewPage: React.FC = () => {
                     >
                       <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-[#8A8A93]">
                         <span className={c.author === "staff" ? "text-[#C5A065] font-semibold" : "text-[#F2F0EB] font-semibold"}>
-                          {c.author === "staff" ? `${c.name} · NOK Social` : c.name}
+                          {c.author === "staff" ? `${c.name} · N.O.K Social` : c.name}
                         </span>
                         <span>{new Date(c.createdAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                         <span>· v{c.version}</span>

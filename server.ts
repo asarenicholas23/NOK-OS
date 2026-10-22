@@ -810,7 +810,7 @@ Instructions:
 3. "readTime": Estimate reading time e.g. "5 min read".
 4. "coverImage": Extract the main header/featured image URL if present in the HTML/meta tags, or return an appropriate high quality Unsplash image URL related to the topic if none found.
 5. "authorName": Author name (default to "Osei Kofi" if not specified).
-6. "authorRole": Author role (default to "Lead Strategist, NOK Social").
+6. "authorRole": Author role (default to "Lead Strategist, N.O.K Social").
 7. "excerpt": A compelling 1-2 sentence summary hook (150-200 characters).
 8. "contentMarkdown": The COMPLETE article body text, formatted cleanly in Markdown. Include all section headings (## Heading), subheadings (### Subheading), key callout boxes (> Callout quote), bulleted lists (- Item), bold text (**bold**), and any image URLs (![Alt](url)) present in the article. DO NOT summarize or truncate the article body — extract all paragraphs from beginning to end.
 
@@ -821,7 +821,7 @@ Return JSON in this exact structure:
   "readTime": "5 min read",
   "coverImage": "https://...",
   "authorName": "Osei Kofi",
-  "authorRole": "Lead Strategist, NOK Social",
+  "authorRole": "Lead Strategist, N.O.K Social",
   "excerpt": "Compelling summary...",
   "contentMarkdown": "## Section Title\\n\\nFull paragraph text..."
 }`;

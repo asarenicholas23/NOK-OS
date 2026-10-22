@@ -24,4 +24,4 @@ Allow: /
 Disallow: /os/
 Disallow: /api/
 
-Sitemap: https://nok-os.web.app/sitemap.xml
+Sitemap: https://noksocial.com/sitemap.xml

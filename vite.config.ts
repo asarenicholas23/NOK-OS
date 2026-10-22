@@ -36,14 +36,18 @@ export default defineConfig(() => {
               if (id.includes('jspdf')) {
                 return undefined;
               }
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              // Match exact package folders, not substrings: "motion/react"
+              // and "lucide-react" both contain "react", and splitting one
+              // library across two chunks that import each other breaks
+              // start-up order (React undefined when motion initialises).
+              if (/node_modules\/(lucide-react|motion|framer-motion|motion-dom|motion-utils)\//.test(id)) {
+                return 'ui-vendor';
+              }
+              if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) {
                 return 'react-vendor';
               }
               if (id.includes('firebase')) {
                 return 'firebase-vendor';
-              }
-              if (id.includes('lucide-react') || id.includes('motion')) {
-                return 'ui-vendor';
               }
               if (id.includes('react-markdown')) {
                 return 'markdown-vendor';
@@ -51,7 +55,11 @@ export default defineConfig(() => {
               if (id.includes('@google/genai')) {
                 return 'genai-vendor';
               }
-              return 'vendor';
+              // Everything else: let Rollup split by where it's used, so
+              // libraries only the /os admin needs stay out of the public
+              // pages' start-up download. (A catch-all 'vendor' chunk put
+              // ~1.6MB of them on every page.)
+              return undefined;
             }
           },
         },
