@@ -146,7 +146,7 @@ export const DashboardPage: React.FC = () => {
 
     const changeFor = (curr: number, prev: number) => {
       if (comparison.length === 0) return { change: "New Data", changeType: "neutral" as const };
-      if (!prev) return { change: "+100%", changeType: "increase" as const };
+      if (!prev) return { change: "No prior data", changeType: "neutral" as const };
       const pct = ((curr - prev) / prev) * 100;
       return {
         change: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,

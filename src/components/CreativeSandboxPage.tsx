@@ -254,11 +254,7 @@ export const CreativeSandboxPage: React.FC = () => {
         channel: scheduleChannel,
         status: "scheduled",
         scheduledTime: scheduleDate,
-        content: item.content,
-        metrics: {
-          estimatedReach: Math.floor(Math.random() * 5000) + 1200,
-          engagementRate: parseFloat((Math.random() * 3 + 1.2).toFixed(2))
-        }
+        content: item.content
       });
       setSchedulingIdeaId(null);
       setScheduleDate("");

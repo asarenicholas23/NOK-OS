@@ -13,6 +13,7 @@ import {
   Lead,
   cleanFirestoreData,
   subscribeToBrands,
+  setFirestoreErrorReporter,
   subscribeToCampaignQueues,
   subscribeToCalendarEvents,
   subscribeToBriefs,
@@ -112,7 +113,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { theme, setTheme } = useTheme();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [activeBrandId, setActiveBrandId] = useState<string>(() => {
-    return localStorage.getItem("nok-os-active-brand-id") || "acme-corp";
+    return localStorage.getItem("nok-os-active-brand-id") || "";
   });
   const [activeBrand, setActiveBrand] = useState<Brand | null>(null);
   
@@ -182,6 +183,17 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return updated;
     });
   };
+
+  // Surface Firestore read failures (once per kind) instead of hiding them.
+  useEffect(() => {
+    const reported = new Set<string>();
+    setFirestoreErrorReporter((what, err) => {
+      console.warn(`Firestore read failed (${what}):`, err);
+      if (reported.has(what)) return;
+      reported.add(what);
+      addNotification("Couldn't load data", `NOK OS couldn't load ${what}. Check your connection and refresh.`, "warning");
+    });
+  }, []);
 
   const markNotificationAsRead = (id: string) => {
     setNotifications(prev => {
@@ -568,10 +580,6 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           status: "scheduled",
           scheduledTime: `${briefDate} 10:00 AM`,
           content: briefContent,
-          metrics: {
-            estimatedReach: 35000,
-            engagementRate: 5.2
-          },
           createdAt: new Date().toISOString()
         }));
       }
@@ -620,10 +628,6 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           status: "scheduled",
           scheduledTime: `${briefDate} 10:00 AM`,
           content: briefContent,
-          metrics: {
-            estimatedReach: 40000,
-            engagementRate: 5.5
-          },
           createdAt: new Date().toISOString()
         });
       }

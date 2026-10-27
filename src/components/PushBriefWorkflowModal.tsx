@@ -190,11 +190,7 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
           channel: channel || "LinkedIn",
           status: status === "Approved" ? "scheduled" : "active",
           scheduledTime,
-          content,
-          metrics: {
-            estimatedReach: 24000,
-            engagementRate: 4.8
-          }
+          content
         });
       }
 

@@ -72,37 +72,6 @@ export const DirectionsPage: React.FC = () => {
   const [generatingDirections, setGeneratingDirections] = useState(false);
   const [generatingBriefs, setGeneratingBriefs] = useState(false);
 
-  // Fallback initial mock data to seed Firestore if empty
-  const defaultMockDirections: Omit<BrandDirection, "id" | "brandId">[] = [
-    {
-      pillar: "Technical Superiority",
-      strategy: "Publish benchmarking reports showing 90% latency reduction against legacy container models.",
-      focus: "CTO, DevOps Managers, Engineering Leads",
-      checklist: ["Assemble cold-start latencies chart", "Produce comparative Dockerfile setups", "Draft core benchmarking whitepaper"]
-    },
-    {
-      pillar: "Capital Efficiency Advocacy",
-      strategy: "Highlight down-scaling capabilities to zero idle spend to target lean startups.",
-      focus: "SaaS Founders, Finance Controllers",
-      checklist: ["Draft 'Zero Idle Cost' calculator brief", "Produce carousel on start-up budget preservation", "Publish case study on startup scaling saves"]
-    }
-  ];
-
-  // Seed Firestore if empty for active brand
-  useEffect(() => {
-    const seedIfEmpty = async () => {
-      if (!activeBrand) return;
-      const seedKey = `nok-os-has-seeded-directions-v3-${activeBrand.id}`;
-      const hasSeeded = localStorage.getItem(seedKey);
-      if (!hasSeeded && directions.length === 0) {
-        localStorage.setItem(seedKey, "true");
-        for (const item of defaultMockDirections) {
-          await addDirection(item);
-        }
-      }
-    };
-    seedIfEmpty();
-  }, [directions.length, activeBrand]);
 
   const getBrandTextColor = () => {
     if (activeColor === "emerald") return "text-emerald-500 dark:text-emerald-400";

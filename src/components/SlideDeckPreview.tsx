@@ -171,141 +171,7 @@ export const SlideDeckPreview: React.FC<SlideDeckPreviewProps> = ({
       }
     }
 
-    // Default High-Fidelity Fallbacks if parsing returned empty or outline was generic
-    if (list.length === 0) {
-      if (formatType === "video") {
-        list.push(
-          {
-            number: 1,
-            title: "Hook",
-            copy: "Founder. Marketer. Analyst. Support team. All by 9am.",
-            design: "Bold, oversized headline text, centered, on a solid brand-color background (no imagery yet — let the words carry it). Small subhead underneath in lighter weight: 'Sound familiar?' keep it text-only and punchy.",
-            instagramVersion: "Native video slide (screen-recorded MP4) showing clean automation flow in NOK OS.",
-            linkedinVersion: "Clean high-contrast screenshot of the NOK OS Brief dashboard state with annotated callout arrow.",
-            imageSeed: "video-1"
-          },
-          {
-            number: 2,
-            title: "The Relatable Chaos",
-            copy: "Between replying to DMs, tracking sales, posting content, and actually doing the work you started this for — something always slips.",
-            design: "Break the single big-text pattern — use 4 small icons in a loose scattered/cluttered arrangement (chat bubble, chart, calendar, checklist) representing overwhelm.",
-            imageSeed: "video-2"
-          },
-          {
-            number: 3,
-            title: "The Reframe & Resolve",
-            copy: "What if the marketing and data side just... ran itself? Tell us the one thing eating your week, we will show you automation.",
-            design: "Hard visual reset — lots of negative space, single centered line of text. Solid tranquil transition to brand tones.",
-            imageSeed: "video-3"
-          }
-        );
-      } else if (formatType === "flier") {
-        list.push(
-          {
-            number: 1,
-            title: "Header Brand Anchor",
-            copy: `${brandName.toUpperCase()} — Core Solutions`,
-            design: "Clean minimalist border layout. High-contrast typography with modern tracking space, making the logo pop in the upper left corner.",
-            imageSeed: "flier-header"
-          },
-          {
-            number: 2,
-            title: "Core Strategic Reframe",
-            copy: brief.keyMessage || "What if the marketing and data side just... ran itself?",
-            design: "Hero upper middle section. Clean solid canvas with soft ambient radial neon glow behind typography. Spacious margins.",
-            imageSeed: "flier-hero"
-          },
-          {
-            number: 3,
-            title: "The CTA Playback",
-            copy: brief.cta || "Scan the QR code to automate your workspace workflow sandbox.",
-            design: "Solid high-contrast visual rectangular card at the bottom. Simulated wireframe QR box on the right and literal CTA text on the left.",
-            imageSeed: "flier-cta"
-          }
-        );
-      } else if (formatType === "email") {
-        list.push(
-          {
-            number: 1,
-            title: "Inbox Header",
-            copy: `Subject: Let's automate the relatable chaos\nPreview: Between replying to DMs, tracking sales, and actual work...`,
-            design: "Render premium clean headers. Custom dark-mode eye-safe email container blocks.",
-            subjectLine: "Let's automate the relatable chaos",
-            previewText: "Between replying to DMs, tracking sales, and actual work...",
-            imageSeed: "email-meta"
-          },
-          {
-            number: 2,
-            title: "Editorial Narrative",
-            copy: `Hi [Founder],\n\nBetween replying to DMs, tracking sales, posting content, and actually doing the work you started this for — something always slips.\n\nWhat if it just... ran itself?`,
-            design: "Editorial spacing. Left-aligned serif typography with soft cream background canvas, establishing a calm feeling.",
-            imageSeed: "email-body"
-          },
-          {
-            number: 3,
-            title: "Action Card CTA",
-            copy: brief.cta || "Click here to share the one task eating your week, and we'll build its automated system.",
-            design: "Shaded background block inside email thread. High-contrast centered button in brand color.",
-            imageSeed: "email-action"
-          }
-        );
-      } else {
-        // Carousel Slides (Standard spec format)
-        list.push(
-          {
-            number: 1,
-            title: "Hook",
-            copy: "Founder. Marketer. Analyst. Support team. All by 9am.",
-            design: "Bold, oversized headline text, centered, on a solid brand-color background (no imagery yet — let the words carry it). Small subhead underneath in lighter weight: 'Sound familiar?' keep it text-only and punchy.",
-            imageSeed: "slide-1"
-          },
-          {
-            number: 2,
-            title: "The Relatable Chaos",
-            copy: "Between replying to DMs, tracking sales, posting content, and actually doing the work you started this for — something always slips.",
-            design: "Break the single big-text pattern — use 4 small icons in a loose scattered/cluttered arrangement (chat bubble, chart, calendar, checklist) representing overwhelm.",
-            imageSeed: "slide-2"
-          },
-          {
-            number: 3,
-            title: "The Reframe",
-            copy: "What if the marketing and data side just... ran itself?",
-            design: "Hard visual reset — lots of white/negative space, single centered line of text.",
-            imageSeed: "slide-3"
-          },
-          {
-            number: 4,
-            title: "The Demo",
-            copy: "This is NOK OS — the system running our own marketing right now.",
-            design: "Real product screenshot, un-cropped and legible — resist the urge to over-stylize this one; authenticity is the point.",
-            instagramVersion: "Native video slide (your screen-recorded MP4) showing one clean flow in NOK OS.",
-            linkedinVersion: "A clean screenshot of the same moment. Add a small annotated callout arrow reading 'AI-generated, human-approved'.",
-            imageSeed: "slide-4"
-          },
-          {
-            number: 5,
-            title: "The Payoff",
-            copy: "That's hours back — for the actual work only you can do.",
-            design: "Bright focus-point highlighting per your brand tone — one striking visual anchor (bold '10 HOURS' as oversized type) with everything else minimal.",
-            imageSeed: "slide-5"
-          },
-          {
-            number: 6,
-            title: "The Bridge",
-            copy: "This is the same kind of system we build — for founders like you.",
-            design: "Introduce your logo/wordmark more prominently here for the first time. Elegant editorial alignment.",
-            imageSeed: "slide-6"
-          },
-          {
-            number: 7,
-            title: "CTA",
-            copy: "Tell us the one thing eating your week. We'll show you what automating it could look like.",
-            design: "Clear, simple closing card — logo, one-line CTA. Single call-to-action button only.",
-            imageSeed: "slide-7"
-          }
-        );
-      }
-    }
+    // No invented placeholder slides: an empty outline shows an empty state.
 
     // Attach premium illustrations with dynamic image signature keys
     const finalItems = list.map((item, idx) => {
@@ -962,6 +828,14 @@ export const SlideDeckPreview: React.FC<SlideDeckPreviewProps> = ({
       </div>
     );
   };
+
+  if (items.length === 0) {
+    return (
+      <div className="text-center py-12 border border-dashed border-border/60 rounded-xl text-xs text-slate-400">
+        This brief has no slide or scene outline yet, so there's nothing to preview.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

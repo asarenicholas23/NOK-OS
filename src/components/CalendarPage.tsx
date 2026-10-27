@@ -76,8 +76,8 @@ export const CalendarPage: React.FC = () => {
   const [downloadingExcel, setDownloadingExcel] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  // Date Navigation State (Defaulting to July 2026 to showcase the seeded mock events perfectly)
-  const [currentDate, setCurrentDate] = useState<Date>(() => new Date(2026, 6, 1));
+  // Date navigation starts on today.
+  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
 
   // Google Calendar Integration States
   const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);

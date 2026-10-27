@@ -368,7 +368,7 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
                   targetAudience: view.targetAudience,
                   keyMessage: brief.keyMessage,
                   deliverables: view.deliverables,
-                  contentOutline: view.contentOutline || view.visualCopyDetail || `## Slide 1 — Hook\n**Copy:** ${view.topicIdea || brief.title}\n**Design:** Editorial hero cover\n\n## Slide 2 — Core Message\n**Copy:** ${brief.keyMessage}\n**Design:** Clean typographic breakdown\n\n## Slide 3 — Call To Action\n**Copy:** ${view.cta || "DM us to get started."}\n**Design:** High-contrast logo signature`,
+                  contentOutline: view.contentOutline || view.visualCopyDetail || "",
                   cta: view.cta,
                   toneVisualRef: view.visualReference || view.toneVisualRef,
                   formatSpec: view.formatSpec

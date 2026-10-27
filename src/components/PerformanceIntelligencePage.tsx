@@ -37,106 +37,6 @@ import {
 import { generatePerformanceReportPDF } from "../utils/pdfGenerator";
 import { RawAnalyticsRow } from "../lib/firebase";
 
-// High-fidelity pre-seeded data generator tailored by Brand ID for the workspace Sandbox
-const getDemoDataForBrand = (brandId: string): RawAnalyticsRow[] => {
-  const now = new Date();
-  const timestamp = now.toISOString();
-
-  if (brandId === "acme-corp") {
-    return [
-      { id: "demo-acme-1", brandId: "acme-corp", title: "Enterprise SaaS V2 Platform Launch Guide", platform: "LinkedIn", type: "Carousel", impressions: 145000, engagement: 8200, engagementRate: 5.65, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 4500, comments: 1650, saves: 1150, shares: 900, reach: 139000, profileVisits: 3600, follows: 580 },
-      { id: "demo-acme-2", brandId: "acme-corp", title: "Sub-second database replication micro-benchmarks", platform: "LinkedIn", type: "Text", impressions: 85000, engagement: 4100, engagementRate: 4.82, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 2300, comments: 850, saves: 550, shares: 400, reach: 81000, profileVisits: 2040, follows: 290 },
-      { id: "demo-acme-3", brandId: "acme-corp", title: "Why we abandoned Friday afternoon cloud deployments", platform: "LinkedIn", type: "Article", impressions: 120000, engagement: 6800, engagementRate: 5.67, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 3800, comments: 1400, saves: 900, shares: 700, reach: 114000, profileVisits: 2880, follows: 480 },
-      { id: "demo-acme-4", brandId: "acme-corp", title: "Serverless scaling auto-recovery cold starts", platform: "Twitter/X", type: "Infographic", impressions: 45000, engagement: 2900, engagementRate: 6.44, createdAt: timestamp, dayOfWeek: "Thursday", likes: 1600, comments: 600, saves: 400, shares: 300, reach: 43000, profileVisits: 1080, follows: 200 },
-      { id: "demo-acme-5", brandId: "acme-corp", title: "Unlocking 90% savings in pipeline idle compute spend", platform: "Twitter/X", type: "Text", impressions: 32000, engagement: 1800, engagementRate: 5.62, createdAt: timestamp, dayOfWeek: "Monday", likes: 1000, comments: 350, saves: 250, shares: 200, reach: 30500, profileVisits: 760, follows: 120 },
-      { id: "demo-acme-6", brandId: "acme-corp", title: "Acme Cloud CLI multi-region deploy benchmark", platform: "Twitter/X", type: "Text", impressions: 28000, engagement: 1350, engagementRate: 4.82, createdAt: timestamp, dayOfWeek: "Friday", likes: 750, comments: 250, saves: 200, shares: 150, reach: 26800, profileVisits: 670, follows: 90 },
-      { id: "demo-acme-7", brandId: "acme-corp", title: "SaaS Database Partitioning: Single vs Multi-Tenant", platform: "Newsletter", type: "Text", impressions: 22000, engagement: 4900, engagementRate: 22.27, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 2700, comments: 1000, saves: 700, shares: 500, reach: 21500, profileVisits: 520, follows: 340 },
-      { id: "demo-acme-8", brandId: "acme-corp", title: "Zero-idle database partition configuration guidelines", platform: "Newsletter", type: "Text", impressions: 18000, engagement: 3800, engagementRate: 21.11, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 2100, comments: 800, saves: 500, shares: 400, reach: 17600, profileVisits: 430, follows: 260 },
-      { id: "demo-acme-9", brandId: "acme-corp", title: "Modern serverless architecture migration walkthrough", platform: "YouTube", type: "Video", impressions: 110000, engagement: 9100, engagementRate: 8.27, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 5000, comments: 1900, saves: 1200, shares: 1000, reach: 105000, profileVisits: 2640, follows: 630 },
-      { id: "demo-acme-10", brandId: "acme-corp", title: "Automating Kubernetes multi-tenant clusters", platform: "Facebook", type: "Video", impressions: 55000, engagement: 3100, engagementRate: 5.64, createdAt: timestamp, dayOfWeek: "Monday", likes: 1700, comments: 650, saves: 450, shares: 300, reach: 52000, profileVisits: 1320, follows: 210 },
-      { id: "demo-acme-11", brandId: "acme-corp", title: "Why your Docker images are too bloated (Short)", platform: "TikTok", type: "Video", impressions: 185000, engagement: 16400, engagementRate: 8.86, createdAt: timestamp, dayOfWeek: "Thursday", likes: 9100, comments: 3400, saves: 2100, shares: 1800, reach: 180000, profileVisits: 4440, follows: 1150 },
-      { id: "demo-acme-12", brandId: "acme-corp", title: "Introducing Acme Flow: Serverless workflows in 3 lines", platform: "Threads", type: "Text", impressions: 31000, engagement: 2100, engagementRate: 6.77, createdAt: timestamp, dayOfWeek: "Friday", likes: 1150, comments: 450, saves: 300, shares: 200, reach: 29500, profileVisits: 740, follows: 140 }
-    ];
-  } else if (brandId === "global-ind") {
-    return [
-      { id: "demo-global-1", brandId: "global-ind", title: "How we optimized oceanic cargo transport routing flows", platform: "YouTube", type: "Video", impressions: 240000, engagement: 19800, engagementRate: 8.25, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 11000, comments: 4100, saves: 2700, shares: 2000, reach: 232000, profileVisits: 5760, follows: 1380 },
-      { id: "demo-global-2", brandId: "global-ind", title: "Scope-2 net-neutrality audit disclosure checklist", platform: "LinkedIn", type: "Article", impressions: 54000, engagement: 2100, engagementRate: 3.89, createdAt: timestamp, dayOfWeek: "Monday", likes: 1150, comments: 420, saves: 310, shares: 220, reach: 51000, profileVisits: 1290, follows: 140 },
-      { id: "demo-global-3", brandId: "global-ind", title: "Integrating 400MW offshore wind energy into Eastern grids", platform: "LinkedIn", type: "Carousel", impressions: 135000, engagement: 7400, engagementRate: 5.48, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 4100, comments: 1480, saves: 1020, shares: 800, reach: 129000, profileVisits: 3240, follows: 510 },
-      { id: "demo-global-4", brandId: "global-ind", title: "Our 10-year ESG commitment report card results", platform: "LinkedIn", type: "Infographic", impressions: 88000, engagement: 4100, engagementRate: 4.66, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 2250, comments: 820, saves: 570, shares: 460, reach: 84000, profileVisits: 2110, follows: 280 },
-      { id: "demo-global-5", brandId: "global-ind", title: "Heavy freight carbon offset tracking automation", platform: "Twitter/X", type: "Text", impressions: 34000, engagement: 1900, engagementRate: 5.58, createdAt: timestamp, dayOfWeek: "Thursday", likes: 1050, comments: 380, saves: 260, shares: 210, reach: 32500, profileVisits: 810, follows: 130 },
-      { id: "demo-global-6", brandId: "global-ind", title: "NetZero grid integration project update summary", platform: "Newsletter", type: "Text", impressions: 21000, engagement: 4500, engagementRate: 21.43, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 2470, comments: 900, saves: 630, shares: 500, reach: 20500, profileVisits: 500, follows: 310 },
-      { id: "demo-global-7", brandId: "global-ind", title: "Streamlining global multi-commodity shipping networks", platform: "Twitter/X", type: "Text", impressions: 29000, engagement: 1400, engagementRate: 4.82, createdAt: timestamp, dayOfWeek: "Monday", likes: 770, comments: 280, saves: 190, shares: 160, reach: 27800, profileVisits: 690, follows: 90 },
-      { id: "demo-global-8", brandId: "global-ind", title: "Optimizing trans-pacific fuel efficiency logistics", platform: "Facebook", type: "Article", impressions: 45000, engagement: 2200, engagementRate: 4.89, createdAt: timestamp, dayOfWeek: "Friday", likes: 1210, comments: 440, saves: 310, shares: 240, reach: 43000, profileVisits: 1080, follows: 150 },
-      { id: "demo-global-9", brandId: "global-ind", title: "Eco-routing automation algorithm overview (Short)", platform: "TikTok", type: "Video", impressions: 95000, engagement: 8100, engagementRate: 8.53, createdAt: timestamp, dayOfWeek: "Thursday", likes: 4450, comments: 1620, saves: 1130, shares: 900, reach: 92000, profileVisits: 2280, follows: 560 },
-      { id: "demo-global-10", brandId: "global-ind", title: "Green logistics roadmap for modern distribution networks", platform: "Threads", type: "Text", impressions: 21000, engagement: 1200, engagementRate: 5.71, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 660, comments: 240, saves: 170, shares: 130, reach: 20000, profileVisits: 500, follows: 80 }
-    ];
-  } else if (brandId === "horizon-tech") {
-    return [
-      { id: "demo-horizon-1", brandId: "horizon-tech", title: "Behind the scenes: Magnesium speaker resonance design", platform: "Instagram", type: "Video", impressions: 380000, engagement: 31200, engagementRate: 8.21, createdAt: timestamp, dayOfWeek: "Friday", likes: 17160, comments: 6240, saves: 4368, shares: 3432, reach: 365000, profileVisits: 9120, follows: 2184 },
-      { id: "demo-horizon-2", brandId: "horizon-tech", title: "Acoustic room resonance vs minimal furniture footprint", platform: "Instagram", type: "Infographic", impressions: 190000, engagement: 14200, engagementRate: 7.47, createdAt: timestamp, dayOfWeek: "Thursday", likes: 7810, comments: 2840, saves: 1988, shares: 1562, reach: 182000, profileVisits: 4560, follows: 994 },
-      { id: "demo-horizon-3", brandId: "horizon-tech", title: "Tactile natural linen soundboard pre-order launch teaser", platform: "Instagram", type: "Video", impressions: 420000, engagement: 36800, engagementRate: 8.76, createdAt: timestamp, dayOfWeek: "Friday", likes: 20240, comments: 7360, saves: 5152, shares: 4048, reach: 403000, profileVisits: 10080, follows: 2576 },
-      { id: "demo-horizon-4", brandId: "horizon-tech", title: "Designing consumer electronics to respect daily tranquility", platform: "LinkedIn", type: "Article", impressions: 48000, engagement: 2200, engagementRate: 4.58, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 1210, comments: 440, saves: 308, shares: 242, reach: 46000, profileVisits: 1150, follows: 154 },
-      { id: "demo-horizon-5", brandId: "horizon-tech", title: "Why we choose brushed magnesium alloy for acoustics", platform: "Twitter/X", type: "Text", impressions: 36000, engagement: 1950, engagementRate: 5.41, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 1070, comments: 390, saves: 273, shares: 217, reach: 34500, profileVisits: 860, follows: 136 },
-      { id: "demo-horizon-6", brandId: "horizon-tech", title: "Horizon Light minimal home audio integration guide", platform: "Newsletter", type: "Text", impressions: 19000, engagement: 4200, engagementRate: 22.11, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 2310, comments: 840, saves: 588, shares: 462, reach: 18200, profileVisits: 450, follows: 294 },
-      { id: "demo-horizon-7", brandId: "horizon-tech", title: "Premium spatial acoustics design reveal", platform: "Facebook", type: "Image", impressions: 95000, engagement: 6100, engagementRate: 6.42, createdAt: timestamp, dayOfWeek: "Monday", likes: 3350, comments: 1220, saves: 850, shares: 680, reach: 91000, profileVisits: 2280, follows: 420 },
-      { id: "demo-horizon-8", brandId: "horizon-tech", title: "How minimal shapes enrich your daily living room (Short)", platform: "TikTok", type: "Video", impressions: 220000, engagement: 19400, engagementRate: 8.82, createdAt: timestamp, dayOfWeek: "Thursday", likes: 10670, comments: 3880, saves: 2710, shares: 2140, reach: 210000, profileVisits: 5280, follows: 1350 },
-      { id: "demo-horizon-9", brandId: "horizon-tech", title: "Pre-orders open this Thursday. Set your notification timer.", platform: "Threads", type: "Text", impressions: 42000, engagement: 3100, engagementRate: 7.38, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 1700, comments: 620, saves: 430, shares: 350, reach: 40000, profileVisits: 1000, follows: 210 }
-    ];
-  } else {
-    return [];
-  }
-};
-
-// Post-campaign feedback performance simulation data for the comparison suite
-const getDemoComparisonDataForBrand = (brandId: string): RawAnalyticsRow[] => {
-  const now = new Date();
-  const timestamp = now.toISOString();
-
-  if (brandId === "acme-corp") {
-    return [
-      { id: "comp-acme-1", brandId: "acme-corp", title: "Enterprise SaaS V2 Platform Launch Guide (Post-Campaign)", platform: "LinkedIn", type: "Carousel", impressions: 168000, engagement: 10400, engagementRate: 6.19, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 5720, comments: 2080, saves: 1450, shares: 1150, reach: 161000, profileVisits: 4200, follows: 720 },
-      { id: "comp-acme-2", brandId: "acme-corp", title: "Sub-second database replication micro-benchmarks (Post-Campaign)", platform: "LinkedIn", type: "Text", impressions: 98000, engagement: 5800, engagementRate: 5.91, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 3190, comments: 1160, saves: 810, shares: 640, reach: 94000, profileVisits: 2350, follows: 400 },
-      { id: "comp-acme-3", brandId: "acme-corp", title: "Why we abandoned Friday afternoon cloud deployments (Post-Campaign)", platform: "LinkedIn", type: "Article", impressions: 142000, engagement: 8900, engagementRate: 6.27, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 4890, comments: 1780, saves: 1240, shares: 990, reach: 136000, profileVisits: 3400, follows: 620 },
-      { id: "comp-acme-4", brandId: "acme-corp", title: "Serverless scaling auto-recovery cold starts (Post-Campaign)", platform: "Twitter/X", type: "Infographic", impressions: 56000, engagement: 4200, engagementRate: 7.50, createdAt: timestamp, dayOfWeek: "Thursday", likes: 2310, comments: 840, saves: 580, shares: 470, reach: 53000, profileVisits: 1340, follows: 290 },
-      { id: "comp-acme-5", brandId: "acme-corp", title: "Unlocking 90% savings in pipeline idle compute spend (Post-Campaign)", platform: "Twitter/X", type: "Text", impressions: 41000, engagement: 2800, engagementRate: 6.82, createdAt: timestamp, dayOfWeek: "Monday", likes: 1540, comments: 560, saves: 390, shares: 310, reach: 39000, profileVisits: 980, follows: 190 },
-      { id: "comp-acme-6", brandId: "acme-corp", title: "Acme Cloud CLI multi-region deploy benchmark (Post-Campaign)", platform: "Twitter/X", type: "Text", impressions: 34000, engagement: 2100, engagementRate: 6.17, createdAt: timestamp, dayOfWeek: "Friday", likes: 1150, comments: 420, saves: 290, shares: 240, reach: 32000, profileVisits: 810, follows: 140 },
-      { id: "comp-acme-7", brandId: "acme-corp", title: "SaaS Database Partitioning: Single vs Multi-Tenant (Post-Campaign)", platform: "Newsletter", type: "Text", impressions: 26000, engagement: 6200, engagementRate: 23.84, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 3410, comments: 1240, saves: 860, shares: 690, reach: 25000, profileVisits: 620, follows: 430 },
-      { id: "comp-acme-8", brandId: "acme-corp", title: "Zero-idle database partition configuration guidelines (Post-Campaign)", platform: "Newsletter", type: "Text", impressions: 21000, engagement: 4900, engagementRate: 23.33, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 2695, comments: 980, saves: 680, shares: 545, reach: 20000, profileVisits: 500, follows: 340 },
-      { id: "comp-acme-9", brandId: "acme-corp", title: "Modern serverless architecture migration walkthrough (Post-Campaign)", platform: "YouTube", type: "Video", impressions: 130000, engagement: 11800, engagementRate: 9.07, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 6490, comments: 2360, saves: 1650, shares: 1300, reach: 124000, profileVisits: 3120, follows: 820 },
-      { id: "comp-acme-10", brandId: "acme-corp", title: "Automating Kubernetes multi-tenant clusters (Post-Campaign)", platform: "Facebook", type: "Video", impressions: 68000, engagement: 4200, engagementRate: 6.18, createdAt: timestamp, dayOfWeek: "Monday", likes: 2310, comments: 840, saves: 580, shares: 470, reach: 64000, profileVisits: 1630, follows: 290 },
-      { id: "comp-acme-11", brandId: "acme-corp", title: "Why your Docker images are too bloated (Post-Campaign)", platform: "TikTok", type: "Video", impressions: 210000, engagement: 21500, engagementRate: 10.24, createdAt: timestamp, dayOfWeek: "Thursday", likes: 11825, comments: 4300, saves: 3010, shares: 2365, reach: 204000, profileVisits: 5040, follows: 1505 },
-      { id: "comp-acme-12", brandId: "acme-corp", title: "Introducing Acme Flow: Serverless workflows (Post-Campaign)", platform: "Threads", type: "Text", impressions: 38000, engagement: 2900, engagementRate: 7.63, createdAt: timestamp, dayOfWeek: "Friday", likes: 1595, comments: 580, saves: 400, shares: 325, reach: 36000, profileVisits: 910, follows: 200 }
-    ];
-  } else if (brandId === "global-ind") {
-    return [
-      { id: "comp-global-1", brandId: "global-ind", title: "How we optimized oceanic cargo transport routing flows (Post-Campaign)", platform: "YouTube", type: "Video", impressions: 275000, engagement: 24200, engagementRate: 8.80, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 13310, comments: 4840, saves: 3380, shares: 2670, reach: 264000, profileVisits: 6600, follows: 1690 },
-      { id: "comp-global-2", brandId: "global-ind", title: "Scope-2 net-neutrality audit disclosure checklist (Post-Campaign)", platform: "LinkedIn", type: "Article", impressions: 62000, engagement: 2800, engagementRate: 4.51, createdAt: timestamp, dayOfWeek: "Monday", likes: 1540, comments: 560, saves: 390, shares: 310, reach: 59000, profileVisits: 1480, follows: 190 },
-      { id: "comp-global-3", brandId: "global-ind", title: "Integrating 400MW offshore wind energy into Eastern grids (Post-Campaign)", platform: "LinkedIn", type: "Carousel", impressions: 154000, engagement: 9100, engagementRate: 5.90, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 5005, comments: 1820, saves: 1270, shares: 1005, reach: 147000, profileVisits: 3690, follows: 630 },
-      { id: "comp-global-4", brandId: "global-ind", title: "Our 10-year ESG commitment report card results (Post-Campaign)", platform: "LinkedIn", type: "Infographic", impressions: 98000, engagement: 5100, engagementRate: 5.20, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 2805, comments: 1020, saves: 710, shares: 565, reach: 93000, profileVisits: 2350, follows: 350 },
-      { id: "comp-global-5", brandId: "global-ind", title: "Heavy freight carbon offset tracking automation (Post-Campaign)", platform: "Twitter/X", type: "Text", impressions: 42000, engagement: 2700, engagementRate: 6.42, createdAt: timestamp, dayOfWeek: "Thursday", likes: 1485, comments: 540, saves: 375, shares: 300, reach: 39900, profileVisits: 1000, follows: 180 },
-      { id: "comp-global-6", brandId: "global-ind", title: "NetZero grid integration project update summary (Post-Campaign)", platform: "Newsletter", type: "Text", impressions: 24000, engagement: 5600, engagementRate: 23.33, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 3080, comments: 1120, saves: 780, shares: 620, reach: 23000, profileVisits: 570, follows: 390 },
-      { id: "comp-global-7", brandId: "global-ind", title: "Streamlining global multi-commodity shipping networks (Post-Campaign)", platform: "Twitter/X", type: "Text", impressions: 33000, engagement: 1900, engagementRate: 5.75, createdAt: timestamp, dayOfWeek: "Monday", likes: 1045, comments: 380, saves: 265, shares: 210, reach: 31000, profileVisits: 790, follows: 130 },
-      { id: "comp-global-8", brandId: "global-ind", title: "Optimizing trans-pacific fuel efficiency logistics (Post-Campaign)", platform: "Facebook", type: "Article", impressions: 52000, engagement: 2900, engagementRate: 5.58, createdAt: timestamp, dayOfWeek: "Friday", likes: 1595, comments: 580, saves: 400, shares: 325, reach: 49000, profileVisits: 1240, follows: 200 },
-      { id: "comp-global-9", brandId: "global-ind", title: "Eco-routing automation algorithm overview (Post-Campaign)", platform: "TikTok", type: "Video", impressions: 110000, engagement: 10500, engagementRate: 9.55, createdAt: timestamp, dayOfWeek: "Thursday", likes: 5775, comments: 2100, saves: 1470, shares: 1155, reach: 105000, profileVisits: 2640, follows: 735 },
-      { id: "comp-global-10", brandId: "global-ind", title: "Green logistics roadmap for modern distribution (Post-Campaign)", platform: "Threads", type: "Text", impressions: 26000, engagement: 1800, engagementRate: 6.92, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 990, comments: 360, saves: 250, shares: 200, reach: 24000, profileVisits: 620, follows: 120 }
-    ];
-  } else if (brandId === "horizon-tech") {
-    return [
-      { id: "comp-horizon-1", brandId: "horizon-tech", title: "Behind the scenes: Magnesium speaker resonance design (Post-Campaign)", platform: "Instagram", type: "Video", impressions: 430000, engagement: 38200, engagementRate: 8.88, createdAt: timestamp, dayOfWeek: "Friday", likes: 21010, comments: 7640, saves: 5348, shares: 4202, reach: 412000, profileVisits: 10320, follows: 2674 },
-      { id: "comp-horizon-2", brandId: "horizon-tech", title: "Acoustic room resonance vs minimal furniture footprint (Post-Campaign)", platform: "Instagram", type: "Infographic", impressions: 215000, engagement: 18200, engagementRate: 8.46, createdAt: timestamp, dayOfWeek: "Thursday", likes: 10010, comments: 3640, saves: 2548, shares: 2002, reach: 204000, profileVisits: 5160, follows: 1274 },
-      { id: "comp-horizon-3", brandId: "horizon-tech", title: "Tactile natural linen soundboard pre-order launch teaser (Post-Campaign)", platform: "Instagram", type: "Video", impressions: 480000, engagement: 44200, engagementRate: 9.20, createdAt: timestamp, dayOfWeek: "Friday", likes: 24310, comments: 8840, saves: 6188, shares: 4862, reach: 461000, profileVisits: 11520, follows: 3094 },
-      { id: "comp-horizon-4", brandId: "horizon-tech", title: "Designing consumer electronics to respect daily tranquility (Post-Campaign)", platform: "LinkedIn", type: "Article", impressions: 54000, engagement: 2800, engagementRate: 5.18, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 1540, comments: 560, saves: 392, shares: 308, reach: 51000, profileVisits: 1290, follows: 196 },
-      { id: "comp-horizon-5", brandId: "horizon-tech", title: "Why we choose brushed magnesium alloy for acoustics (Post-Campaign)", platform: "Twitter/X", type: "Text", impressions: 41000, engagement: 2500, engagementRate: 6.09, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 1375, comments: 500, saves: 350, shares: 275, reach: 39000, profileVisits: 980, follows: 175 },
-      { id: "comp-horizon-6", brandId: "horizon-tech", title: "Horizon Light minimal home audio integration guide (Post-Campaign)", platform: "Newsletter", type: "Text", impressions: 22000, engagement: 5100, engagementRate: 23.18, createdAt: timestamp, dayOfWeek: "Tuesday", likes: 2805, comments: 1020, saves: 714, shares: 561, reach: 21000, profileVisits: 520, follows: 357 },
-      { id: "comp-horizon-7", brandId: "horizon-tech", title: "Premium spatial acoustics design reveal (Post-Campaign)", platform: "Facebook", type: "Image", impressions: 110000, engagement: 8200, engagementRate: 7.45, createdAt: timestamp, dayOfWeek: "Monday", likes: 4510, comments: 1640, saves: 1148, shares: 902, reach: 104000, profileVisits: 2640, follows: 574 },
-      { id: "comp-horizon-8", brandId: "horizon-tech", title: "How minimal shapes enrich your daily living room (Post-Campaign)", platform: "TikTok", type: "Video", impressions: 250000, engagement: 24100, engagementRate: 9.64, createdAt: timestamp, dayOfWeek: "Thursday", likes: 13255, comments: 4820, saves: 3374, shares: 2651, reach: 241000, profileVisits: 6000, follows: 1687 },
-      { id: "comp-horizon-9", brandId: "horizon-tech", title: "Pre-orders open this Thursday. Set your notification. (Post)", platform: "Threads", type: "Text", impressions: 51000, engagement: 4200, engagementRate: 8.24, createdAt: timestamp, dayOfWeek: "Wednesday", likes: 2310, comments: 840, saves: 588, shares: 462, reach: 49000, profileVisits: 1220, follows: 294 }
-    ];
-  } else {
-    return [];
-  }
-};
-
 export const PerformanceIntelligencePage: React.FC = () => {
   const { 
     activeBrand, 
@@ -150,7 +50,6 @@ export const PerformanceIntelligencePage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [savingSandbox, setSavingSandbox] = useState<boolean>(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Focus Metric Tab (Engagement, Reach, Conversion)
@@ -169,13 +68,6 @@ export const PerformanceIntelligencePage: React.FC = () => {
   const isDark = false; // FIN: force light-mode branch
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
-  // Determine if we are utilizing sandbox fallback data
-  const isSandboxData = useMemo(() => {
-    const isPreset = ["acme-corp", "global-ind", "horizon-tech"].includes(activeBrand?.id || "");
-    return rawAnalytics.length === 0 && isPreset;
-  }, [rawAnalytics, activeBrand]);
-
-  // Separate Baseline vs Comparison custom datasets from DB
   const customBaselineDataset = useMemo(() => {
     return rawAnalytics.filter(r => r.datasetType === "baseline" || !r.datasetType);
   }, [rawAnalytics]);
@@ -185,15 +77,10 @@ export const PerformanceIntelligencePage: React.FC = () => {
   }, [rawAnalytics]);
 
   // Unified Base Dataset Resolver
-  const baselineDataset = useMemo(() => {
-    if (customBaselineDataset.length > 0) return customBaselineDataset;
-    return getDemoDataForBrand(activeBrand?.id || "acme-corp");
-  }, [customBaselineDataset, activeBrand]);
+  // Only imported data is analysed; with nothing imported the page shows an empty state.
+  const baselineDataset = customBaselineDataset;
 
-  const comparisonDataset = useMemo(() => {
-    if (customComparisonDataset.length > 0) return customComparisonDataset;
-    return getDemoComparisonDataForBrand(activeBrand?.id || "acme-corp");
-  }, [customComparisonDataset, activeBrand]);
+  const comparisonDataset = customComparisonDataset;
 
   // Unified Base Dataset Resolver (Raw)
   const activeDatasetRaw = useMemo(() => {
@@ -461,25 +348,6 @@ export const PerformanceIntelligencePage: React.FC = () => {
     return "border-violet-500/30";
   };
 
-  // Synchronize simulation data into active Firestore partitions
-  const handleCommitSandboxData = async () => {
-    if (!activeBrand) return;
-    setSavingSandbox(true);
-    try {
-      const demoRows = getDemoDataForBrand(activeBrand.id);
-      await saveRawAnalyticsRows(demoRows);
-      addNotification(
-        "Simulation Integrated",
-        `Successfully committed ${demoRows.length} high-fidelity analytics logs permanently to the ${activeBrand.name} dataset.`,
-        "success"
-      );
-    } catch (err: any) {
-      console.error(err);
-      addNotification("Synchronization Interrupted", "Failed to compile Firestore batch write transaction.", "warning");
-    } finally {
-      setSavingSandbox(false);
-    }
-  };
 
   // Executive PDF Report Downloader
   const handleDownloadReport = () => {
@@ -543,7 +411,7 @@ export const PerformanceIntelligencePage: React.FC = () => {
       try {
         const content = event.target?.result as string;
         // Clean and normalize using robust, Python-equivalent parsing engine
-        const normalized = cleanAndNormalizeData(content, fileObj.name, activeBrand?.id || "acme-corp");
+        const normalized = cleanAndNormalizeData(content, fileObj.name, activeBrand?.id || "");
 
         await saveRawAnalyticsRows(normalized, inlineUploadType);
         
@@ -572,21 +440,6 @@ export const PerformanceIntelligencePage: React.FC = () => {
       {/* Header Panel */}
       <div className="flex flex-wrap items-center justify-end gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          {isSandboxData && (
-            <button
-              id="btn-sync-sandbox-performance"
-              onClick={handleCommitSandboxData}
-              disabled={savingSandbox}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border transition-all cursor-pointer ${
-                isDark 
-                  ? "bg-amber-950/20 border-amber-500/20 text-amber-400 hover:bg-amber-950/40" 
-                  : "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-              }`}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${savingSandbox ? "animate-spin" : ""}`} />
-              <span>{savingSandbox ? "Syncing Firestore..." : "Sync Sample to DB"}</span>
-            </button>
-          )}
 
           <button
             id="btn-download-performance-report"
@@ -598,27 +451,6 @@ export const PerformanceIntelligencePage: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Sandbox Alert Notice */}
-      {isSandboxData && (
-        <div className={`border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-amber-500/5 ${isDark ? "border-amber-500/10" : "border-amber-500/20"}`}>
-          <div className="flex items-start space-x-3 text-xs leading-relaxed">
-            <Database className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-amber-500 block font-mono text-[10px] uppercase tracking-wider">Workspace Simulation Environment</span>
-              <p className={isDark ? "text-slate-300 text-[11px]" : "text-slate-600 text-[11px]"}>
-                You are currently viewing simulated high-fidelity brand metrics. To analyze your actual metrics, upload standard spreadsheets or JSON datasets in the <strong className="text-amber-500">Analytics Import</strong> console or use the live updater below.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleCommitSandboxData}
-            className={`shrink-0 text-[10px] font-mono font-bold uppercase tracking-wider py-1.5 px-3 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/25 transition-all`}
-          >
-            Sync Simulation
-          </button>
-        </div>
-      )}
 
       {/* Cockpit Mode Selector and Inline Upload Trigger */}
       <div className={`border p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 ${isDark ? "bg-card border-border" : "bg-white border-slate-200 shadow-sm"}`}>

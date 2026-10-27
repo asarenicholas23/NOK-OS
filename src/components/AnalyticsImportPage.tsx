@@ -123,7 +123,7 @@ export const AnalyticsImportPage: React.FC = () => {
   const parseFileContent = (content: string, filename: string) => {
     try {
       // Replicate Python cleaning logic via cleanAndNormalizeData
-      const normalized = cleanAndNormalizeData(content, filename, activeBrand?.id || "acme-corp");
+      const normalized = cleanAndNormalizeData(content, filename, activeBrand?.id || "");
 
       if (normalized.length === 0) {
         throw new Error("No readable performance records detected in payload.");

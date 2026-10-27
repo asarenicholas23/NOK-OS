@@ -11,3 +11,6 @@ coverage/
 
 # Local browser-check output
 .playwright-mcp/
+
+# Local fake-data cleanup reports
+fake-records-report-*.json
