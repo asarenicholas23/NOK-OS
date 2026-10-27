@@ -21,6 +21,9 @@ import {
 import { CreativeBrief, Brand } from "../lib/firebase";
 import { SlideDeckPreview } from "./SlideDeckPreview";
 import { ClaudeDraftBadge, isClaudeDraft } from "./ClaudeDraftBadge";
+import { toLegacyView, isV2, approvalBlockers } from "../lib/briefs";
+import { BriefV2View } from "./briefs/BriefV2View";
+import { BriefV2Editor } from "./briefs/BriefV2Editor";
 import { downloadSingleBriefPDF } from "../utils/pdfGenerator";
 
 interface BriefDetailModalProps {
@@ -31,6 +34,10 @@ interface BriefDetailModalProps {
   onClose: () => void;
   onApprove: (brief: CreativeBrief) => void;
   onRequestChanges: (brief: CreativeBrief) => void;
+  // "client" = share-link review: internal planning fields are hidden.
+  audience?: "staff" | "client";
+  // Staff only: save edits to the brief (v2 editor, "Mark confirmed").
+  onUpdate?: (patch: Partial<CreativeBrief>) => Promise<void>;
 }
 
 export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
@@ -40,11 +47,20 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
   activeColor,
   onClose,
   onApprove,
-  onRequestChanges
+  onRequestChanges,
+  audience = "staff",
+  onUpdate
 }) => {
   const [activeTab, setActiveTab] = useState<"owner" | "designer" | "slides">("owner");
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const isDark = theme === "dark";
+  // Display-only legacy view: v1 briefs pass through unchanged; v2 briefs are
+  // flattened until the v2 layout lands. Callbacks still get the real brief.
+  const view = toLegacyView(brief);
+  const v2 = isV2(brief) ? brief : null;
+  const blockers = approvalBlockers(brief);
+  const [editing, setEditing] = useState(false);
+  const canEdit = !!v2 && audience === "staff" && !!onUpdate && brief.status !== "Approved";
 
   const handleCopy = (field: string, text?: string) => {
     if (!text) return;
@@ -54,7 +70,7 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
   };
 
   const handleDownloadPDF = () => {
-    downloadSingleBriefPDF(brief, activeBrand);
+    downloadSingleBriefPDF(brief, activeBrand, audience);
   };
 
   return (
@@ -108,6 +124,7 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
             <button
               id="btn-close-brief-detail-modal"
               onClick={onClose}
+              aria-label="Close"
               className={`p-2 rounded-xl border transition-colors cursor-pointer ${
                 isDark ? "border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800" : "border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               }`}
@@ -121,6 +138,20 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
         <div className={`px-6 py-2 border-b flex items-center justify-between shrink-0 ${
           isDark ? "bg-[#141518] border-slate-800/80" : "bg-slate-100/60 border-slate-200"
         }`}>
+          {v2 ? (
+            <div className="flex items-center gap-2">
+              <span className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-semibold bg-violet-600 text-white">Brief</span>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold border cursor-pointer ${isDark ? "border-slate-700 text-slate-300 hover:text-white" : "border-slate-300 text-slate-600 hover:text-slate-900"}`}
+                >
+                  <Edit3 className="w-3.5 h-3.5" /> Edit
+                </button>
+              )}
+            </div>
+          ) : (
           <div className="flex items-center space-x-1">
             <button
               onClick={() => setActiveTab("owner")}
@@ -153,6 +184,7 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
               Interactive Slide Deck
             </button>
           </div>
+          )}
 
           <div className="flex items-center space-x-2">
             <span className="text-[10px] font-mono text-slate-400 uppercase">Status:</span>
@@ -165,13 +197,30 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
             }`}>
               {brief.status || "Proposed"}
             </span>
-            {isClaudeDraft(brief) && <ClaudeDraftBadge />}
+            {audience === "staff" && isClaudeDraft(brief) && <ClaudeDraftBadge />}
           </div>
         </div>
 
         {/* Scrollable Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {activeTab === "owner" && (
+          {v2 && brief.status === "Changes Requested" && brief.revisionNotes && (
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs space-y-1">
+              <div className="flex items-center space-x-2 font-bold uppercase font-mono">
+                <AlertCircle className="w-4 h-4" />
+                <span>Owner Feedback / Revision Notes</span>
+              </div>
+              <p className="italic pl-6">{brief.revisionNotes}</p>
+            </div>
+          )}
+          {v2 && (
+            <BriefV2View
+              brief={v2}
+              audience={audience}
+              isDark={isDark}
+              onConfirmItem={audience === "staff" && onUpdate ? (i) => { void onUpdate({ unconfirmed: v2.unconfirmed.filter((_, k) => k !== i) }); } : undefined}
+            />
+          )}
+          {!v2 && activeTab === "owner" && (
             <div className="space-y-6">
               {/* Revision note banner if changes requested */}
               {brief.status === "Changes Requested" && brief.revisionNotes && (
@@ -193,7 +242,7 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
                     Primary Goal & Objective
                   </span>
                   <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                    {brief.objective || "Promote brand collection and increase customer acquisition."}
+                    {view.objective || "Promote brand collection and increase customer acquisition."}
                   </p>
                 </div>
 
@@ -210,7 +259,7 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
               </div>
 
               {/* Visual Copy Story Arc */}
-              {brief.visualCopyDetail && (
+              {view.visualCopyDetail && (
                 <div className={`p-5 rounded-xl border space-y-2 ${
                   isDark ? "bg-slate-900/40 border-slate-800" : "bg-slate-50 border-slate-200"
                 }`}>
@@ -219,7 +268,7 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
                       Story Arc & Visual Concept
                     </span>
                     <button
-                      onClick={() => handleCopy("visualCopy", brief.visualCopyDetail)}
+                      onClick={() => handleCopy("visualCopy", view.visualCopyDetail)}
                       className="text-[10px] font-mono text-slate-400 hover:text-slate-200 flex items-center space-x-1 cursor-pointer"
                     >
                       {copiedField === "visualCopy" ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
@@ -227,13 +276,13 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
                     </button>
                   </div>
                   <pre className="text-xs font-mono text-slate-200 whitespace-pre-line leading-relaxed">
-                    {brief.visualCopyDetail}
+                    {view.visualCopyDetail}
                   </pre>
                 </div>
               )}
 
               {/* Full Caption Copywriting */}
-              {brief.copywritingCaption && (
+              {view.copywritingCaption && (
                 <div className={`p-5 rounded-xl border space-y-2 ${
                   isDark ? "bg-slate-900/40 border-slate-800" : "bg-slate-50 border-slate-200"
                 }`}>
@@ -242,7 +291,7 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
                       Full Caption Copywriting
                     </span>
                     <button
-                      onClick={() => handleCopy("caption", brief.copywritingCaption)}
+                      onClick={() => handleCopy("caption", view.copywritingCaption)}
                       className="text-[10px] font-mono text-slate-400 hover:text-slate-200 flex items-center space-x-1 cursor-pointer"
                     >
                       {copiedField === "caption" ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
@@ -250,13 +299,13 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
                     </button>
                   </div>
                   <p className="text-xs text-slate-200 leading-relaxed">
-                    {brief.copywritingCaption}
+                    {view.copywritingCaption}
                   </p>
                 </div>
               )}
 
               {/* Hashtags */}
-              {brief.hashtags && (
+              {view.hashtags && (
                 <div className={`p-4 rounded-xl border space-y-1.5 ${
                   isDark ? "bg-slate-900/30 border-slate-800" : "bg-slate-50 border-slate-200"
                 }`}>
@@ -264,29 +313,29 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
                     Target Hashtags
                   </span>
                   <p className="text-xs font-mono text-violet-400">
-                    {brief.hashtags}
+                    {view.hashtags}
                   </p>
                 </div>
               )}
             </div>
           )}
 
-          {activeTab === "designer" && (
+          {!v2 && activeTab === "designer" && (
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className={`p-3.5 rounded-xl border ${isDark ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
                   <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold">Format & Specs</span>
-                  <p className="text-xs text-slate-200 mt-1 font-mono">{brief.formatSpec || brief.deliverables || "1080x1350px Portrait"}</p>
+                  <p className="text-xs text-slate-200 mt-1 font-mono">{view.formatSpec || view.deliverables || "1080x1350px Portrait"}</p>
                 </div>
 
                 <div className={`p-3.5 rounded-xl border ${isDark ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
                   <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold">Target Audience</span>
-                  <p className="text-xs text-slate-200 mt-1">{brief.targetAudience || "Urban Tastemakers & Creators"}</p>
+                  <p className="text-xs text-slate-200 mt-1">{view.targetAudience || "Urban Tastemakers & Creators"}</p>
                 </div>
 
                 <div className={`p-3.5 rounded-xl border ${isDark ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
                   <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold">Tone & Visual Reference</span>
-                  <p className="text-xs text-slate-200 mt-1">{brief.visualReference || brief.toneVisualRef || "High-contrast editorial minimal"}</p>
+                  <p className="text-xs text-slate-200 mt-1">{view.visualReference || view.toneVisualRef || "High-contrast editorial minimal"}</p>
                 </div>
               </div>
 
@@ -294,35 +343,35 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
                 <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
                   Deliverables Scope
                 </span>
-                <p className="text-xs text-slate-200">{brief.deliverables || "Multi-slide carousel asset and caption package."}</p>
+                <p className="text-xs text-slate-200">{view.deliverables || "Multi-slide carousel asset and caption package."}</p>
               </div>
 
-              {brief.contentOutline && (
+              {view.contentOutline && (
                 <div className={`p-5 rounded-xl border space-y-2 ${isDark ? "bg-slate-900/40 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
                   <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
                     Technical Outline
                   </span>
                   <pre className="text-xs font-mono text-slate-300 whitespace-pre-line leading-relaxed">
-                    {brief.contentOutline}
+                    {view.contentOutline}
                   </pre>
                 </div>
               )}
             </div>
           )}
 
-          {activeTab === "slides" && (
+          {!v2 && activeTab === "slides" && (
             <div>
               <SlideDeckPreview 
                 brief={{
                   title: brief.title,
-                  objective: brief.objective,
-                  targetAudience: brief.targetAudience,
+                  objective: view.objective,
+                  targetAudience: view.targetAudience,
                   keyMessage: brief.keyMessage,
-                  deliverables: brief.deliverables,
-                  contentOutline: brief.contentOutline || brief.visualCopyDetail || `## Slide 1 — Hook\n**Copy:** ${brief.topicIdea || brief.title}\n**Design:** Editorial hero cover\n\n## Slide 2 — Core Message\n**Copy:** ${brief.keyMessage}\n**Design:** Clean typographic breakdown\n\n## Slide 3 — Call To Action\n**Copy:** ${brief.cta || "DM us to get started."}\n**Design:** High-contrast logo signature`,
-                  cta: brief.cta,
-                  toneVisualRef: brief.visualReference || brief.toneVisualRef,
-                  formatSpec: brief.formatSpec
+                  deliverables: view.deliverables,
+                  contentOutline: view.contentOutline || view.visualCopyDetail || `## Slide 1 — Hook\n**Copy:** ${view.topicIdea || brief.title}\n**Design:** Editorial hero cover\n\n## Slide 2 — Core Message\n**Copy:** ${brief.keyMessage}\n**Design:** Clean typographic breakdown\n\n## Slide 3 — Call To Action\n**Copy:** ${view.cta || "DM us to get started."}\n**Design:** High-contrast logo signature`,
+                  cta: view.cta,
+                  toneVisualRef: view.visualReference || view.toneVisualRef,
+                  formatSpec: view.formatSpec
                 }}
                 brandName={activeBrand?.name || "Active Brand"}
                 brandColor={activeBrand?.primaryColor || activeColor || "violet"}
@@ -346,6 +395,11 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
                 <AlertCircle className="w-4 h-4 mr-1 text-amber-400" />
                 Awaiting Designer Revisions
               </span>
+            ) : blockers.length > 0 ? (
+              <span className="text-rose-500 font-semibold flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {audience === "client" ? "Waiting on confirmation before approval" : `${blockers.length} unconfirmed item(s) block approval`}
+              </span>
             ) : (
               <span>Awaiting Owner Approval</span>
             )}
@@ -368,11 +422,14 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
             <button
               id="btn-modal-approve-brief"
               type="button"
+              disabled={blockers.length > 0}
+              title={blockers.length > 0 ? `${blockers.length} unconfirmed item(s) must be confirmed before approval` : undefined}
               onClick={() => {
+                if (blockers.length > 0) return;
                 onApprove(brief);
                 onClose();
               }}
-              className="flex items-center space-x-1.5 px-5 py-2 rounded-xl text-xs font-mono font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
+              className="flex items-center space-x-1.5 px-5 py-2 rounded-xl text-xs font-mono font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Approve & Push to Queue</span>
@@ -380,6 +437,18 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
           </div>
         </div>
       </div>
+      {editing && v2 && onUpdate && (
+        <BriefV2Editor
+          heading={`Edit brief: ${v2.title}`}
+          initial={v2}
+          isDark={isDark}
+          onCancel={() => setEditing(false)}
+          onSave={async (content) => {
+            await onUpdate(content);
+            setEditing(false);
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -11,9 +11,10 @@ import {
   where,
   addDoc,
   serverTimestamp,
-  orderBy
+  orderBy,
+  connectFirestoreEmulator
 } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, User, connectAuthEmulator } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import {
   BlogPost,
@@ -38,8 +39,14 @@ const firebaseConfig = {
   measurementId: "G-ZRVPPR8X6Z"
 };
 
+// Local test mode (npm run dev:local): talk to the Firebase emulators with a
+// throwaway "demo-" project instead of production. Off unless explicitly set;
+// import.meta.env is undefined when Node scripts import this file.
+export const USE_EMULATORS = (import.meta as any).env?.VITE_USE_EMULATORS === "1";
+export const EMULATOR_PROJECT_ID = "demo-nok-os";
+
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(USE_EMULATORS ? { ...firebaseConfig, projectId: EMULATOR_PROJECT_ID } : firebaseConfig);
 
 // Analytics starts once the page has loaded and the browser is idle, and its
 // code (plus Google's gtag script) is only downloaded then, so it never
@@ -48,6 +55,7 @@ const app = initializeApp(firebaseConfig);
 let analyticsInstance: import("firebase/analytics").Analytics | null = null;
 let analyticsLogEvent: typeof import("firebase/analytics").logEvent | null = null;
 whenIdle(async () => {
+  if (USE_EMULATORS) return;
   const { getAnalytics, isSupported, logEvent } = await import("firebase/analytics");
   if (await isSupported()) {
     analyticsInstance = getAnalytics(app);
@@ -102,6 +110,11 @@ export const signInWithGoogleCalendar = async (): Promise<{ user: User; accessTo
 
 // Initialize Firestore (default database on the nok-os-prod project).
 export const db = getFirestore(app);
+
+if (USE_EMULATORS) {
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", 8080);
+}
 
 // Initialize Cloud Functions
 export const functions = getFunctions(app, "us-central1");
@@ -163,50 +176,10 @@ export interface CalendarEvent {
   notes?: string;
 }
 
-export interface CreativeBrief {
-  id: string;
-  brandId: string;
-  title: string;
-  objective: string;
-  targetAudience: string;
-  keyMessage: string;
-  deliverables: string;
-  status: "Proposed" | "Approved" | "Changes Requested" | "Draft" | "In Progress";
-  campaignId?: string;
-  date?: string;
-  dayOfWeek?: "Sunday" | "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | string;
-  weekNumber?: number;
-  sequencePosition?: string;
-  proofPoint?: string;
-  formatSpec?: string;
-  contentOutline?: string;
-  cta?: string;
-  toneVisualRef?: string;
-  successMetric?: string;
-  approver?: string;
-  // Content planner spreadsheet attributes
-  platform?: string; // e.g. "Instagram, Facebook, LinkedIn, TikTok, Twitter"
-  platforms?: string[];
-  mainFocus?: string; // e.g. "Reach", "Engagement", "Link Click", "Sales"
-  topicIdea?: string; // e.g. "What if your body and mind were your greatest asset?"
-  contentPillar?: string; // e.g. "Marketing", "Tips", "Entertainment", "Story Time", "Workout"
-  postType?: string; // e.g. "Artwork", "Carousel", "Video", "Reel"
-  progressTracking?: "Create" | "Edit" | "Film" | "Review" | "Schedule" | "Done" | string;
-  visualReference?: string;
-  visualCopyDetail?: string; // e.g. "Story Arc:\nSlide 1 (Hook)...\nSlide 2 (Problem)..."
-  copywritingCaption?: string; // e.g. "In three months, you could be wishing you had taken a step..."
-  hashtags?: string;
-  notes?: string;
-  revisionNotes?: string; // Captures owner feedback when "Request Changes" is clicked
-  workflowType?: "weekly" | "campaign" | "hybrid"; // Workflow classification
-  campaignName?: string;
-  campaignDropNumber?: number;
-  totalCampaignDrops?: number;
-  // Set to "claude" on drafts written through the Claude connector (mcp/).
-  createdBy?: "claude";
-  // Client-supplied id that makes connector writes safe to retry.
-  requestId?: string;
-}
+// Creative brief types live in ./briefs (shared with the API server and the
+// Claude connector). Re-exported here so existing imports keep working.
+export type { CreativeBrief, CreativeBriefV1, CreativeBriefV2, NewCreativeBrief } from "./briefs";
+import type { CreativeBrief } from "./briefs";
 
 export interface AnalyticsMetric {
   id: string;

@@ -18,6 +18,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { CreativeBrief, Brand, CampaignQueue } from "../lib/firebase";
+import { isV2, toLegacyView, approvalBlockers, briefPrimaryPlatform, briefPlatforms, briefPillar, briefFormatLabel, captionFor, type CreativeBriefV1 } from "../lib/briefs";
 import { computeDateForWeekDay, getWeeksInMonth } from "../utils/weekSchedule";
 
 interface PushBriefWorkflowModalProps {
@@ -105,6 +106,11 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
     setTargetDate(newDate);
   }, [selectedYear, safeMonthIdx, selectedWeek, selectedDayOfWeek]);
 
+  // Form defaults read the brief through the legacy view (identical for v1).
+  const legacy = toLegacyView(brief);
+  const v2 = isV2(brief);
+  const blocked = approvalBlockers(brief).length > 0;
+
   // Campaign specific states
   const [campaignId, setCampaignId] = useState<string>(
     brief.campaignId || `CAMP-${Math.random().toString(36).substring(2, 7).toUpperCase()}`
@@ -113,19 +119,19 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
     brief.campaignName || (activeBrand?.name ? `${activeBrand.name} Growth Push` : "Quarterly Push")
   );
   const [sequencePosition, setSequencePosition] = useState<string>(
-    brief.sequencePosition || "Drop 1 of 4 (Awareness Hook)"
+    legacy.sequencePosition || "Drop 1 of 4 (Awareness Hook)"
   );
   const [channel, setChannel] = useState<CampaignQueue["channel"]>(
-    (brief.platform as any) || "LinkedIn"
+    ((v2 ? briefPrimaryPlatform(brief) : legacy.platform) as any) || "LinkedIn"
   );
   const [contentPillar, setContentPillar] = useState<string>(
-    brief.contentPillar || "Marketing & Strategy"
+    legacy.contentPillar || "Marketing & Strategy"
   );
   const [postType, setPostType] = useState<string>(
-    brief.postType || "Carousel / Multi-Slide"
+    legacy.postType || "Carousel / Multi-Slide"
   );
   const [mainFocus, setMainFocus] = useState<string>(
-    brief.mainFocus || "Reach & Thought Leadership"
+    legacy.mainFocus || "Reach & Thought Leadership"
   );
   const [progressTracking, setProgressTracking] = useState<string>(
     brief.progressTracking || "Create"
@@ -144,23 +150,29 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
       setIsSubmitting(true);
 
       // 1. Update Creative Brief with Weekly Content Planner & Workflow attributes
-      const updatedBriefData: Partial<CreativeBrief> = {
+      // Scheduling fields apply to both brief versions.
+      const scheduling: Partial<CreativeBrief> = {
         workflowType,
         weekNumber: selectedWeek,
         dayOfWeek: selectedDayOfWeek,
         date: targetDate,
         campaignId: campaignId || "",
         campaignName: workflowType !== "weekly" ? (campaignName || "") : "",
+        progressTracking: progressTracking || "Create",
+        status,
+      };
+      // v1 briefs also store these planner fields on the brief. v2 briefs keep
+      // their own pillar/platforms/assets, so legacy fields are never written to them.
+      const legacyFields: Partial<CreativeBriefV1> = isV2(brief) ? {} : {
         sequencePosition: workflowType !== "weekly" ? (sequencePosition || "") : "",
         platform: channel || "LinkedIn",
         contentPillar: contentPillar || "Marketing & Strategy",
         postType: postType || "Carousel / Multi-Slide",
         mainFocus: mainFocus || "Reach & Thought Leadership",
-        progressTracking: progressTracking || "Create",
-        status,
-        topicIdea: brief.topicIdea || brief.title || "",
-        copywritingCaption: brief.copywritingCaption || brief.keyMessage || ""
+        topicIdea: legacy.topicIdea || brief.title || "",
+        copywritingCaption: legacy.copywritingCaption || brief.keyMessage || ""
       };
+      const updatedBriefData = { ...scheduling, ...legacyFields } as Partial<CreativeBrief>;
 
       await updateCreativeBrief(brief.id, updatedBriefData);
 
@@ -169,7 +181,9 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
       // Weekly Content Planner — no separate calendar milestone record needed.
       if (workflowType === "hybrid" || workflowType === "campaign") {
         const scheduledTime = `${targetDate}T10:00`;
-        const content = `[${workflowType.toUpperCase()} WORKFLOW • ${selectedDayOfWeek} W${selectedWeek}]\n\nTitle: ${brief.title}\n\nObjective:\n${brief.objective}\n\nCore Message:\n${brief.keyMessage}\n\nTarget Audience:\n${brief.targetAudience}\n\nDeliverables:\n${brief.deliverables || "N/A"}`;
+        const content = v2
+          ? (captionFor(brief, channel) || brief.keyMessage)
+          : `[${workflowType.toUpperCase()} WORKFLOW • ${selectedDayOfWeek} W${selectedWeek}]\n\nTitle: ${brief.title}\n\nObjective:\n${legacy.objective}\n\nCore Message:\n${brief.keyMessage}\n\nTarget Audience:\n${legacy.targetAudience}\n\nDeliverables:\n${legacy.deliverables || "N/A"}`;
 
         await addCampaign({
           title: brief.title,
@@ -433,7 +447,13 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
             </div>
           </div>
 
-          {/* STEP 3: Channel, Format & Pillar Configuration */}
+          {/* STEP 3: Channel, Format & Pillar Configuration (v1 only: v2 briefs carry these themselves) */}
+          {v2 ? (
+            <div className={`p-3 rounded-xl border text-xs ${isDark ? "border-slate-800 text-slate-300" : "border-slate-200 text-slate-600"}`}>
+              <span className="font-mono uppercase text-[10px] text-slate-400 font-bold">From the brief: </span>
+              {[briefPillar(brief), briefPlatforms(brief).join(", "), briefFormatLabel(brief)].filter(Boolean).join(" · ")}
+            </div>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-1.5 font-bold">
@@ -500,6 +520,7 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
               />
             </div>
           </div>
+          )}
 
           {/* STEP 4: Campaign Specific fields (if hybrid or campaign) */}
           {(workflowType === "hybrid" || workflowType === "campaign") && (
@@ -525,7 +546,7 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
                   />
                 </div>
 
-                <div>
+                {!v2 && <div>
                   <label className="block text-[10px] uppercase text-slate-400 mb-1">Sequence Position / Drop Tag</label>
                   <input
                     type="text"
@@ -536,7 +557,7 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
                       isDark ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
                     }`}
                   />
-                </div>
+                </div>}
               </div>
             </div>
           )}
@@ -567,7 +588,9 @@ export const PushBriefWorkflowModal: React.FC<PushBriefWorkflowModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStatus("Approved")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer transition-all ${
+                disabled={blocked}
+                title={blocked ? "This brief has unconfirmed items, so it can't be approved yet" : undefined}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                   status === "Approved"
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "bg-slate-800 text-slate-400 hover:text-slate-200"

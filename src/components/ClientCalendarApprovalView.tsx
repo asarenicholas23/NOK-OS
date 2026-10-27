@@ -44,6 +44,7 @@ import { WeeklyContentPlannerGrid } from "./WeeklyContentPlannerGrid";
 import { getWeekAnchorMonday, addDays } from "../utils/weekSchedule";
 import { RequestChangesModal } from "./RequestChangesModal";
 import { BriefDetailModal } from "./BriefDetailModal";
+import { approvalBlockers } from "../lib/briefs";
 import { downloadCalendarPDF } from "../utils/pdfGenerator";
 
 export const ClientCalendarApprovalView: React.FC = () => {
@@ -211,7 +212,7 @@ export const ClientCalendarApprovalView: React.FC = () => {
       (snapshot) => {
         const list: CreativeBrief[] = [];
         snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...(docSnap.data() as Omit<CreativeBrief, "id">) });
+          list.push({ id: docSnap.id, ...docSnap.data() } as CreativeBrief);
         });
 
         // Filter for this share link's target period
@@ -237,6 +238,10 @@ export const ClientCalendarApprovalView: React.FC = () => {
 
   // Handler: 1-Click Approve a Single Day
   const handleApproveBrief = async (brief: CreativeBrief) => {
+    if (approvalBlockers(brief).length > 0) {
+      showToast("Waiting on confirmation", "This item has details the agency still needs to confirm before it can be approved.", "warning");
+      return;
+    }
     try {
       const briefRef = doc(db, "briefs", brief.id);
       await updateDoc(briefRef, {
@@ -292,7 +297,7 @@ export const ClientCalendarApprovalView: React.FC = () => {
 
   // Handler: Approve All in a Week
   const handleApproveAllWeek = async (weekNumber: number, briefIds: string[]) => {
-    const proposed = briefs.filter((b) => briefIds.includes(b.id) && b.status === "Proposed");
+    const proposed = briefs.filter((b) => briefIds.includes(b.id) && b.status === "Proposed" && approvalBlockers(b).length === 0);
     if (proposed.length === 0) {
       showToast("All Ready", "All proposed items in this week are already approved.", "info");
       return;
@@ -334,7 +339,7 @@ export const ClientCalendarApprovalView: React.FC = () => {
 
   // Handler: Approve All Proposed Content Globally for the Entire Period
   const handleApproveAllProposedGlobal = async () => {
-    const proposed = briefs.filter((b) => b.status === "Proposed");
+    const proposed = briefs.filter((b) => b.status === "Proposed" && approvalBlockers(b).length === 0);
     if (proposed.length === 0) {
       showToast("All Approved", "There are no pending proposed briefs left to approve.", "info");
       return;
@@ -450,6 +455,8 @@ export const ClientCalendarApprovalView: React.FC = () => {
   const totalCount = briefs.length;
   const approvedCount = briefs.filter((b) => b.status === "Approved").length;
   const proposedCount = briefs.filter((b) => b.status === "Proposed").length;
+  // Proposed items that can be approved now (unconfirmed items block approval).
+  const approvableCount = briefs.filter((b) => b.status === "Proposed" && approvalBlockers(b).length === 0).length;
   const changesCount = briefs.filter((b) => b.status === "Changes Requested").length;
   const percentApproved = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0;
 
@@ -518,7 +525,7 @@ export const ClientCalendarApprovalView: React.FC = () => {
               <span>Download PDF Copy</span>
             </button>
 
-            {proposedCount > 0 && (
+            {approvableCount > 0 && (
               <button
                 id="btn-approve-all-global"
                 onClick={handleApproveAllProposedGlobal}
@@ -526,7 +533,7 @@ export const ClientCalendarApprovalView: React.FC = () => {
                 className="flex items-center space-x-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>{isBulkApproving ? "Approving..." : `Approve All (${proposedCount} Proposed)`}</span>
+                <span>{isBulkApproving ? "Approving..." : `Approve All (${approvableCount} Ready)`}</span>
               </button>
             )}
           </div>
@@ -634,6 +641,7 @@ export const ClientCalendarApprovalView: React.FC = () => {
           onRequestChanges={(brief) => setSelectedBriefForChanges(brief)}
           onApproveAllWeek={handleApproveAllWeek}
           onOpenBriefDetail={(brief) => setSelectedBriefForDetail(brief)}
+          audience="client"
         />
       </main>
 
@@ -680,6 +688,7 @@ export const ClientCalendarApprovalView: React.FC = () => {
           activeBrand={brand}
           theme="dark"
           activeColor="violet"
+          audience="client"
           onClose={() => setSelectedBriefForDetail(null)}
           onApprove={async (brief) => {
             await handleApproveBrief(brief);

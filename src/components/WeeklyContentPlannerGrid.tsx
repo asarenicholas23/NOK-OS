@@ -17,6 +17,7 @@ import {
 import { CreativeBrief, Brand, CampaignQueue } from "../lib/firebase";
 import { PushBriefWorkflowModal } from "./PushBriefWorkflowModal";
 import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
+import { briefHook, briefPrimaryPlatform, briefFormatLabel, briefPillar, briefSummaryLine, approvalBlockers } from "../lib/briefs";
 import { getMondayOfWeek, addDays, formatDateYMD, getISOWeek } from "../utils/weekSchedule";
 
 interface WeeklyContentPlannerGridProps {
@@ -40,6 +41,8 @@ interface WeeklyContentPlannerGridProps {
   addNotification?: (title: string, message: string, type?: "info" | "success" | "warning") => void;
   queues?: CampaignQueue[];
   updateCampaign?: (id: string, campaign: Partial<CampaignQueue>) => Promise<void>;
+  /** "client" = share-link review: hides internal tools like the Claude filter. */
+  audience?: "staff" | "client";
 }
 
 const MONTHS_LIST = [
@@ -77,7 +80,8 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
   addCalendarEvent,
   addNotification,
   queues,
-  updateCampaign
+  updateCampaign,
+  audience = "staff"
 }) => {
   const isDark = theme === "dark";
 
@@ -223,12 +227,12 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
             ))}
           </div>
 
-          <ClaudeDraftFilter
+          {audience === "staff" && <ClaudeDraftFilter
             id="filter-briefs-claude"
             active={claudeOnly}
             count={briefs.filter(isClaudeDraft).length}
             onToggle={() => setClaudeOnly(v => !v)}
-          />
+          />}
 
           {proposedThisWeek.length > 0 && updateCreativeBrief && (
             <button
@@ -310,21 +314,21 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                         <div className="flex items-center gap-1.5 mb-1">
                           <WorkflowDot kind={wf} />
                           <StatusPill status={brief.status} compact />
-                          {isClaudeDraft(brief) && <ClaudeDraftBadge compact />}
+                          {audience === "staff" && isClaudeDraft(brief) && <ClaudeDraftBadge compact />}
                         </div>
                         <p className={`text-xs font-semibold leading-snug line-clamp-2 ${isDark ? "text-slate-100" : "text-slate-800"}`}>
-                          {brief.topicIdea || brief.title || "Untitled brief"}
+                          {briefHook(brief) || "Untitled brief"}
                         </p>
-                        {(brief.platform || brief.postType) && (
+                        {(briefPrimaryPlatform(brief) || briefFormatLabel(brief)) && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
-                            {brief.platform && (
+                            {briefPrimaryPlatform(brief) && (
                               <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300 border border-violet-500/20">
-                                {brief.platform.split(",")[0]?.trim()}
+                                {briefPrimaryPlatform(brief)}
                               </span>
                             )}
-                            {brief.postType && (
+                            {briefFormatLabel(brief) && (
                               <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-600/20 text-slate-300 border border-slate-600/40">
-                                {brief.postType}
+                                {briefFormatLabel(brief)}
                               </span>
                             )}
                           </div>
@@ -342,12 +346,13 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                         <button
                           id={`btn-approve-day-${brief.id}`}
                           onClick={() => onApproveDay(brief)}
-                          className={`flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
+                          disabled={brief.status !== "Approved" && approvalBlockers(brief).length > 0}
+                          className={`flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded text-[9px] font-mono font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                             brief.status === "Approved"
                               ? "bg-emerald-600 text-white"
                               : "bg-emerald-600/15 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30"
                           }`}
-                          title="Approve this brief"
+                          title={approvalBlockers(brief).length > 0 ? "Unconfirmed items block approval" : "Approve this brief"}
                         >
                           <Check className="w-2.5 h-2.5" />
                           {brief.status === "Approved" ? "Approved" : "Approve"}
@@ -465,23 +470,23 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-bold truncate">{brief.title || "Untitled brief"}</span>
-                      {isClaudeDraft(brief) && <ClaudeDraftBadge compact />}
+                      {audience === "staff" && isClaudeDraft(brief) && <ClaudeDraftBadge compact />}
                       <StatusPill status={brief.status} />
                     </div>
-                    {(brief.topicIdea || brief.keyMessage) && (
+                    {briefSummaryLine(brief) && (
                       <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                        {brief.topicIdea || brief.keyMessage}
+                        {briefSummaryLine(brief)}
                       </p>
                     )}
                     <div className="flex items-center gap-1.5 mt-2">
-                      {brief.contentPillar && (
+                      {briefPillar(brief) && (
                         <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300 border border-violet-500/20">
-                          {brief.contentPillar}
+                          {briefPillar(brief)}
                         </span>
                       )}
-                      {brief.postType && (
+                      {briefFormatLabel(brief) && (
                         <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-700/30 text-slate-300 border border-slate-700/50">
-                          {brief.postType}
+                          {briefFormatLabel(brief)}
                         </span>
                       )}
                     </div>

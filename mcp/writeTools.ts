@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { DocumentReference, Firestore } from "firebase-admin/firestore";
-import type { BrandDirection, CreativeBrief, StrategicInsight } from "../src/lib/firebase";
+import type { BrandDirection, StrategicInsight } from "../src/lib/firebase";
+import { briefContentSchema, safeParseBriefContent, pickBriefContent, type CreativeBriefV1 } from "../src/lib/briefs";
 import { addTool, ToolError, type CallContext } from "./readTools";
 import { DEMO_BRAND_IDS } from "./fakeData";
 
@@ -34,7 +35,8 @@ const directionItem = z.object({
 const PLATFORMS = ["Instagram", "Facebook", "LinkedIn", "TikTok", "Twitter/X", "YouTube", "Newsletter"] as const;
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 
-const briefItem = z.object({
+// v1 brief fields: only used to edit v1 drafts Claude made before briefs moved to v2.
+const legacyBriefPatch = z.object({
   title: text(160),
   objective: text(600),
   targetAudience: text(600),
@@ -66,12 +68,19 @@ type Assert<T extends true> = T;
 type Fits<S, T> = [Exclude<keyof S, keyof T>] extends [never] ? (S extends Partial<T> ? true : false) : false;
 type _InsightFits = Assert<Fits<z.infer<typeof insightItem>, StrategicInsight>>;
 type _DirectionFits = Assert<Fits<z.infer<typeof directionItem>, BrandDirection>>;
-type _BriefFits = Assert<Fits<z.infer<typeof briefItem>, CreativeBrief>>;
+type _BriefFits = Assert<Fits<z.infer<typeof legacyBriefPatch>, CreativeBriefV1>>;
+
+// v2 brief: the shared schema (same one generation and the editor use) plus an
+// optional planned date.
+const briefV2Item = briefContentSchema.extend({
+  date: isoDate.optional().describe("Planned post date. Omit to leave the brief unscheduled."),
+});
+
 
 const KINDS = {
   insight: { collection: "strategicInsights", schema: insightItem },
   direction: { collection: "brandDirections", schema: directionItem },
-  brief: { collection: "briefs", schema: briefItem },
+  brief: { collection: "briefs", schema: legacyBriefPatch },
 } as const;
 type Kind = keyof typeof KINDS;
 
@@ -93,8 +102,7 @@ function draftDocId(kind: Kind, brand: string, req: string, index: number) {
   return `claude_${hash.slice(0, 24)}`;
 }
 
-// Existing screens still read visualCopyDetail; keep it in step with
-// contentOutline until the brief schema cleanup (Phase 6) removes it.
+// v1 briefs: older screens read visualCopyDetail; keep it in step with contentOutline.
 function briefExtras(item: Record<string, unknown>) {
   return typeof item.contentOutline === "string" ? { visualCopyDetail: item.contentOutline } : {};
 }
@@ -117,8 +125,9 @@ async function createDrafts(db: Firestore, kind: Kind, brand: string, req: strin
       return;
     }
     batch.create(refs[i], {
-      ...items[i],
-      ...(kind === "brief" ? { progressTracking: "Create", ...briefExtras(items[i]) } : {}),
+      // JSON round trip drops undefined optional fields (Firestore rejects them).
+      ...JSON.parse(JSON.stringify(items[i])),
+      ...(kind === "brief" ? { schemaVersion: 2, progressTracking: "Create" } : {}),
       brandId: brand,
       status: "Draft",
       createdBy: "claude",
@@ -167,10 +176,13 @@ export function registerWriteTools(server: McpServer, db: Firestore, ctx: CallCo
     ...write,
     title: "Draft creative briefs",
     description:
-      "Save 1-10 creative briefs for a brand as drafts for staff review. Write in the brand's voice (get_brand_context). " +
-      "Use real proof points only; if none exists, say 'PLACEHOLDER: needs real data'. Dated drafts show on the staff " +
-      "calendar but never on the client approval link until staff move them on.",
-    inputSchema: { brandId, requestId, items: z.array(briefItem).min(1).max(10) },
+      "Save 1-10 creative briefs as drafts for staff review. One brief = one topic developed into 1-3 finished assets " +
+      "(carousel slides, reel/video scenes, blog article, static, text post) with the actual copy, not a description of it, " +
+      "plus a publish-ready caption per platform. Write in the brand's voice (get_brand_context) and base the rationale " +
+      "on real data (get_analytics_summary). Never invent stats, results or quotes: put a bracketed placeholder in the copy " +
+      "and an 'unconfirmed' item with its path (e.g. assets[0].slides[2].body). Unconfirmed items block approval until " +
+      "staff confirm them. Drafts never appear on the client approval link.",
+    inputSchema: { brandId, requestId, items: z.array(briefV2Item).min(1).max(10) },
   }, ({ brandId, requestId, items }) => createDrafts(db, "brief", brandId, requestId, items));
 
   addTool(server, db, ctx, "update_draft", {
@@ -187,14 +199,13 @@ export function registerWriteTools(server: McpServer, db: Firestore, ctx: CallCo
       patch: z.record(z.unknown()).describe("Fields to change, using the same names as the matching create_* tool."),
     },
   }, async ({ brandId, kind, id, patch }) => {
+    if (kind === "brief") return updateBriefDraft(db, brandId, id, patch);
     const parsed = KINDS[kind].schema.partial().strict().safeParse(patch);
     if (!parsed.success) {
       throw new ToolError(`Invalid patch: ${parsed.error.issues.map((i) => `${i.path.join(".") || "patch"}: ${i.message}`).join("; ")}`);
     }
     const changes: Record<string, unknown> = Object.fromEntries(Object.entries(parsed.data).filter(([, v]) => v !== undefined));
     if (Object.keys(changes).length === 0) throw new ToolError("patch has no fields to change.");
-    if (kind === "brief") Object.assign(changes, briefExtras(changes));
-
     const ref = db.collection(KINDS[kind].collection).doc(id);
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
@@ -206,4 +217,39 @@ export function registerWriteTools(server: McpServer, db: Firestore, ctx: CallCo
     });
     return { body: { updated: id, fields: Object.keys(changes) }, itemCount: 1 };
   });
+}
+
+const issues = (e: z.ZodError) => e.issues.map((i) => `${i.path.join(".") || "patch"}: ${i.message}`).join("; ");
+
+// Briefs: v2 drafts take v2 fields (whole arrays like assets are replaced) and
+// the full brief must still be valid afterwards; v1 drafts take v1 fields.
+async function updateBriefDraft(db: Firestore, brandId: string, id: string, patch: Record<string, unknown>) {
+  const ref = db.collection("briefs").doc(id);
+  let fields: string[] = [];
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.data();
+    if (!snap.exists || !data || data.brandId !== brandId) throw new ToolError(`No brief "${id}" for this brand.`);
+    if (data.createdBy !== "claude") throw new ToolError("This brief was not drafted by Claude, so it can't be edited here.");
+    if (data.status !== "Draft") throw new ToolError(`This brief is "${data.status}", not Draft. Only unreviewed drafts can be edited.`);
+
+    let changes: Record<string, unknown>;
+    if (data.schemaVersion === 2) {
+      const parsed = briefV2Item.partial().strict().safeParse(patch);
+      if (!parsed.success) throw new ToolError(`Invalid patch: ${issues(parsed.error)}`);
+      changes = JSON.parse(JSON.stringify(parsed.data));
+      const merged = { ...data, ...changes };
+      const check = safeParseBriefContent(pickBriefContent(merged));
+      if ("errors" in check) throw new ToolError(`The brief would be invalid after this change: ${check.errors.slice(0, 5).join("; ")}`);
+    } else {
+      const parsed = legacyBriefPatch.partial().strict().safeParse(patch);
+      if (!parsed.success) throw new ToolError(`Invalid patch (this is a v1 brief): ${issues(parsed.error)}`);
+      changes = Object.fromEntries(Object.entries(parsed.data).filter(([, v]) => v !== undefined));
+      Object.assign(changes, briefExtras(changes));
+    }
+    if (Object.keys(changes).length === 0) throw new ToolError("patch has no fields to change.");
+    fields = Object.keys(changes);
+    tx.update(ref, { ...changes, updatedAt: new Date().toISOString() });
+  });
+  return { body: { updated: id, fields }, itemCount: 1 };
 }

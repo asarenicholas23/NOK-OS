@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
 import { CreativeBrief, RawAnalyticsRow, Brand } from "../lib/firebase";
+import { toLegacyView, isV2, type CreativeBriefV1 } from "../lib/briefs";
+import { generateBriefPDFv2 } from "./briefPdfV2";
 
 export interface UnconfirmedFlag {
   field: string;
@@ -11,9 +13,10 @@ export interface UnconfirmedFlag {
 /**
  * Global detection rule for placeholders, unconfirmed claims, and unverified data.
  */
-export function detectUnconfirmedData(brief: CreativeBrief): UnconfirmedFlag[] {
+export function detectUnconfirmedData(input: CreativeBrief): UnconfirmedFlag[] {
+  const brief = toLegacyView(input);
   const flags: UnconfirmedFlag[] = [];
-  const fieldsToCheck: { key: keyof CreativeBrief; label: string }[] = [
+  const fieldsToCheck: { key: keyof CreativeBriefV1; label: string }[] = [
     { key: "proofPoint", label: "Proof Point / Data Source" },
     { key: "keyMessage", label: "Core Message" },
     { key: "objective", label: "Objective" },
@@ -82,7 +85,7 @@ export function detectUnconfirmedData(brief: CreativeBrief): UnconfirmedFlag[] {
 }
 
 // Helpers for clean plain text extraction for Owner View
-export const getPlainAssetPurpose = (brief: CreativeBrief): string => {
+export const getPlainAssetPurpose = (brief: CreativeBriefV1): string => {
   if (!brief.objective) return "Promotional and marketing campaign asset.";
   const clean = brief.objective
     .replace(/^define\s+primary\s+marketing[,\s]+/i, "")
@@ -92,12 +95,12 @@ export const getPlainAssetPurpose = (brief: CreativeBrief): string => {
   return firstSentence || clean;
 };
 
-export const getPlainCoreMessage = (brief: CreativeBrief): string => {
+export const getPlainCoreMessage = (brief: CreativeBriefV1): string => {
   if (!brief.keyMessage) return "Key marketing message";
   return brief.keyMessage.replace(/^["']|["']$/g, "").trim();
 };
 
-export const getPlainPlacementFormat = (brief: CreativeBrief): string => {
+export const getPlainPlacementFormat = (brief: CreativeBriefV1): string => {
   return brief.formatSpec || brief.deliverables || "Social Media Campaign Asset";
 };
 
@@ -120,10 +123,17 @@ const formatBrandPalette = (colorStr?: string): string => {
  * - SECTION 2 (Page 2+): Designer Execution Spec (format, exact approved copy, section outline, brand visual reference, CTA)
  */
 export const generateBriefPDF = (
-  brief: CreativeBrief, 
+  briefInput: CreativeBrief,
   brandNameOrObject?: string | Brand, 
-  brandObject?: Brand
+  brandObject?: Brand,
+  audience: "staff" | "client" = "staff"
 ): jsPDF => {
+  // v2 briefs have their own layout (slide/scene tables, blocking box).
+  if (isV2(briefInput)) {
+    const name = typeof brandNameOrObject === "string" ? brandNameOrObject : brandNameOrObject?.name || brandObject?.name || "N.O.K WORKSPACE";
+    return generateBriefPDFv2(briefInput, name, audience);
+  }
+  const brief = toLegacyView(briefInput);
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -777,8 +787,8 @@ export const generateBriefPDF = (
   return doc;
 };
 
-export const downloadSingleBriefPDF = (brief: CreativeBrief, brand?: Brand | null) => {
-  const doc = generateBriefPDF(brief, brand?.name || "Global Standards", brand || undefined);
+export const downloadSingleBriefPDF = (brief: CreativeBrief, brand?: Brand | null, audience: "staff" | "client" = "staff") => {
+  const doc = generateBriefPDF(brief, brand?.name || "Global Standards", brand || undefined, audience);
   const cleanTitle = (brief.title || "brief").toLowerCase().replace(/[^a-z0-9]+/g, "-");
   doc.save(`${cleanTitle}-creative-brief.pdf`);
 };
@@ -1075,11 +1085,12 @@ export const generatePerformanceReportPDF = (
  */
 export const generateCalendarPDF = (
   brand: Brand | null,
-  briefs: CreativeBrief[],
+  briefsInput: CreativeBrief[],
   monthName: string,
   year: number,
   shareUrl?: string
 ): jsPDF => {
+  const briefs = briefsInput.map(toLegacyView);
   const doc = new jsPDF({
     orientation: "landscape",
     unit: "mm",

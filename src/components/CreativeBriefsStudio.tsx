@@ -12,12 +12,16 @@ import {
   Layers,
   ChevronRight
 } from "lucide-react";
-import { CreativeBrief, Brand, BrandDirection, CampaignQueue, CalendarEvent } from "../lib/firebase";
+import { CreativeBrief, NewCreativeBrief, Brand, BrandDirection, CampaignQueue, CalendarEvent } from "../lib/firebase";
 import { generateBriefPDF, downloadSingleBriefPDF } from "../utils/pdfGenerator";
 import { sendBriefEmail } from "../utils/gmailSender";
 import { apiFetch } from "../lib/apiBase";
 import { PushBriefWorkflowModal } from "./PushBriefWorkflowModal";
 import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
+import { toLegacyView, briefSummaryLine } from "../lib/briefs";
+import { useBrand } from "../context/BrandContext";
+import { generateBriefs } from "../lib/generateBriefs";
+import { BriefV2Editor } from "./briefs/BriefV2Editor";
 
 interface CreativeBriefsStudioProps {
   briefs: CreativeBrief[];
@@ -27,7 +31,7 @@ interface CreativeBriefsStudioProps {
   activeColor: string;
   currentMonthName: string;
   currentYear: number;
-  addCreativeBrief: (brief: Omit<CreativeBrief, "id" | "brandId">) => Promise<void>;
+  addCreativeBrief: (brief: NewCreativeBrief) => Promise<void>;
   updateCreativeBrief: (id: string, brief: Partial<CreativeBrief>) => Promise<void>;
   addCampaign: (campaign: Omit<CampaignQueue, "id" | "brandId">) => Promise<void>;
   addCalendarEvent: (event: Omit<CalendarEvent, "id" | "brandId">) => Promise<void>;
@@ -60,15 +64,11 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
 
   // AI generation state
   const [generatingBriefs, setGeneratingBriefs] = useState(false);
-  const [generationCount, setGenerationCount] = useState<number>(5);
+  const [generationCount, setGenerationCount] = useState<number>(3);
 
   // Manual creation form state
   const [showForm, setShowForm] = useState(false);
-  const [title, setTitle] = useState("");
-  const [objective, setObjective] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
-  const [keyMessage, setKeyMessage] = useState("");
-  const [deliverables, setDeliverables] = useState("");
+  const { createV2Brief } = useBrand();
 
   // Push-to-calendar workflow state
   const [briefToPush, setBriefToPush] = useState<CreativeBrief | null>(null);
@@ -98,96 +98,25 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
       addNotification("Approval Required", "Approve at least one brand direction before generating creative briefs.", "warning");
       return;
     }
+    if (!activeBrand) return;
     setGeneratingBriefs(true);
     try {
-      const response = await apiFetch("/api/generate-briefs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tagline: activeBrand?.tagline || "Global Standards",
-          voiceTone: activeBrand?.voiceTone || "Professional, Authoritative",
-          brandGuide: {
-            contentPillars: activeBrand?.contentPillars || "",
-            audiencePersonas: activeBrand?.audiencePersonas || "",
-            competitorContext: activeBrand?.competitorContext || "",
-            platformNotes: activeBrand?.platformNotes || ""
-          },
-          approvedDirections,
-          count: generationCount
-        })
+      const { saved, failed } = await generateBriefs({
+        brandId: activeBrand.id,
+        directions: approvedDirections,
+        count: generationCount,
+        createV2Brief,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate creative briefs via Gemini service");
-      }
-
-      const generatedBriefs = await response.json();
-
-      for (const item of generatedBriefs) {
-        await addCreativeBrief({
-          title: item.title,
-          objective: item.objective,
-          targetAudience: item.targetAudience,
-          keyMessage: item.keyMessage,
-          deliverables: item.deliverables,
-          status: "Proposed",
-          campaignId: item.campaignId,
-          date: item.date,
-          sequencePosition: item.sequencePosition,
-          proofPoint: item.proofPoint,
-          formatSpec: item.formatSpec,
-          contentOutline: item.contentOutline,
-          cta: item.cta,
-          toneVisualRef: item.toneVisualRef,
-          successMetric: item.successMetric,
-          approver: item.approver,
-          // Calendar spreadsheet fields — keeps generated briefs fully populated in the grid
-          platform: item.platform,
-          mainFocus: item.mainFocus,
-          topicIdea: item.topicIdea,
-          contentPillar: item.contentPillar,
-          postType: item.postType,
-          progressTracking: item.progressTracking,
-          visualReference: item.visualReference,
-          visualCopyDetail: item.visualCopyDetail,
-          copywritingCaption: item.copywritingCaption,
-          hashtags: item.hashtags
-        });
-      }
-
       addNotification(
-        "Content Briefs Synthesized",
-        `Drafted ${generatedBriefs.length} creative briefs from approved brand directions! Slot them onto the calendar below.`,
-        "success"
+        "Briefs drafted",
+        `${saved} brief(s) written as Drafts for review.${failed.length ? ` ${failed.length} could not be generated.` : ""}`,
+        failed.length ? "warning" : "success"
       );
     } catch (err: any) {
       console.error(err);
-      addNotification("Synthesis Interrupted", err.message || "Failed to communicate with AI generation pipeline.", "warning");
+      addNotification("Generation failed", err.message || "Failed to communicate with AI generation pipeline.", "warning");
     } finally {
       setGeneratingBriefs(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !objective || !targetAudience || !keyMessage) return;
-    try {
-      await addCreativeBrief({
-        title,
-        objective,
-        targetAudience,
-        keyMessage,
-        deliverables: deliverables || "N/A",
-        status: "Proposed"
-      });
-      setTitle("");
-      setObjective("");
-      setTargetAudience("");
-      setKeyMessage("");
-      setDeliverables("");
-      setShowForm(false);
-    } catch (err) {
-      console.error("Error creating creative brief:", err);
     }
   };
 
@@ -206,7 +135,7 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
   const handleOpenEmailModal = (briefList: CreativeBrief[]) => {
     setBriefsToEmail(briefList);
     if (briefList.length === 1) {
-      const brief = briefList[0];
+      const brief = toLegacyView(briefList[0]);
       setEmailSubject(`[Approval Request] Creative Brief: ${brief.title}`);
       setEmailBody(
         `Hi Team,\n\nPlease review and approve the attached creative campaign brief for "${brief.title}" under brand "${activeBrand?.name || "Global Standards"}".\n\nObjective:\n${brief.objective}\n\nTarget Audience:\n${brief.targetAudience}\n\nDeliverables:\n${brief.deliverables || "N/A"}\n\nPlease reply with your approval or any requested changes so we can finalize execution.\n\nBest regards,\nCreative Briefs Desk`
@@ -338,7 +267,7 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
                 isDark ? "bg-slate-950 border-border text-slate-200" : "bg-white border-slate-200 text-slate-700"
               }`}
             >
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+              {[1, 2, 3, 4, 5].map((num) => (
                 <option key={num} value={num}>{num}</option>
               ))}
             </select>
@@ -386,106 +315,18 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
         </div>
       </div>
 
-      {/* Manual Brief Creation Form */}
+      {/* Manual brief creation (v2 editor) */}
       {showForm && (
-        <div
-          id="brief-form-card"
-          className={`border rounded-xl p-6 shadow-xl animate-in slide-in-from-top-3 duration-200 ${
-            isDark ? "bg-card border-border/80" : "bg-white border-slate-200"
-          }`}
-        >
-          <h3 className="text-xs font-mono uppercase tracking-wider text-slate-400 mb-4 flex items-center">
-            <Sparkles className="w-3.5 h-3.5 mr-2 text-violet-500" />
-            Draft a Brief Manually
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Brief Title *</label>
-                <input
-                  id="brief-input-title"
-                  type="text"
-                  required
-                  placeholder="e.g., Q3 Cloud Migration Campaign Pack"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 ${
-                    isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
-                  }`}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Deliverables Scope</label>
-                <input
-                  id="brief-input-deliverables"
-                  type="text"
-                  placeholder="e.g., 3x LinkedIn graphics, 1x brand performance report..."
-                  value={deliverables}
-                  onChange={(e) => setDeliverables(e.target.value)}
-                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 ${
-                    isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
-                  }`}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Core Campaign Objective *</label>
-                <textarea
-                  id="brief-input-objective"
-                  required
-                  rows={2}
-                  placeholder="Define primary marketing, branding, or user acquisition goals..."
-                  value={objective}
-                  onChange={(e) => setObjective(e.target.value)}
-                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans resize-none ${
-                    isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
-                  }`}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Target Audience Segment *</label>
-                <textarea
-                  id="brief-input-audience"
-                  required
-                  rows={2}
-                  placeholder="Describe demographic, technical background, or segment archetype..."
-                  value={targetAudience}
-                  onChange={(e) => setTargetAudience(e.target.value)}
-                  className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans resize-none ${
-                    isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
-                  }`}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-mono tracking-wide uppercase text-slate-400 mb-1.5">Key Marketing Message *</label>
-              <textarea
-                id="brief-input-message"
-                required
-                rows={2}
-                placeholder="Primary core copy line or positioning statement..."
-                value={keyMessage}
-                onChange={(e) => setKeyMessage(e.target.value)}
-                className={`w-full text-xs px-3 py-2 border rounded-md focus:outline-none focus:border-violet-500 font-sans resize-none ${
-                  isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
-                }`}
-              />
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                id="brief-submit-action"
-                type="submit"
-                className={`px-4 py-2 text-xs font-semibold rounded-md shadow-md font-mono cursor-pointer ${getBrandBgButton()}`}
-              >
-                Save Draft Brief
-              </button>
-            </div>
-          </form>
-        </div>
+        <BriefV2Editor
+          heading="New brief"
+          isDark={isDark}
+          onCancel={() => setShowForm(false)}
+          onSave={async (content) => {
+            await createV2Brief(content, { status: "Draft" });
+            addNotification("Brief saved", `"${content.title}" saved as a Draft.`, "success");
+            setShowForm(false);
+          }}
+        />
       )}
 
       {/* Unscheduled Briefs Strip */}
@@ -582,7 +423,7 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
                     <span className="truncate">{brief.title}</span>
                     {isClaudeDraft(brief) && <ClaudeDraftBadge compact />}
                   </p>
-                  <p className="text-[11px] text-slate-400 truncate">{brief.topicIdea || brief.keyMessage}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{briefSummaryLine(brief)}</p>
                 </div>
                 <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 shrink-0">
                   {brief.status || "Proposed"}

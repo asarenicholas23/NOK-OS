@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { Brand, CreativeBrief, CalendarEvent, CampaignQueue } from "../lib/firebase";
 import { GoogleCalendarEvent } from "./googleCalendar";
+import { toLegacyView } from "../lib/briefs";
 
 export interface CalendarExportOptions {
   brand: Brand | null;
@@ -28,7 +29,9 @@ const toArgb = (hex: string, fallback = "FF4F46E5"): string => {
  * Builds a styled, multi-tab Microsoft Excel / Google Sheets compatible workbook.
  */
 export const buildStyledCalendarWorkbook = async (options: CalendarExportOptions): Promise<ExcelJS.Workbook> => {
-  const { brand, briefs, calendarEvents, queues, googleEvents = [], selectedDate, monthName, year } = options;
+  const { brand, calendarEvents, queues, googleEvents = [], selectedDate, monthName, year } = options;
+  // v2 briefs are flattened to the legacy columns until the v2 export lands.
+  const briefs = options.briefs.map(toLegacyView);
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "N.O.K Social OS";
@@ -469,7 +472,8 @@ export const downloadCalendarExcel = async (options: CalendarExportOptions): Pro
  * Downloads the calendar as a standard CSV format (compatible with Google Sheets direct import)
  */
 export const downloadCalendarCSV = (options: CalendarExportOptions): void => {
-  const { briefs, brand } = options;
+  const { brand } = options;
+  const briefs = options.briefs.map(toLegacyView);
   
   const headers = [
     "Campaign ID",

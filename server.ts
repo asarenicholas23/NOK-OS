@@ -10,6 +10,7 @@ import crypto from "node:crypto";
 import { proposalTotals, selectedLineItems } from "./src/data/cmsData";
 import { syncProposalToZoho, zohoConfigured } from "./zohoInvoice";
 import { mountMcp } from "./mcp/index";
+import { generateV2Briefs, GenerationError, BRIEF_WRITING_RULES } from "./server/briefGeneration";
 
 dotenv.config();
 
@@ -367,138 +368,29 @@ For each brand direction, provide:
   }
 });
 
-// API endpoint to generate creative content briefs from brand directions
+// API endpoint to generate v2 creative briefs (finished assets) from approved
+// brand directions. The server reads the brand guide and analytics itself.
 app.post("/api/generate-briefs", requireStaffAuth, async (req, res) => {
   try {
-    const { tagline, voiceTone, brandGuide, approvedDirections, count = 5 } = req.body;
-
-    const guidePrompt = brandGuide && (brandGuide.contentPillars || brandGuide.audiencePersonas || brandGuide.competitorContext || brandGuide.platformNotes) ? `
-Brand Guide Guidelines to obey:
-- Content Pillars: ${brandGuide.contentPillars || "Not specified"}
-- Target Audience Personas: ${brandGuide.audiencePersonas || "Not specified"}
-- Competitor Context: ${brandGuide.competitorContext || "Not specified"}
-- Platform Notes: ${brandGuide.platformNotes || "Not specified"}
-
-Please align the campaign titles, creative objectives, target segments, and deliverables strictly with these brand guide parameters.
-` : "";
-
-    const dataPrompt = `You are an elite creative director and copywriter. Using the brand tagline "${tagline || ""}" and voice tone "${voiceTone || ""}", analyze the following positioning directions/pillars:
-${guidePrompt}
-${JSON.stringify(approvedDirections, null, 2)}
-
-Create exactly ${count} highly engaging, execution-ready creative content briefs for upcoming marketing campaigns that directly realize these pillars.
-Every brief must contain complete information for all sections; if details are not explicitly defined, infer reasonable values consistent with the brand positioning. DO NOT leave fields blank.
-
-Always populate the following sections for each brief:
-1. HEADER: Campaign ID (e.g., "KNTENEVA-R1"), Date (e.g. "7/1/2026"), and Sequence Position (e.g. "Campaign 1 of ${count}").
-2. CAMPAIGN TITLE: A catchy, memorable campaign title.
-3. CAMPAIGN OBJECTIVE: One sentence, tied to a specific outcome (e.g., recall, saves, profile visits, inbound DMs, etc.) - specify exactly what awareness should produce.
-4. TARGET AUDIENCE: Specific role/persona + one specific pain point this piece speaks to directly.
-5. CORE POSITIONING COPY / KEY MESSAGE: The single core message the audience should remember, in brand voice.
-6. PROOF POINT / DATA SOURCE: Specific stat, dataset, case study, or real example. If no real internal data exists yet, flag explicitly as "PLACEHOLDER — needs real data before publishing" (never invent fictitious metrics).
-7. FORMAT & TECHNICAL SPEC: Platform (e.g. "LinkedIn"), exact format (e.g. "Native document post (carousel)"), dimensions/aspect ratio (e.g. "1080 x 1350 px, portrait (4:5)"), slide/post count (e.g. "7 slides"), companion assets if any. Default carousel length to 7 slides unless content requires otherwise (range 5-10, hard cap 15).
-8. CONTENT OUTLINE: A beat-by-beat, slide-by-slide, or section-by-section breakdown of what each individual asset/slide/tweet/scene says. You MUST format this strictly according to the format being built, using these markdown structures:
-   - For Carousels (slides/cards/pages): Generate a slide-by-slide sequence. Each slide must use this format exactly:
-     ## Slide [Number] — [Slide Title]
-     **Copy:**
-     > "Exact copy text inside quotes"
-     **Design:** Full description of visual layout, background styles, color guidelines, typography weighting, and negative space boundaries.
-     If there are channel specific swaps (like slide 4 having different assets on Instagram vs LinkedIn), add them precisely:
-     **Instagram version:** [Describe native motion video assets]
-     **LinkedIn version (static swap):** [Describe clean screenshots with annotation arrows]
-   
-   - For Videos/Reels/TikToks: Generate a scene-by-scene script storyboard. Each scene must use this format exactly:
-     ## Scene [Number] — [Scene Focus / Timecode]
-     **Copy:**
-     > "Exact narrator audio or voiceover copy inside quotes"
-     **Design:** Full director directions of camera movement, lighting, visual scenes, and on-screen overlays.
-     
-   - For Fliers/Posters/Prints: Generate a blueprint layout structure. Each section must use this format exactly:
-     ## Section [Number] — [Layout Component Name]
-     **Copy:**
-     > "Exact printed copy inside quotes"
-     **Design:** Precise blueprint instructions for grid alignment, border accents, and visual focus anchors.
-     
-   - For Email Campaigns/Newsletters: Generate a modular newsletter template block. Each block must use this format exactly:
-     ## Section [Number] — [Block Title]
-     For Section 1, always specify subject line metadata:
-     **Subject Line:**
-     > "Newsletter subject line in quotes"
-     **Preview Text:**
-     > "Interesting inbox preview snippet in quotes"
-     For other sections:
-     **Copy:**
-     > "Exact newsletter content block in quotes"
-     **Design:** Editorial margins, signature styles, highlighted card backgrounds, and custom colored call-to-action buttons.
-9. CALL TO ACTION: The specific action the viewer should take (comment, save, DM, click link, book a call).
-10. TONE & VISUAL REFERENCE: 2-3 adjectives for tone, brand guide reference (colors, fonts, logo placement), and style inspiration references if available.
-11. SUCCESS METRIC / KPI TARGET: The specific metric target (e.g., ">= 2.5% engagement rate", "15 saves", "3 inbound DMs") so performance can be reviewed against a target.
-12. DELIVERABLES & SCOPE: Exact count and type of final assets (e.g., "1x LinkedIn document post (7-slide carousel)").
-13. APPROVER: Who signs off before this goes to the designer (e.g., "Osei").
-
-The brief will be dropped directly into a spreadsheet-style content calendar row, so you MUST also populate these calendar fields for every brief, using this exact vocabulary:
-14. PLATFORM: Exactly one of "Instagram", "Facebook", "LinkedIn", "TikTok", "Twitter/X", "YouTube", "Newsletter" — pick the single best-fit primary channel (this drives a dropdown, not free text).
-15. MAIN FOCUS: Exactly one of "Reach", "Engagement", "Link Click", "Sales" — the funnel stage this asset serves.
-16. TOPIC/IDEA: A short (one sentence) hook or idea line for the calendar cell — punchier and shorter than the key message, e.g. "What if your body and mind were your greatest asset?".
-17. CONTENT PILLAR: The specific content pillar this brief belongs to, drawn from the brand's actual content pillars provided above (fall back to a sensible pillar name like "Strategy", "Proof", "Culture", or "Product" if none were provided).
-18. TYPE: Exactly one of "Artwork", "Carousel", "Video", "Reel" — matching the format implied by the content outline above (this drives a dropdown, not free text).
-19. PROGRESS TRACKING: Always "Create" for a freshly generated brief (this is the starting stage of a dropdown that later moves through Edit/Film/Review/Schedule/Done).
-20. VISUAL REFERENCE: 1-2 short sentences of art direction (palette, typography, reference style) for the calendar cell — a condensed version of the tone & visual reference above.
-21. VISUAL COPY DETAIL: The same detailed slide/scene/section-by-section breakdown you wrote for CONTENT OUTLINE above, repeated here verbatim so the calendar cell and the full brief stay in sync.
-22. COPYWRITING CAPTION: The actual publish-ready caption or on-post copy text a scheduler would paste straight into the platform — written in full sentences in brand voice, not a summary.
-23. HASHTAGS: A short block of relevant hashtags (e.g. "#BrandName #ContentPillar #CampaignTheme").`;
-
-    const response = await generateContentWithFallback(dataPrompt, {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            campaignId: { type: Type.STRING },
-            date: { type: Type.STRING },
-            sequencePosition: { type: Type.STRING },
-            objective: { type: Type.STRING },
-            targetAudience: { type: Type.STRING },
-            keyMessage: { type: Type.STRING },
-            proofPoint: { type: Type.STRING },
-            formatSpec: { type: Type.STRING },
-            contentOutline: { type: Type.STRING },
-            cta: { type: Type.STRING },
-            toneVisualRef: { type: Type.STRING },
-            successMetric: { type: Type.STRING },
-            deliverables: { type: Type.STRING },
-            approver: { type: Type.STRING },
-            platform: { type: Type.STRING },
-            mainFocus: { type: Type.STRING },
-            topicIdea: { type: Type.STRING },
-            contentPillar: { type: Type.STRING },
-            postType: { type: Type.STRING },
-            progressTracking: { type: Type.STRING },
-            visualReference: { type: Type.STRING },
-            visualCopyDetail: { type: Type.STRING },
-            copywritingCaption: { type: Type.STRING },
-            hashtags: { type: Type.STRING }
-          },
-          required: [
-            "title", "campaignId", "date", "sequencePosition", "objective",
-            "targetAudience", "keyMessage", "proofPoint", "formatSpec",
-            "contentOutline", "cta", "toneVisualRef", "successMetric",
-            "deliverables", "approver",
-            "platform", "mainFocus", "topicIdea", "contentPillar", "postType",
-            "progressTracking", "visualReference", "visualCopyDetail",
-            "copywritingCaption", "hashtags"
-          ]
-        }
-      }
-    });
-
-    const text = response.text || "[]";
-    res.json(JSON.parse(text));
+    const { brandId, approvedDirections, count = 3 } = req.body || {};
+    if (typeof brandId !== "string" || !brandId) {
+      return res.status(400).json({ error: "brandId is required." });
+    }
+    const directions = Array.isArray(approvedDirections)
+      ? approvedDirections.slice(0, 10).map((d: any) => ({
+          pillar: d?.pillar, strategy: d?.strategy, focus: d?.focus,
+          checklist: Array.isArray(d?.checklist) ? d.checklist.slice(0, 8) : undefined,
+        }))
+      : [];
+    const result = await generateV2Briefs({ db: adminDb, generate: generateContentWithFallback, brandId, directions, count });
+    if (result.briefs.length === 0) {
+      return res.status(502).json({ error: "No valid briefs were generated.", failed: result.failed });
+    }
+    res.json(result);
   } catch (error: any) {
     console.error("Gemini Briefs Generation Error:", error);
-    res.status(500).send(error.message || "Failed to generate briefs.");
+    const message = error instanceof GenerationError ? error.message : "Failed to generate briefs.";
+    res.status(500).json({ error: message });
   }
 });
 
@@ -685,59 +577,20 @@ ${JSON.stringify(performanceContext || [], null, 2)}
 You are talking to the workspace manager. You can help them:
 1. Brainstorm creative ideas, content pillars, or slide outlines.
 2. Refine existing campaign copy (LinkedIn posts, carousels, videos).
-3. Draft structured Creative Briefs. If the user asks you to write, draft, or generate a "Creative Brief", you must format it beautifully. When generating a complete creative brief, you should also include a special structured JSON block at the very end of your response, enclosed in \`\`\`json_brief ... \`\`\` markers, so the client can parse it and let the user save it to their Briefs Registry with a single click.
-
-The contentOutline inside the JSON MUST be highly detailed and structured based on the target campaign format, conforming to these precise standards:
-- For Carousels (slides/pages): Write a slide-by-slide sequence. Format each slide as:
-  ## Slide [Number] — [Slide Title]
-  **Copy:**
-  > "Exact copy text inside quotes"
-  **Design:** Visual instructions for designers (color contrast, typography, margins, backgrounds, negative space). Include optional "Instagram version:" or "LinkedIn version (static swap):" variants if appropriate.
-  
-- For Videos/Reels/TikToks: Write a scene-by-scene script. Format each scene as:
-  ## Scene [Number] — [Scene Focus / Timecode]
-  **Copy:** (or **Audio:**)
-  > "Exact narrator audio/voiceover copy inside quotes"
-  **Design:** (or **Visual Direction:**) Detailed visual scenes, on-screen caption overlays, camera framing, lighting, and pacing.
-  
-- For Fliers/Posters/Prints: Write a layout blueprint. Format each section as:
-  ## Section [Number] — [Section Name]
-  **Copy:**
-  > "Exact copy inside quotes"
-  **Design:** Specific layout guidelines, grid sizing, QR code frame references, and main visual focus anchors.
-  
-- For Email Newsletters: Write a template block sequence. Format each block as:
-  ## Section [Number] — [Block Theme]
-  For Section 1, specify Subject Line and Preview Text:
-  **Subject Line:**
-  > "Catchy subject line"
-  **Preview Text:**
-  > "Inbox preview snippet"
-  For other sections:
-  **Copy:**
-  > "Exact newsletter copy in quotes"
-  **Design:** Spacing, borders, logo alignment, and highlighted action buttons.
-
-The JSON inside \`\`\`json_brief ... \`\`\` must conform exactly to this structure:
-{
-  "title": "Creative brief title",
-  "objective": "Campaign objective sentence",
-  "targetAudience": "Target role/persona + pain point",
-  "keyMessage": "Core key message",
-  "deliverables": "Deliverables and formats list",
-  "status": "Draft",
-  "campaignId": "Brief reference id (e.g. NOK-CAR-1)",
-  "date": "Today's date or release date (e.g. 7/1/2026)",
-  "sequencePosition": "Campaign sequence position",
-  "proofPoint": "Supporting stat, study or example",
-  "formatSpec": "Platform + formats spec (e.g. LinkedIn 7-slide carousel)",
-  "contentOutline": "Slide-by-slide or section-by-section breakdown details complying with the formatting rules above",
-  "cta": "Call to action message",
-  "toneVisualRef": "Tone and visual style descriptions",
-  "successMetric": "Success metric or KPI target",
-  "approver": "Creative sign-off authority"
-}
-Ensure all JSON fields are populated. If some fields are not mentioned, infer realistic details aligned with the active brand. Keep the JSON perfectly valid.`;
+3. Draft Creative Briefs. When the user asks you to write, draft or generate a creative brief, write it out
+readably, then add one structured JSON block at the very end of your response enclosed in \`\`\`json_brief ... \`\`\`
+markers, so the user can save it with one click. The JSON has exactly these keys:
+{ "title", "pillar", "personas": [string], "platforms": [string], "keyMessage", "rationale",
+  "assets": [ { "type": "carousel"|"reel"|"video"|"blog"|"static"|"text", "title", "platforms": [string], "spec", "slot"?, "cta",
+               "captions": [ { "platform", "text", "hashtags": [string], "firstComment"? } ],
+               carousel: "slides": [ { "n", "background", "headline", "body", "visualNote" } ]
+               reel/video: "coverText", "durationSec", "audioNote"?, "scenes": [ { "start", "end", "visual", "onScreenText", "voiceover" } ]
+               blog: "slug", "metaDescription", "body" (markdown)
+               static: "headline", "body", "visualNote"
+               text: "body" } ],
+  "productionNotes": [string], "unconfirmed": [ { "field", "note" } ], "successMeasures": [ { "metric", "target", "source" } ] }
+Keep the JSON valid.
+${BRIEF_WRITING_RULES}`;
 
     // Convert messages to Gemini format (role must be 'user' or 'model')
     const formattedMessages = messages.map(msg => ({

@@ -3,7 +3,8 @@ import {
   Brand, 
   CampaignQueue, 
   CalendarEvent, 
-  CreativeBrief, 
+  CreativeBrief,
+  NewCreativeBrief,
   AnalyticsMetric,
   StrategicInsight,
   RawAnalyticsRow,
@@ -29,6 +30,7 @@ import {
 export type { Brand };
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useTheme } from "./ThemeContext";
+import { briefPrimaryPlatform, captionFor, approvalBlockers, type BriefContent, type BriefHeader } from "../lib/briefs";
 
 export interface AppNotification {
   id: string;
@@ -57,7 +59,8 @@ interface BrandContextType {
   addCalendarEvent: (event: Omit<CalendarEvent, "id" | "brandId">) => Promise<void>;
   updateCalendarEvent: (id: string, event: Partial<CalendarEvent>) => Promise<void>;
   deleteCalendarEvent: (id: string) => Promise<void>;
-  addCreativeBrief: (brief: Omit<CreativeBrief, "id" | "brandId">) => Promise<void>;
+  addCreativeBrief: (brief: NewCreativeBrief) => Promise<void>;
+  createV2Brief: (content: BriefContent, header?: Partial<Omit<BriefHeader, "id" | "brandId">>) => Promise<string>;
   updateCreativeBrief: (id: string, brief: Partial<CreativeBrief>) => Promise<void>;
   deleteCreativeBrief: (id: string) => Promise<void>;
   bulkApproveBriefs: (ids: string[]) => Promise<void>;
@@ -487,7 +490,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addNotification("Event Removed", "Content calendar event was deleted from workspace partitions.", "warning");
   };
 
-  const addCreativeBrief = async (brief: Omit<CreativeBrief, "id" | "brandId">) => {
+  const addCreativeBrief = async (brief: NewCreativeBrief) => {
     const { db } = await import("../lib/firebase");
     const { collection, addDoc } = await import("firebase/firestore");
     await addDoc(collection(db, "briefs"), cleanFirestoreData({
@@ -497,12 +500,47 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addNotification("Creative Brief Logged", `Brief for "${brief.title}" successfully saved.`, "info");
   };
 
-  const updateCreativeBrief = async (id: string, brief: Partial<CreativeBrief>) => {
+  // The one place v2 briefs are created (Studio form, generation, Directions,
+  // chatbot). New briefs start as Draft unless the caller says otherwise.
+  const createV2Brief = async (content: BriefContent, header: Partial<Omit<BriefHeader, "id" | "brandId">> = {}) => {
+    const { db } = await import("../lib/firebase");
+    const { collection, addDoc } = await import("firebase/firestore");
+    const ref = await addDoc(collection(db, "briefs"), cleanFirestoreData({
+      progressTracking: "Create",
+      ...header,
+      ...content,
+      schemaVersion: 2,
+      status: header.status || "Draft",
+      brandId: activeBrandId,
+      createdAt: new Date().toISOString(),
+    }));
+    return ref.id;
+  };
+
+  const updateCreativeBrief = async (id: string, briefPatch: Partial<CreativeBrief>) => {
     const { db } = await import("../lib/firebase");
     const { doc, setDoc, collection, addDoc } = await import("firebase/firestore");
     
     // Check if brief document exists or if we should merge with existing brief in local state
     const existingBrief = briefs.find(b => b.id === id);
+    let brief = briefPatch;
+
+    // A brief with unconfirmed items can't be approved. Save everything else
+    // in the patch, but leave the status where it was.
+    if (briefPatch.status === "Approved") {
+      const blockers = approvalBlockers({ ...(existingBrief || {}), ...briefPatch } as CreativeBrief);
+      if (blockers.length > 0) {
+        const { status: _blocked, ...rest } = briefPatch;
+        void _blocked;
+        brief = rest;
+        addNotification(
+          "Approval blocked",
+          `"${existingBrief?.title || "This brief"}" has ${blockers.length} unconfirmed item(s). Confirm them before approving.`,
+          "warning"
+        );
+        if (Object.keys(rest).length === 0) return;
+      }
+    }
     const mergedBriefPayload = {
       ...(existingBrief || {}),
       ...brief,
@@ -514,9 +552,10 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     // If status is changed to Approved, ensure it is available in Posting Queue
     if (brief.status === "Approved") {
-      const briefTitle = brief.title || existingBrief?.title || "Approved Campaign";
-      const briefChannel = (brief.platform?.split(",")[0]?.trim() || existingBrief?.platform?.split(",")[0]?.trim() || "Instagram") as CampaignQueue["channel"];
-      const briefContent = brief.copywritingCaption || existingBrief?.copywritingCaption || brief.keyMessage || existingBrief?.keyMessage || briefTitle;
+      const merged = mergedBriefPayload as CreativeBrief;
+      const briefTitle = merged.title || "Approved Campaign";
+      const briefChannel = (briefPrimaryPlatform(merged) || "Instagram") as CampaignQueue["channel"];
+      const briefContent = captionFor(merged, briefChannel) || merged.keyMessage || briefTitle;
       const briefDate = brief.date || existingBrief?.date || new Date().toISOString().split("T")[0];
       
       // Check if already in queue
@@ -548,8 +587,14 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { db } = await import("../lib/firebase");
     const { doc, writeBatch, collection, addDoc } = await import("firebase/firestore");
     
-    // Only approve briefs that are currently in "Proposed" state (never override Changes Requested silently)
-    const proposedBriefsToApprove = briefs.filter(b => ids.includes(b.id) && b.status === "Proposed");
+    // Only approve briefs that are currently in "Proposed" state (never override Changes Requested silently),
+    // and never one with unconfirmed items.
+    const proposed = briefs.filter(b => ids.includes(b.id) && b.status === "Proposed");
+    const proposedBriefsToApprove = proposed.filter(b => approvalBlockers(b).length === 0);
+    const blockedCount = proposed.length - proposedBriefsToApprove.length;
+    if (blockedCount > 0) {
+      addNotification("Some briefs not approved", `${blockedCount} brief(s) have unconfirmed items and were skipped.`, "warning");
+    }
     
     if (proposedBriefsToApprove.length === 0) {
       addNotification("No Proposed Items", "Selected days have already been approved or have pending changes requested.", "info");
@@ -564,8 +609,8 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const briefTitle = b.title;
       const inQueue = queues.some(q => q.title.toLowerCase() === briefTitle.toLowerCase());
       if (!inQueue) {
-        const briefChannel = (b.platform?.split(",")[0]?.trim() || "Instagram") as CampaignQueue["channel"];
-        const briefContent = b.copywritingCaption || b.keyMessage || b.title;
+        const briefChannel = (briefPrimaryPlatform(b) || "Instagram") as CampaignQueue["channel"];
+        const briefContent = captionFor(b, briefChannel) || b.keyMessage || b.title;
         const briefDate = b.date || new Date().toISOString().split("T")[0];
         
         await addDoc(collection(db, "campaignQueues"), {
@@ -883,6 +928,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateCalendarEvent,
       deleteCalendarEvent,
       addCreativeBrief,
+      createV2Brief,
       updateCreativeBrief,
       deleteCreativeBrief,
       bulkApproveBriefs,

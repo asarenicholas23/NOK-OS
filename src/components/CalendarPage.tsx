@@ -37,6 +37,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { RequestChangesModal } from "./RequestChangesModal";
 import { ShareCalendarReviewModal } from "./ShareCalendarReviewModal";
 import { BriefDetailModal } from "./BriefDetailModal";
+import { approvalBlockers } from "../lib/briefs";
 import { CreativeBriefsStudio } from "./CreativeBriefsStudio";
 
 export const CalendarPage: React.FC = () => {
@@ -512,6 +513,10 @@ export const CalendarPage: React.FC = () => {
           onNextWeek={handleNextWeek}
           onJumpToday={() => setCurrentDate(new Date())}
           onApproveDay={async (brief) => {
+            if (approvalBlockers(brief).length > 0) {
+              addNotification("Approval blocked", `"${brief.title}" has unconfirmed items. Confirm them before approving.`, "warning");
+              return;
+            }
             await updateCreativeBrief(brief.id, { status: "Approved" });
             addNotification(
               "Creative Brief Approved",
@@ -568,12 +573,14 @@ export const CalendarPage: React.FC = () => {
       {/* Creative Brief Full Detail Modal (Owner / Designer views) */}
       {selectedBriefForDetail && (
         <BriefDetailModal
-          brief={selectedBriefForDetail}
+          brief={briefs.find(b => b.id === selectedBriefForDetail.id) || selectedBriefForDetail}
           activeBrand={activeBrand}
           theme={theme}
           activeColor={activeColor}
           onClose={() => setSelectedBriefForDetail(null)}
+          onUpdate={(patch) => updateCreativeBrief(selectedBriefForDetail.id, patch)}
           onApprove={async (brief) => {
+            if (approvalBlockers(brief).length > 0) return;
             await updateCreativeBrief(brief.id, { status: "Approved" });
             addNotification(
               "Brief Approved",

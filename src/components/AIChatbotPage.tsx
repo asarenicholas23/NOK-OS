@@ -20,6 +20,9 @@ import {
   Share2
 } from "lucide-react";
 import { CreativeBrief } from "../lib/firebase";
+import { normalizeBriefContent, safeParseBriefContent, type BriefContent } from "../lib/briefs";
+import { BriefV2View } from "./briefs/BriefV2View";
+
 import { SlideDeckPreview } from "./SlideDeckPreview";
 
 interface ChatMessage {
@@ -27,7 +30,7 @@ interface ChatMessage {
   role: "user" | "assistant";
   text: string;
   timestamp: Date;
-  briefPayload?: Omit<CreativeBrief, "id" | "brandId">;
+  briefPayload?: BriefContent;
 }
 
 export const AIChatbotPage: React.FC = () => {
@@ -35,7 +38,7 @@ export const AIChatbotPage: React.FC = () => {
     activeBrand, 
     insights, 
     briefs, 
-    addCreativeBrief, 
+    createV2Brief, 
     addNotification, 
     theme, 
     accentColor 
@@ -70,10 +73,9 @@ How can I help you today? You can:
   const [injectPerformance, setInjectPerformance] = useState(true);
 
   // Workbench Brief State
-  const [workbenchBrief, setWorkbenchBrief] = useState<Omit<CreativeBrief, "id" | "brandId"> | null>(null);
+  const [workbenchBrief, setWorkbenchBrief] = useState<BriefContent | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [savedToRegistry, setSavedToRegistry] = useState(false);
-  const [workbenchMode, setWorkbenchMode] = useState<"text" | "slides">("slides");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -130,46 +132,25 @@ How can I help you today? You can:
   };
 
   // Parse ```json_brief code blocks from model response
-  const extractBriefFromResponse = (text: string): { cleanText: string; brief?: Omit<CreativeBrief, "id" | "brandId"> } => {
+  const extractBriefFromResponse = (text: string): { cleanText: string; brief?: BriefContent } => {
     const marker = "```json_brief";
     const startIndex = text.indexOf(marker);
     if (startIndex === -1) return { cleanText: text };
 
+    const remaining = text.substring(startIndex + marker.length);
+    const endIndex = remaining.indexOf("```");
+    if (endIndex === -1) return { cleanText: text };
+
+    // Remove the raw JSON block from the chat bubble.
+    const cleanText = text.substring(0, startIndex).trim() + "\n\n" + remaining.substring(endIndex + 3).trim();
     try {
-      const remaining = text.substring(startIndex + marker.length);
-      const endIndex = remaining.indexOf("```");
-      if (endIndex === -1) return { cleanText: text };
-
-      const jsonStr = remaining.substring(0, endIndex).trim();
-      const parsed = JSON.parse(jsonStr);
-
-      // Clean the message display text by removing the raw JSON code block
-      const cleanText = text.substring(0, startIndex).trim() + "\n\n" + remaining.substring(endIndex + 3).trim();
-
-      // Enforce model outputs default Draft state
-      const briefData: Omit<CreativeBrief, "id" | "brandId"> = {
-        title: parsed.title || "AI Generated Brief",
-        objective: parsed.objective || "Awareness & Engagement",
-        targetAudience: parsed.targetAudience || "General Target Persona",
-        keyMessage: parsed.keyMessage || "Value Proposition Highlights",
-        deliverables: parsed.deliverables || "Standard Social Deliverable",
-        status: "Draft",
-        campaignId: parsed.campaignId || `NOK-${Date.now().toString().slice(-4)}`,
-        date: parsed.date || new Date().toLocaleDateString(),
-        sequencePosition: parsed.sequencePosition || "Campaign 1 of 1",
-        proofPoint: parsed.proofPoint || "",
-        formatSpec: parsed.formatSpec || "",
-        contentOutline: parsed.contentOutline || "",
-        cta: parsed.cta || "",
-        toneVisualRef: parsed.toneVisualRef || "",
-        successMetric: parsed.successMetric || "",
-        approver: parsed.approver || "Team Leader"
-      };
-
-      return { cleanText, brief: briefData };
+      // Same normalising + schema check as server-side generation.
+      const result = safeParseBriefContent(normalizeBriefContent(JSON.parse(remaining.substring(0, endIndex).trim())));
+      if ("content" in result) return { cleanText, brief: result.content };
+      return { cleanText: `${cleanText}\n\n(The brief data was incomplete, so it can't be saved yet: ${result.errors.slice(0, 3).join("; ")}. Ask me to fix it.)` };
     } catch (e) {
       console.error("Failed parsing brief JSON block from assistant text:", e);
-      return { cleanText: text };
+      return { cleanText };
     }
   };
 
@@ -245,7 +226,7 @@ How can I help you today? You can:
       if (parsedResult.brief) {
         setWorkbenchBrief(parsedResult.brief);
         setSavedToRegistry(false); // Reset state for newly loaded brief
-        setWorkbenchMode("slides"); // Auto-show the beautiful slide carousel deck!
+
         addNotification(
           "Brief Loaded to Workbench",
           `I generated a matching brief: "${parsedResult.brief.title}". You can review and save it in the right workbench!`,
@@ -277,7 +258,7 @@ How can I help you today? You can:
   const saveBriefToWorkspaceRegistry = async () => {
     if (!workbenchBrief) return;
     try {
-      await addCreativeBrief(workbenchBrief);
+      await createV2Brief(workbenchBrief, { status: "Draft" });
       setSavedToRegistry(true);
       addNotification(
         "Brief Registry Synced",
@@ -585,124 +566,9 @@ How can I help you today? You can:
                 </div>
               </div>
 
-              {/* Workbench View Mode Tabs */}
-              <div className="flex border-b border-border bg-[#141416]/40">
-                <button
-                  onClick={() => setWorkbenchMode("slides")}
-                  className={`flex-1 py-3 text-center text-[10px] font-mono font-bold tracking-wider uppercase transition-all ${
-                    workbenchMode === "slides" 
-                      ? "text-violet-400 bg-slate-950/60 border-b-2 border-violet-500" 
-                      : "text-slate-500 hover:text-slate-300 hover:bg-slate-950/20"
-                  }`}
-                >
-                  Visual Deck
-                </button>
-                <button
-                  onClick={() => setWorkbenchMode("text")}
-                  className={`flex-1 py-3 text-center text-[10px] font-mono font-bold tracking-wider uppercase transition-all ${
-                    workbenchMode === "text" 
-                      ? "text-violet-400 bg-slate-950/60 border-b-2 border-violet-500" 
-                      : "text-slate-500 hover:text-slate-300 hover:bg-slate-950/20"
-                  }`}
-                >
-                  Structured Brief
-                </button>
-              </div>
-
               {/* Workbench Contents */}
               <div className="flex-1 overflow-y-auto p-5 scrollbar-thin">
-                {workbenchMode === "slides" ? (
-                  <SlideDeckPreview 
-                    brief={workbenchBrief}
-                    brandName={brandName}
-                    brandColor={activeColor}
-                  />
-                ) : (
-                  <div className="space-y-5 animate-in fade-in duration-150">
-                    <div className="flex justify-between items-start border-b border-dashed border-border/40 pb-3">
-                      <div>
-                        <span className="text-[9px] font-mono uppercase bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded border border-violet-500/15">
-                          {workbenchBrief.campaignId || "NOK-BRIEF"}
-                        </span>
-                        <h3 className="text-sm font-bold text-slate-200 mt-1.5 leading-snug">
-                          {workbenchBrief.title}
-                        </h3>
-                      </div>
-                    </div>
-
-                    {/* Grid attributes */}
-                    <div className="grid grid-cols-2 gap-3.5">
-                      <div className="bg-slate-950/40 p-2.5 rounded border border-slate-900">
-                        <span className="block text-[8px] font-mono uppercase text-slate-500">Date Logged</span>
-                        <span className="text-xs text-slate-300 font-mono">{workbenchBrief.date || "7/1/2026"}</span>
-                      </div>
-                      <div className="bg-slate-950/40 p-2.5 rounded border border-slate-900">
-                        <span className="block text-[8px] font-mono uppercase text-slate-500">Sequence</span>
-                        <span className="text-xs text-slate-300 font-mono">{workbenchBrief.sequencePosition || "1 of 1"}</span>
-                      </div>
-                    </div>
-
-                    {/* Brief Fields */}
-                    <div className="space-y-4 text-xs">
-                      <div>
-                        <span className="text-[10px] font-mono uppercase text-slate-500 block mb-1">Campaign Objective</span>
-                        <p className="text-slate-300 bg-slate-950/20 p-2.5 rounded border border-border/30 leading-relaxed font-sans">{workbenchBrief.objective}</p>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-mono uppercase text-slate-500 block mb-1">Target Persona Pain Point</span>
-                        <p className="text-slate-300 bg-slate-950/20 p-2.5 rounded border border-border/30 leading-relaxed font-sans">{workbenchBrief.targetAudience}</p>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-mono uppercase text-slate-500 block mb-1">Core Copywriting Key Message</span>
-                        <p className="text-slate-300 bg-slate-950/20 p-2.5 rounded border border-border/30 leading-relaxed font-sans font-medium">{workbenchBrief.keyMessage}</p>
-                      </div>
-
-                      {workbenchBrief.formatSpec && (
-                        <div>
-                          <span className="text-[10px] font-mono uppercase text-slate-500 block mb-1">Technical spec & Platform</span>
-                          <p className="text-slate-300 bg-slate-950/20 p-2.5 rounded border border-border/30 font-mono text-[11px]">{workbenchBrief.formatSpec}</p>
-                        </div>
-                      )}
-
-                      {workbenchBrief.proofPoint && (
-                        <div>
-                          <span className="text-[10px] font-mono uppercase text-slate-500 block mb-1">Proof Point / Data Source</span>
-                          <p className="text-slate-300 bg-slate-950/20 p-2.5 rounded border border-border/30 leading-relaxed font-sans text-slate-400">{workbenchBrief.proofPoint}</p>
-                        </div>
-                      )}
-
-                      {workbenchBrief.contentOutline && (
-                        <div>
-                          <span className="text-[10px] font-mono uppercase text-slate-500 block mb-1">Content Outline / Story beats</span>
-                          <pre className="text-slate-300 bg-slate-950/40 p-3 rounded border border-border/50 leading-relaxed font-sans text-[11px] whitespace-pre-wrap">{workbenchBrief.contentOutline}</pre>
-                        </div>
-                      )}
-
-                      {workbenchBrief.cta && (
-                        <div>
-                          <span className="text-[10px] font-mono uppercase text-slate-500 block mb-1">Call To Action (CTA)</span>
-                          <p className="text-slate-200 bg-violet-600/5 p-2.5 rounded border border-violet-500/10 font-sans">{workbenchBrief.cta}</p>
-                        </div>
-                      )}
-
-                      {workbenchBrief.successMetric && (
-                        <div>
-                          <span className="text-[10px] font-mono uppercase text-slate-500 block mb-1">Success Metric Target</span>
-                          <p className="text-emerald-400 bg-emerald-500/5 p-2 rounded border border-emerald-500/10 font-mono text-[11px]">{workbenchBrief.successMetric}</p>
-                        </div>
-                      )}
-
-                      {workbenchBrief.deliverables && (
-                        <div>
-                          <span className="text-[10px] font-mono uppercase text-slate-500 block mb-1">Deliverables Scope</span>
-                          <p className="text-slate-300 bg-slate-950/20 p-2.5 rounded border border-border/30 font-sans">{workbenchBrief.deliverables}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <BriefV2View brief={workbenchBrief} audience="staff" isDark={isDark} />
               </div>
 
               {/* Workbench Actions Row */}

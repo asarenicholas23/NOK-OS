@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useBrand } from "../context/BrandContext";
 import { apiFetch } from "../lib/apiBase";
 import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
+import { generateBriefs } from "../lib/generateBriefs";
 import { 
   Waypoints, 
   Compass, 
@@ -38,6 +39,7 @@ export const DirectionsPage: React.FC = () => {
     bulkApproveDirections,
     bulkDeleteDirections,
     addCreativeBrief, 
+    createV2Brief,
     addNotification 
   } = useBrand();
 
@@ -188,59 +190,30 @@ export const DirectionsPage: React.FC = () => {
     }
   };
 
-  // Handler: Generate content briefs from directions
+  // Handler: Generate content briefs from directions (shared v2 generation)
   const handleGenerateBriefs = async () => {
     const approvedDirections = directions.filter(d => d.status === "Approved");
     if (approvedDirections.length === 0) {
       addNotification("Approval Required", "Approve at least one brand direction before generating creative briefs.", "warning");
       return;
     }
+    if (!activeBrand) return;
     setGeneratingBriefs(true);
     try {
-      const sourceDirections = approvedDirections;
-
-      const response = await apiFetch("/api/generate-briefs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tagline: activeBrand?.tagline || "Global Standards",
-          voiceTone: activeBrand?.voiceTone || "Professional, Authoritative",
-          brandGuide: {
-            contentPillars: activeBrand?.contentPillars || "",
-            audiencePersonas: activeBrand?.audiencePersonas || "",
-            competitorContext: activeBrand?.competitorContext || "",
-            platformNotes: activeBrand?.platformNotes || ""
-          },
-          approvedDirections: sourceDirections,
-          count: generationCount
-        })
+      const { saved, failed } = await generateBriefs({
+        brandId: activeBrand.id,
+        directions: approvedDirections,
+        count: Math.min(generationCount, 5),
+        createV2Brief,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate creative briefs via Gemini service");
-      }
-
-      const generatedBriefs = await response.json();
-
-      for (const item of generatedBriefs) {
-        await addCreativeBrief({
-          title: item.title,
-          objective: item.objective,
-          targetAudience: item.targetAudience,
-          keyMessage: item.keyMessage,
-          deliverables: item.deliverables,
-          status: "Draft"
-        });
-      }
-
       addNotification(
-        "Content Briefs Generated",
-        `Successfully drafted ${generatedBriefs.length} creative campaigns. View them on the Content Briefs dashboard!`,
-        "success"
+        "Briefs drafted",
+        `${saved} brief(s) written as Drafts. Review them in the Content Calendar.${failed.length ? ` ${failed.length} could not be generated.` : ""}`,
+        failed.length ? "warning" : "success"
       );
     } catch (err: any) {
       console.error(err);
-      addNotification("Creative Synthesis Blocked", err.message || "Communication pipeline timed out.", "warning");
+      addNotification("Generation failed", err.message || "Communication pipeline timed out.", "warning");
     } finally {
       setGeneratingBriefs(false);
     }

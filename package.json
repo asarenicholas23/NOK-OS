@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
+    "dev:local": "npx -y firebase-tools@latest emulators:exec --only auth,firestore --project demo-nok-os --ui \"FIREBASE_PROJECT_ID=demo-nok-os VITE_USE_EMULATORS=1 sh -c 'tsx scripts/seed-emulator.ts && tsx server.ts'\"",
     "build": "vite build",
     "postbuild": "tsx scripts/generate-sitemap.ts && tsx scripts/prerender.ts",
     "postinstall": "playwright install chromium",

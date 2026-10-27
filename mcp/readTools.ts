@@ -4,6 +4,7 @@ import type { Firestore } from "firebase-admin/firestore";
 import { DEMO_BRAND_IDS, isFakeRecord } from "./fakeData";
 import { summarizeAnalytics, type AnalyticsRow } from "./analytics";
 import { logToolCall } from "./audit";
+import { briefPrimaryPlatform, briefFormatLabel, briefPillar, briefHook, approvalBlockers, type CreativeBrief } from "../src/lib/briefs";
 
 type Doc = Record<string, any> & { id: string };
 
@@ -277,8 +278,9 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
   addTool(server, db, ctx, "list_briefs", {
     title: "List creative briefs",
     description:
-      "Creative briefs for a brand (short fields only). Filter by status, creator or date range. " +
-      "Use get_brief for one brief's full content.",
+      "Creative briefs for a brand (short fields only). Filter by status, creator or date range. version 2 briefs hold " +
+      "finished assets (slides, scenes, captions); version 1 briefs are the older 'post about this' format. " +
+      "unconfirmedCount > 0 means the brief can't be approved yet. Use get_brief for one brief's full content.",
     inputSchema: {
       brandId,
       status: z.enum(["Draft", "Proposed", "Approved", "Changes Requested", "In Progress"]).optional(),
@@ -298,11 +300,15 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
         (!from || (date && date >= from)) && (!to || (date && date <= to)))
       .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || newestFirst(a.d, b.d))
       .slice(0, limit)
-      .map(({ d, date }) => ({
-        id: d.id, title: d.title, status: d.status ?? null, date, platform: d.platform ?? null, postType: d.postType ?? null,
-        contentPillar: d.contentPillar ?? null, topicIdea: clip(d.topicIdea, 160), progressTracking: d.progressTracking ?? null,
-        revisionNotes: clip(d.revisionNotes, 300), createdBy: d.createdBy ?? "app",
-      }));
+      .map(({ d, date }) => {
+        const b = d as unknown as CreativeBrief;
+        return {
+          id: d.id, version: d.schemaVersion === 2 ? 2 : 1, title: d.title, status: d.status ?? null, date,
+          platform: briefPrimaryPlatform(b) ?? null, format: briefFormatLabel(b) ?? null, pillar: briefPillar(b) ?? null,
+          hook: clip(briefHook(b), 160), unconfirmedCount: approvalBlockers(b).length,
+          progressTracking: d.progressTracking ?? null, revisionNotes: clip(d.revisionNotes, 300), createdBy: d.createdBy ?? "app",
+        };
+      });
     return { body: withHidden({ items }, hidden), itemCount: items.length };
   });
 
@@ -318,7 +324,13 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
     if (!snap.exists || !data || data.brandId !== brandId || isFakeRecord("briefs", snap.id, data)) {
       throw new ToolError(`No brief "${briefId}" for this brand.`);
     }
-    return { body: { ...data, id: snap.id, date: normalizeDate(data.date) ?? data.date ?? null, createdBy: data.createdBy ?? "app" } };
+    return {
+      body: {
+        ...data, id: snap.id, schemaVersion: data.schemaVersion === 2 ? 2 : 1,
+        date: normalizeDate(data.date) ?? data.date ?? null, createdBy: data.createdBy ?? "app",
+        approvalBlocked: approvalBlockers(data as CreativeBrief).length > 0,
+      },
+    };
   });
 
   addTool(server, db, ctx, "get_calendar", {
@@ -345,7 +357,10 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
       .map((b) => ({ b, date: normalizeDate(b.date) }))
       .filter(({ date }) => date?.startsWith(prefix))
       .sort((x, y) => x.date!.localeCompare(y.date!))
-      .map(({ b, date }) => ({ id: b.id, date, title: b.title, status: b.status ?? null, platform: b.platform ?? null, postType: b.postType ?? null, contentPillar: b.contentPillar ?? null }));
+      .map(({ b, date }) => {
+        const cb = b as unknown as CreativeBrief;
+        return { id: b.id, date, title: b.title, status: b.status ?? null, platform: briefPrimaryPlatform(cb) ?? null, format: briefFormatLabel(cb) ?? null, pillar: briefPillar(cb) ?? null };
+      });
     const unscheduledBriefs = briefs.docs.filter((b) => !normalizeDate(b.date)).length;
     return {
       body: withHidden({ month: prefix, events: eventItems, briefs: briefItems, unscheduledBriefs }, events.hidden + briefs.hidden),

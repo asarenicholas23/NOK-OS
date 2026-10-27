@@ -32,14 +32,22 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    // A brief can't be saved as Approved while it lists unconfirmed items
+    // (v2 briefs). v1 briefs have no "unconfirmed" field, so they pass.
+    function approvalAllowed() {
+      return request.resource.data.get('status', '') != 'Approved'
+        || request.resource.data.get('unconfirmed', []).size() == 0;
+    }
+
     match /briefs/{briefId} {
       allow read: if isStaff() || isClientForBrand(resource.data.brandId);
       // Clients may only flip approval state / leave revision notes on a brief
       // that already belongs to their brand — never its content, and never create/delete.
-      allow update: if isStaff()
+      allow update: if approvalAllowed() && (isStaff()
         || (isClientForBrand(resource.data.brandId)
-            && onlyKeysChanged(['status', 'approver', 'revisionNotes']));
-      allow create, delete: if isStaff();
+            && onlyKeysChanged(['status', 'approver', 'revisionNotes'])));
+      allow create: if isStaff() && approvalAllowed();
+      allow delete: if isStaff();
     }
 
     match /calendarShareLinks/{linkId} {
