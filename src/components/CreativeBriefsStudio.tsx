@@ -7,6 +7,7 @@ import {
   LogOut,
   Send,
   Download,
+  Eye,
   CheckCircle2,
   UserCheck,
   Layers,
@@ -40,6 +41,8 @@ interface CreativeBriefsStudioProps {
   connectGmail: () => void;
   disconnectGmail: () => void;
   addNotification: (title: string, message: string, type?: "info" | "success" | "warning") => void;
+  // Opens the in-app brief view (same as clicking a calendar card).
+  onOpenBriefDetail?: (brief: CreativeBrief) => void;
 }
 
 export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
@@ -58,7 +61,8 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
   gmailUser,
   connectGmail,
   disconnectGmail,
-  addNotification
+  addNotification,
+  onOpenBriefDetail
 }) => {
   const isDark = theme === "dark";
 
@@ -418,16 +422,33 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
                   }
                   className="shrink-0 cursor-pointer"
                 />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-bold truncate flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+                <button
+                  type="button"
+                  onClick={() => onOpenBriefDetail?.(brief)}
+                  disabled={!onOpenBriefDetail}
+                  className="flex-1 min-w-0 text-left cursor-pointer disabled:cursor-default"
+                  title="Open brief"
+                >
+                  <p className={`text-xs font-bold truncate flex items-center gap-1.5 hover:underline ${isDark ? "text-slate-200" : "text-slate-800"}`}>
                     <span className="truncate">{brief.title}</span>
                     {isClaudeDraft(brief) && <ClaudeDraftBadge compact />}
                   </p>
                   <p className="text-[11px] text-slate-400 truncate">{briefSummaryLine(brief)}</p>
-                </div>
+                </button>
                 <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 shrink-0">
                   {brief.status || "Proposed"}
                 </span>
+                {onOpenBriefDetail && (
+                  <button
+                    id={`btn-view-brief-${brief.id}`}
+                    onClick={() => onOpenBriefDetail(brief)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-[10px] font-mono font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer shrink-0"
+                    title="Read the full brief here"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View</span>
+                  </button>
+                )}
                 <button
                   onClick={() => handleDownloadPDF(brief)}
                   className="p-1.5 rounded-lg border border-border text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all cursor-pointer shrink-0"

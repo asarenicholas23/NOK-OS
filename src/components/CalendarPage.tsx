@@ -498,6 +498,7 @@ export const CalendarPage: React.FC = () => {
         connectGmail={connectGmail}
         disconnectGmail={disconnectGmail}
         addNotification={addNotification}
+        onOpenBriefDetail={(brief) => setSelectedBriefForDetail(brief)}
       />
 
       {/* Weekly Content Planner (single source of truth for scheduling) */}
