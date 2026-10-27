@@ -104,6 +104,10 @@ service cloud.firestore {
     match /rawAnalytics/{id} { allow read, write: if isStaff(); }
     match /creativeIdeas/{id} { allow read, write: if isStaff(); }
 
+    // Claude connector tool-call log. Written only by the server (Admin SDK);
+    // staff can read it, nobody can change it from the app.
+    match /mcpAuditLog/{id} { allow read: if isStaff(); }
+
     // Deny everything else by default.
     match /{document=**} {
       allow read, write: if false;

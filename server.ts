@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import crypto from "node:crypto";
 import { proposalTotals, selectedLineItems } from "./src/data/cmsData";
 import { syncProposalToZoho, zohoConfigured } from "./zohoInvoice";
+import { mountMcp } from "./mcp/index";
 
 dotenv.config();
 
@@ -1280,6 +1281,9 @@ app.post("/api/paystack/webhook", async (req, res) => {
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
+
+// Remote MCP endpoint for the Claude custom connector (see mcp/).
+mountMcp(app, adminDb);
 
 // Vite dev server (local full-stack dev only). In production this server is
 // API-only — the static frontend is deployed separately to Firebase Hosting.
