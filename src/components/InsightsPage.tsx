@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useBrand } from "../context/BrandContext";
 import { apiFetch } from "../lib/apiBase";
+import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
 import { 
   Lightbulb, 
   Zap, 
@@ -45,7 +46,8 @@ export const InsightsPage: React.FC = () => {
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   // Filter states
-  const [statusFilter, setStatusFilter] = useState<"All" | "Pending" | "Approved" | "Rejected">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Draft" | "Pending" | "Approved" | "Rejected">("All");
+  const [claudeOnly, setClaudeOnly] = useState(false);
   const [standpointFilter, setStandpointFilter] = useState<string>("All");
   
   // Selection states
@@ -195,7 +197,7 @@ export const InsightsPage: React.FC = () => {
   const filteredInsights = insights.filter(item => {
     const matchStatus = statusFilter === "All" || item.status === statusFilter;
     const matchStandpoint = standpointFilter === "All" || item.standpoint === standpointFilter;
-    return matchStatus && matchStandpoint;
+    return matchStatus && matchStandpoint && (!claudeOnly || isClaudeDraft(item));
   });
 
   // Toggle selection
@@ -564,7 +566,7 @@ export const InsightsPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3">
           {/* Status buttons */}
           <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-border" : "bg-slate-100 border-slate-200"}`}>
-            {(["All", "Pending", "Approved", "Rejected"] as const).map(status => (
+            {(["All", "Draft", "Pending", "Approved", "Rejected"] as const).map(status => (
               <button
                 key={status}
                 id={`filter-status-${status.toLowerCase()}`}
@@ -581,6 +583,13 @@ export const InsightsPage: React.FC = () => {
               </button>
             ))}
           </div>
+
+          <ClaudeDraftFilter
+            id="filter-insights-claude"
+            active={claudeOnly}
+            count={insights.filter(isClaudeDraft).length}
+            onToggle={() => setClaudeOnly(v => !v)}
+          />
 
           {/* Standpoint buttons */}
           <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-border" : "bg-slate-100 border-slate-200"}`}>
@@ -806,6 +815,7 @@ export const InsightsPage: React.FC = () => {
                         <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 font-bold capitalize">
                           {item.standpoint}
                         </span>
+                        {isClaudeDraft(item) && <ClaudeDraftBadge />}
                       </div>
                       
                       <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>

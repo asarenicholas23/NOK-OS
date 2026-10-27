@@ -17,6 +17,7 @@ import { generateBriefPDF, downloadSingleBriefPDF } from "../utils/pdfGenerator"
 import { sendBriefEmail } from "../utils/gmailSender";
 import { apiFetch } from "../lib/apiBase";
 import { PushBriefWorkflowModal } from "./PushBriefWorkflowModal";
+import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
 
 interface CreativeBriefsStudioProps {
   briefs: CreativeBrief[];
@@ -82,7 +83,8 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
   const [sendingEmail, setSendingEmail] = useState<boolean>(false);
 
   const approvedDirections = directions.filter(d => d.status === "Approved");
-  const unscheduledBriefs = briefs.filter(b => !b.weekNumber);
+  const [claudeOnly, setClaudeOnly] = useState(false);
+  const unscheduledBriefs = briefs.filter(b => !b.weekNumber && (!claudeOnly || isClaudeDraft(b)));
 
   const getBrandBgButton = () => {
     if (activeColor === "emerald") return "bg-emerald-600 hover:bg-emerald-500 text-white";
@@ -506,8 +508,15 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2">
+            <ClaudeDraftFilter
+              id="filter-unscheduled-claude"
+              active={claudeOnly}
+              count={briefs.filter(b => !b.weekNumber && isClaudeDraft(b)).length}
+              onToggle={() => setClaudeOnly(v => !v)}
+            />
           {unscheduledBriefs.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
+            <>
               <button
                 onClick={() =>
                   setSelectedBriefIds(prev =>
@@ -541,14 +550,15 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
                   </button>
                 </>
               )}
-            </div>
+            </>
           )}
+          </div>
         </div>
 
         {unscheduledBriefs.length === 0 ? (
           <div className="text-center py-8 text-slate-400 text-xs font-mono border border-dashed border-border/40 rounded-xl bg-slate-950/20">
             <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1.5" />
-            <div>Every brief is slotted onto the calendar.</div>
+            <div>{claudeOnly ? "No unscheduled Claude drafts." : "Every brief is slotted onto the calendar."}</div>
           </div>
         ) : (
           <div className="space-y-2">
@@ -568,7 +578,10 @@ export const CreativeBriefsStudio: React.FC<CreativeBriefsStudioProps> = ({
                   className="shrink-0 cursor-pointer"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-bold truncate ${isDark ? "text-slate-200" : "text-slate-800"}`}>{brief.title}</p>
+                  <p className={`text-xs font-bold truncate flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+                    <span className="truncate">{brief.title}</span>
+                    {isClaudeDraft(brief) && <ClaudeDraftBadge compact />}
+                  </p>
                   <p className="text-[11px] text-slate-400 truncate">{brief.topicIdea || brief.keyMessage}</p>
                 </div>
                 <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 shrink-0">

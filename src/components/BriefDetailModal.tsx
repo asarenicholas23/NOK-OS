@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { CreativeBrief, Brand } from "../lib/firebase";
 import { SlideDeckPreview } from "./SlideDeckPreview";
+import { ClaudeDraftBadge, isClaudeDraft } from "./ClaudeDraftBadge";
 import { downloadSingleBriefPDF } from "../utils/pdfGenerator";
 
 interface BriefDetailModalProps {
@@ -164,6 +165,7 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
             }`}>
               {brief.status || "Proposed"}
             </span>
+            {isClaudeDraft(brief) && <ClaudeDraftBadge />}
           </div>
         </div>
 

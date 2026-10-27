@@ -56,10 +56,15 @@ async function brandDocs(db: Firestore, collection: string, id: string) {
 const withHidden = <T extends object>(body: T, hidden: number) =>
   hidden > 0 ? { ...body, hiddenDemoRecords: hidden } : body;
 
+// Per-request flag so the HTTP layer can tell whether a tool handler ran
+// (and logged). Calls the SDK rejects before the handler are logged there.
+export type CallContext = { logged: boolean };
+
 // Registers a tool with uniform logging, error handling and JSON output.
 export function addTool<S extends z.ZodRawShape>(
   server: McpServer,
   db: Firestore,
+  ctx: CallContext,
   name: string,
   config: { title: string; description: string; inputSchema: S; readOnly: boolean },
   handler: (args: z.objectOutputType<S, z.ZodTypeAny>) => Promise<{ body: unknown; itemCount?: number }>,
@@ -76,13 +81,14 @@ export function addTool<S extends z.ZodRawShape>(
     },
     (async (args: any) => {
       const started = Date.now();
+      ctx.logged = true;
       const brand = typeof args?.brandId === "string" ? args.brandId : undefined;
       try {
         const { body, itemCount } = await handler(args);
         logToolCall(db, { tool: name, brandId: brand, ok: true, ms: Date.now() - started, itemCount });
         return { content: [{ type: "text" as const, text: JSON.stringify(body) }] };
       } catch (err: any) {
-        const message = err instanceof ToolError ? err.message : "Internal error while reading NOK OS data.";
+        const message = err instanceof ToolError ? err.message : "Internal error in NOK OS. Nothing was changed; try again.";
         if (!(err instanceof ToolError)) console.error(`[mcp] ${name} failed:`, err);
         logToolCall(db, { tool: name, brandId: brand, ok: false, ms: Date.now() - started, error: message });
         return { isError: true, content: [{ type: "text" as const, text: message }] };
@@ -93,8 +99,8 @@ export function addTool<S extends z.ZodRawShape>(
 
 // ---------- read tools ----------
 
-export function registerReadTools(server: McpServer, db: Firestore) {
-  addTool(server, db, "list_brands", {
+export function registerReadTools(server: McpServer, db: Firestore, ctx: CallContext) {
+  addTool(server, db, ctx, "list_brands", {
     title: "List brands",
     description: "List the client brands in NOK OS. Use the returned id as brandId in every other tool.",
     inputSchema: {},
@@ -111,7 +117,7 @@ export function registerReadTools(server: McpServer, db: Firestore) {
     return { body: { brands }, itemCount: brands.length };
   });
 
-  addTool(server, db, "get_brand_context", {
+  addTool(server, db, ctx, "get_brand_context", {
     title: "Get brand context",
     description:
       "Brand profile and brand-guide fields: description, campaign objective, voice and tone, content pillars, " +
@@ -140,7 +146,7 @@ export function registerReadTools(server: McpServer, db: Firestore) {
     };
   });
 
-  addTool(server, db, "get_analytics_summary", {
+  addTool(server, db, ctx, "get_analytics_summary", {
     title: "Get analytics summary",
     description:
       "Performance summary computed from the brand's imported social analytics: totals, engagement rate, " +
@@ -154,19 +160,21 @@ export function registerReadTools(server: McpServer, db: Firestore) {
       to: isoDate.optional().describe("Only posts on/before this date (YYYY-MM-DD)."),
       compare: z.enum(["datasets", "previous_period", "none"]).optional(),
       topN: z.number().int().min(1).max(10).default(5),
+      minImpressions: z.number().int().min(0).optional()
+        .describe("Leave posts below this many impressions out of top/bottom rankings. Default: 20% of the median."),
     },
     readOnly: true,
-  }, async ({ brandId, from, to, compare, topN }) => {
+  }, async ({ brandId, from, to, compare, topN, minImpressions }) => {
     await loadBrand(db, brandId);
     const { docs, hidden } = await brandDocs(db, "rawAnalytics", brandId);
     if (docs.length === 0) {
       return { body: withHidden({ scope: { posts: 0 }, dataNotes: ["No analytics have been imported for this brand."] }, hidden), itemCount: 0 };
     }
-    const summary = summarizeAnalytics(docs as AnalyticsRow[], { from, to, compare, topN });
+    const summary = summarizeAnalytics(docs as AnalyticsRow[], { from, to, compare, topN, minImpressions });
     return { body: withHidden(summary, hidden), itemCount: summary.scope.posts };
   });
 
-  addTool(server, db, "get_analytics_rows", {
+  addTool(server, db, ctx, "get_analytics_rows", {
     title: "Get analytics rows",
     description: "Individual imported posts with their metrics, for detail behind get_analytics_summary. Filter and sort to keep it small.",
     inputSchema: {
@@ -217,7 +225,7 @@ export function registerReadTools(server: McpServer, db: Firestore) {
     return { body: withHidden({ matched: rows.length, returned: out.length, rows: out }, hidden), itemCount: out.length };
   });
 
-  addTool(server, db, "list_insights", {
+  addTool(server, db, ctx, "list_insights", {
     title: "List strategic insights",
     description: "Strategic insights for a brand, newest first. Filter by status or by who created them.",
     inputSchema: {
@@ -242,7 +250,7 @@ export function registerReadTools(server: McpServer, db: Firestore) {
     return { body: withHidden({ items }, hidden), itemCount: items.length };
   });
 
-  addTool(server, db, "list_directions", {
+  addTool(server, db, ctx, "list_directions", {
     title: "List brand directions",
     description: "Content directions (pillars with strategy, focus and checklist) for a brand, newest first.",
     inputSchema: {
@@ -266,7 +274,7 @@ export function registerReadTools(server: McpServer, db: Firestore) {
     return { body: withHidden({ items }, hidden), itemCount: items.length };
   });
 
-  addTool(server, db, "list_briefs", {
+  addTool(server, db, ctx, "list_briefs", {
     title: "List creative briefs",
     description:
       "Creative briefs for a brand (short fields only). Filter by status, creator or date range. " +
@@ -298,7 +306,7 @@ export function registerReadTools(server: McpServer, db: Firestore) {
     return { body: withHidden({ items }, hidden), itemCount: items.length };
   });
 
-  addTool(server, db, "get_brief", {
+  addTool(server, db, ctx, "get_brief", {
     title: "Get one brief",
     description: "Full content of one creative brief.",
     inputSchema: { brandId, briefId: z.string().min(1).max(128) },
@@ -313,7 +321,7 @@ export function registerReadTools(server: McpServer, db: Firestore) {
     return { body: { ...data, id: snap.id, date: normalizeDate(data.date) ?? data.date ?? null, createdBy: data.createdBy ?? "app" } };
   });
 
-  addTool(server, db, "get_calendar", {
+  addTool(server, db, ctx, "get_calendar", {
     title: "Get content calendar",
     description: "Calendar events and dated briefs for one month.",
     inputSchema: {
@@ -345,7 +353,7 @@ export function registerReadTools(server: McpServer, db: Firestore) {
     };
   });
 
-  addTool(server, db, "list_recent_feedback", {
+  addTool(server, db, ctx, "list_recent_feedback", {
     title: "List review feedback",
     description:
       "Review decisions on this brand's insights, directions and briefs: approvals, rejections and change requests " +
@@ -372,7 +380,7 @@ export function registerReadTools(server: McpServer, db: Firestore) {
     };
   });
 
-  addTool(server, db, "list_leads", {
+  addTool(server, db, ctx, "list_leads", {
     title: "List resource leads",
     description: "People who downloaded a resource from the public site (agency-wide, not tied to a brand). Newest first. Read-only.",
     inputSchema: { limit: limit(20, 100) },
@@ -387,7 +395,7 @@ export function registerReadTools(server: McpServer, db: Firestore) {
     return { body: { items }, itemCount: items.length };
   });
 
-  addTool(server, db, "list_discovery_requests", {
+  addTool(server, db, ctx, "list_discovery_requests", {
     title: "List discovery call requests",
     description: "Discovery call bookings and manually added prospects (agency-wide). Newest first. Read-only.",
     inputSchema: {

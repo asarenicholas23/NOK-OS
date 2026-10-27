@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { CreativeBrief, Brand, CampaignQueue } from "../lib/firebase";
 import { PushBriefWorkflowModal } from "./PushBriefWorkflowModal";
+import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
 import { getMondayOfWeek, addDays, formatDateYMD, getISOWeek } from "../utils/weekSchedule";
 
 interface WeeklyContentPlannerGridProps {
@@ -81,6 +82,7 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
   const isDark = theme === "dark";
 
   const [workflowFilter, setWorkflowFilter] = useState<WorkflowFilter>("all");
+  const [claudeOnly, setClaudeOnly] = useState(false);
   const [briefToPush, setBriefToPush] = useState<CreativeBrief | null>(null);
   const [showPushModal, setShowPushModal] = useState(false);
   const [pickerSlot, setPickerSlot] = useState<{ dateStr: string; dayName: string } | null>(null);
@@ -111,11 +113,12 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
 
   const filteredBriefs = useMemo(() => {
     return briefs.filter(b => {
+      if (claudeOnly && !isClaudeDraft(b)) return false;
       if (workflowFilter === "weekly") return workflowOf(b) === "weekly" || workflowOf(b) === "unified";
       if (workflowFilter === "campaign") return workflowOf(b) === "campaign";
       return true;
     });
-  }, [briefs, workflowFilter]);
+  }, [briefs, workflowFilter, claudeOnly]);
 
   const briefsByDate = useMemo(() => {
     const map = new Map<string, CreativeBrief[]>();
@@ -220,6 +223,13 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
             ))}
           </div>
 
+          <ClaudeDraftFilter
+            id="filter-briefs-claude"
+            active={claudeOnly}
+            count={briefs.filter(isClaudeDraft).length}
+            onToggle={() => setClaudeOnly(v => !v)}
+          />
+
           {proposedThisWeek.length > 0 && updateCreativeBrief && (
             <button
               id="btn-approve-all-week"
@@ -300,6 +310,7 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                         <div className="flex items-center gap-1.5 mb-1">
                           <WorkflowDot kind={wf} />
                           <StatusPill status={brief.status} compact />
+                          {isClaudeDraft(brief) && <ClaudeDraftBadge compact />}
                         </div>
                         <p className={`text-xs font-semibold leading-snug line-clamp-2 ${isDark ? "text-slate-100" : "text-slate-800"}`}>
                           {brief.topicIdea || brief.title || "Untitled brief"}
@@ -454,6 +465,7 @@ export const WeeklyContentPlannerGrid: React.FC<WeeklyContentPlannerGridProps> =
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-bold truncate">{brief.title || "Untitled brief"}</span>
+                      {isClaudeDraft(brief) && <ClaudeDraftBadge compact />}
                       <StatusPill status={brief.status} />
                     </div>
                     {(brief.topicIdea || brief.keyMessage) && (
@@ -508,6 +520,12 @@ const StatusPill: React.FC<{ status: CreativeBrief["status"]; compact?: boolean 
       return (
         <span className={`${base} ${size} bg-amber-500/15 text-amber-400 border-amber-500/30`}>
           <AlertCircle className={compact ? "w-2 h-2 mr-0.5" : "w-3 h-3 mr-1"} />Changes
+        </span>
+      );
+    case "Draft":
+      return (
+        <span className={`${base} ${size} bg-slate-500/15 text-slate-400 border-slate-500/30`}>
+          <Edit3 className={compact ? "w-2 h-2 mr-0.5" : "w-3 h-3 mr-1"} />Draft
         </span>
       );
     default:

@@ -202,6 +202,10 @@ export interface CreativeBrief {
   campaignName?: string;
   campaignDropNumber?: number;
   totalCampaignDrops?: number;
+  // Set to "claude" on drafts written through the Claude connector (mcp/).
+  createdBy?: "claude";
+  // Client-supplied id that makes connector writes safe to retry.
+  requestId?: string;
 }
 
 export interface AnalyticsMetric {
@@ -233,11 +237,16 @@ export interface StrategicInsight {
   title: string;
   desc: string;
   standpoint: "analytics" | "observation" | "opportunity" | "pattern" | "lesson";
-  status: "Pending" | "Approved" | "Rejected";
+  // "Draft" = written by Claude, not yet reviewed. "Pending" = awaiting review.
+  status: "Draft" | "Pending" | "Approved" | "Rejected";
   metric: string;
   change: string;
   type: "positive" | "warning" | "neutral";
   createdAt?: string;
+  // Set to "claude" on drafts written through the Claude connector (mcp/).
+  createdBy?: "claude";
+  // Client-supplied id that makes connector writes safe to retry.
+  requestId?: string;
 }
 
 export interface BrandDirection {
@@ -247,8 +256,12 @@ export interface BrandDirection {
   strategy: string;
   focus: string;
   checklist: string[];
-  status?: "Pending" | "Approved" | "Rejected";
+  status?: "Draft" | "Pending" | "Approved" | "Rejected";
   createdAt?: string;
+  // Set to "claude" on drafts written through the Claude connector (mcp/).
+  createdBy?: "claude";
+  // Client-supplied id that makes connector writes safe to retry.
+  requestId?: string;
 }
 
 export interface RawAnalyticsRow {

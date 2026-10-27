@@ -216,6 +216,8 @@ export const ClientCalendarApprovalView: React.FC = () => {
 
         // Filter for this share link's target period
         const filtered = list.filter((brief) => {
+          // Drafts (including Claude's) are internal until staff move them on.
+          if (brief.status === "Draft") return false;
           // If specific week-scoped link
           if (shareLink.periodType === "week" && shareLink.weekNumber !== undefined) {
             return (brief.weekNumber || 1) === shareLink.weekNumber;

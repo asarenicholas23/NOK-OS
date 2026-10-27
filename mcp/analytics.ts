@@ -106,6 +106,9 @@ export interface SummaryOptions {
   to?: string;
   compare?: "datasets" | "previous_period" | "none";
   topN?: number;
+  // Posts below this many impressions are left out of top/bottom rankings.
+  // Default: 20% of the median impressions of posts in scope.
+  minImpressions?: number;
 }
 
 export function summarizeAnalytics(allRows: AnalyticsRow[], opts: SummaryOptions = {}) {
@@ -150,12 +153,20 @@ export function summarizeAnalytics(allRows: AnalyticsRow[], opts: SummaryOptions
     }
   }
 
-  const ranked = current.filter((r) => num(r.impressions) > 0);
+  // Rates on tiny posts (e.g. 4 engagements on 18 impressions) are noise, so
+  // rankings skip posts far below the typical reach for this scope.
+  const withImpressions = current.filter((r) => num(r.impressions) > 0);
+  const sortedImpr = withImpressions.map((r) => num(r.impressions)).sort((a, b) => a - b);
+  const median = sortedImpr.length ? sortedImpr[Math.floor((sortedImpr.length - 1) / 2)] : 0;
+  const minImpressions = opts.minImpressions ?? Math.max(1, Math.round(median * 0.2));
+  const ranked = withImpressions.filter((r) => num(r.impressions) >= minImpressions);
   const byRate = [...ranked].sort(
     (a, b) => num(b.engagement) / num(b.impressions) - num(a.engagement) / num(a.impressions),
   );
-  const zeroImpressions = current.length - ranked.length;
+  const zeroImpressions = current.length - withImpressions.length;
   if (zeroImpressions > 0) notes.push(`${zeroImpressions} rows have 0 impressions and are left out of top/bottom rankings.`);
+  const tooSmall = withImpressions.length - ranked.length;
+  if (tooSmall > 0) notes.push(`${tooSmall} posts with fewer than ${minImpressions} impressions are left out of top/bottom rankings (their rates are too noisy).`);
   if (current.length < 10) notes.push(`Only ${current.length} posts in scope; treat patterns as weak signals.`);
 
   for (const m of OPTIONAL_METRICS) {

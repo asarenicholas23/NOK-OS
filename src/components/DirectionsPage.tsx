@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useBrand } from "../context/BrandContext";
 import { apiFetch } from "../lib/apiBase";
+import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
 import { 
   Waypoints, 
   Compass, 
@@ -44,7 +45,8 @@ export const DirectionsPage: React.FC = () => {
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   // Filter & selection states
-  const [statusFilter, setStatusFilter] = useState<"All" | "Pending" | "Approved" | "Rejected">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Draft" | "Pending" | "Approved" | "Rejected">("All");
+  const [claudeOnly, setClaudeOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Generation count control (default 5)
@@ -320,6 +322,7 @@ export const DirectionsPage: React.FC = () => {
 
   const filteredDirections = directions.filter(dir => {
     const status = dir.status || "Pending";
+    if (claudeOnly && !isClaudeDraft(dir)) return false;
     if (statusFilter === "All") return true;
     return status === statusFilter;
   });
@@ -503,7 +506,7 @@ export const DirectionsPage: React.FC = () => {
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-border" : "bg-slate-100 border-slate-200"}`}>
-            {(["All", "Pending", "Approved", "Rejected"] as const).map(status => {
+            {(["All", "Draft", "Pending", "Approved", "Rejected"] as const).map(status => {
               const count = status === "All" 
                 ? directions.length 
                 : directions.filter(d => (d.status || "Pending") === status).length;
@@ -525,6 +528,13 @@ export const DirectionsPage: React.FC = () => {
               );
             })}
           </div>
+
+          <ClaudeDraftFilter
+            id="filter-directions-claude"
+            active={claudeOnly}
+            count={directions.filter(isClaudeDraft).length}
+            onToggle={() => setClaudeOnly(v => !v)}
+          />
 
           <button
             onClick={() => handleToggleSelectAllDirections(filteredDirections.map(d => d.id))}
@@ -682,6 +692,7 @@ export const DirectionsPage: React.FC = () => {
                           0{idx + 1}
                         </div>
                         <h3 className={`text-sm font-bold ${isDark ? "text-slate-100" : "text-slate-900"}`}>{dir.pillar}</h3>
+                        {isClaudeDraft(dir) && <ClaudeDraftBadge />}
                       </div>
 
                       <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
