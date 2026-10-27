@@ -19,14 +19,14 @@ To change the secret: generate a new one (`node -e "console.log(require('crypto'
 | Tool | What it gives Claude |
 |---|---|
 | `list_brands` | Your client brands and their ids. Claude calls this first. |
-| `get_brand_context` | The brand guide: description, objective, voice, pillars, personas, competitors, platform notes. Empty fields come back empty, so Claude can't guess them. |
+| `get_brand_context` | The brand guide (description, objective, voice, pillars, personas, competitors, platform notes) plus the **knowledge pack**: positioning, offers, audiences and their own words, voice do/don't examples, banned phrases, proof points, competitors, platform notes. Only proof points marked verified may be quoted. Empty fields come back empty, so Claude can't guess them. |
 | `get_analytics_summary` | Stats computed from imported analytics: totals, engagement rate, breakdowns by platform, format, weekday and month, top and bottom posts, and change vs the previous period or a comparison dataset. Notes say what the data can't support, such as missing dates, small samples or partly tracked metrics. |
 | `get_analytics_rows` | Individual posts with their metrics, filtered and sorted. Use it for detail behind the summary. |
 | `list_insights` / `list_directions` | Strategic insights and content directions, filterable by status and by who created them. |
 | `list_briefs` | Briefs with short fields: version, status, date, platform, format, pillar, and unconfirmed count. |
 | `get_brief` | One brief in full: assets, slides, scenes and captions. |
 | `get_calendar` | Calendar events and dated briefs for one month. |
-| `list_recent_feedback` | Approved, rejected and changes-requested items, with notes. NOK OS doesn't record decision dates or reasons for insights and directions yet. |
+| `list_recent_feedback` | Review decisions, newest first: approved, rejected (with the reason) and needs changes (with what to change), by staff or the client, with dates. Filter by days or decision. Items reviewed before October 2026 show their status without a date. |
 | `list_leads` / `list_discovery_requests` | Resource downloads and discovery-call bookings. Read-only, and they include names and emails. |
 
 Sample and demo records (the old Acme, Global and Horizon data) are hidden from every tool. Responses say how many were hidden.
@@ -35,17 +35,18 @@ Sample and demo records (the old Acme, Global and Horizon data) are hidden from 
 
 | Tool | What it saves |
 |---|---|
-| `create_insights` | 1–10 insights. `change` must be what the data actually shows, or "insufficient data". Never a forecast. |
+| `create_insights` | 1–10 insights. `change` must be what the data actually shows, or "insufficient data", never a forecast. Each needs `evidence` (the figures behind it) and `confidence` (high, medium or low). |
 | `create_directions` | 1–10 content directions: pillar, strategy, focus, checklist. |
 | `create_briefs` | 1–10 v2 briefs. Each is one topic developed into 1–3 finished assets: carousel slides, reel or video scenes, blog article, static or text post. Each asset has the real copy and a caption per platform. Anything Claude can't confirm becomes an **unconfirmed** item, and it **blocks approval** until you click **Mark confirmed**. |
-| `update_draft` | Edits a Claude draft that is still in Draft. It can't change status, and it can't touch anything you created or already reviewed. |
+| `update_draft` | Edits a Claude item that is in Draft, or that you sent back with **Needs changes**. A revised item returns to Draft for you to re-review. It can't set status, and it can't touch anything you created, approved or rejected. |
 
 Each write takes a `requestId`. If Claude retries after a timeout, the same id returns the drafts it already made instead of creating duplicates.
 
 ## Reviewing Claude's work in NOK OS
 
-- **Insights / Directions:** click **Drafted by Claude**, or choose the **Draft** status filter, then Approve or Reject.
-- **Briefs:** Content Calendar → **Drafted by Claude**. Open a brief to read it, use **Edit** to change it, and **Mark confirmed** once you've checked an unconfirmed item. Use **Push to Calendar** to make it Proposed (the client can review it) or Approved.
+- **Insights / Directions:** click **Drafted by Claude**, or choose the **Draft** status filter. Use **Approve**, **Needs changes** (say what to change) or **Reject** (give a reason). Claude reads these notes, so specific reasons make its next drafts better.
+- **Briefs:** Content Calendar → **Drafted by Claude**. Open a brief (click a calendar card, or **View** in Unscheduled Briefs) to read it. Use **Edit** to change it, and **Mark confirmed** once you've checked an unconfirmed item. **Request Changes** sends it back to Claude with a note, and **Reject** needs a reason. Use **Push to Calendar** to make it Proposed (the client can review it) or Approved.
+- **Knowledge pack:** Brands → **Knowledge** on a brand. The more you fill in (their words, do/don't examples, verified proof points), the closer both Claude and the in-app AI get to the brand's voice.
 - Clients never see Drafts. When they do see a brief, they don't see internal notes or Claude badges.
 
 ## Example prompts
@@ -69,6 +70,10 @@ Each write takes a `requestId`. If Claude retries after a timeout, the same id r
 > Don't invent stats, results or quotes. Use a bracketed placeholder and add an unconfirmed item instead.
 > Show me the plan as a short list first, then save them as drafts.
 
+### Revising after feedback
+
+> For **Standout Clothing**, read the recent feedback for the last 14 days. For each Claude item marked "needs changes", apply the note and update the draft. Then summarise what you changed, and any pattern in what I keep rejecting.
+
 ### Fixing a draft
 
 > In NOK OS, open the Claude draft brief "Behind the seams" for Standout Clothing. Shorten every slide's body copy to under 15 words and make the Instagram caption end with a question. Update the draft.
@@ -83,5 +88,4 @@ Each write takes a `requestId`. If Claude retries after a timeout, the same id r
 
 - Analytics are only as good as the import. Posts without a date can't be filtered by period, and reach, saves and similar metrics only count for posts where the export included them.
 - Tiny posts (well below typical impressions) are left out of top/bottom rankings, because their rates are noise.
-- Feedback history is current status only. Decision dates and rejection reasons aren't stored yet.
 - Leads and discovery requests contain personal data. Only use them in chats you'd be comfortable keeping.

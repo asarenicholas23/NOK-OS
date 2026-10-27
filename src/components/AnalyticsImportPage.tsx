@@ -97,7 +97,10 @@ export const AnalyticsImportPage: React.FC = () => {
           status: "Pending",
           metric: item.metric,
           change: item.change,
-          type: item.type
+          type: item.type,
+          evidence: item.evidence,
+          confidence: item.confidence,
+          confidenceReason: item.confidenceReason
         });
       }
 

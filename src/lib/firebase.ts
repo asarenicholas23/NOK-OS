@@ -177,6 +177,7 @@ export interface CalendarEvent {
 // Claude connector). Re-exported here so existing imports keep working.
 export type { CreativeBrief, CreativeBriefV1, CreativeBriefV2, NewCreativeBrief } from "./briefs";
 import type { Reviewable } from "./review";
+import type { Confidence } from "./insights";
 import type { CreativeBrief } from "./briefs";
 
 export interface AnalyticsMetric {
@@ -201,6 +202,10 @@ export interface StrategicInsight extends Reviewable {
   metric: string;
   change: string;
   type: "positive" | "warning" | "neutral";
+  // What supports the insight (figures, posts, period) and how sure it is.
+  evidence?: string;
+  confidence?: Confidence;
+  confidenceReason?: string;
   createdAt?: string;
   // Set to "claude" on drafts written through the Claude connector (mcp/).
   createdBy?: "claude";

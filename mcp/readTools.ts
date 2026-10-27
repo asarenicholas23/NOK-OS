@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Firestore } from "firebase-admin/firestore";
 import { DEMO_BRAND_IDS, isFakeRecord } from "./fakeData";
 import { summarizeAnalytics, type AnalyticsRow } from "./analytics";
+import { loadKnowledgePack } from "../server/aiContext";
 import { logToolCall } from "./audit";
 import { briefPrimaryPlatform, briefFormatLabel, briefPillar, briefHook, approvalBlockers, type CreativeBrief } from "../src/lib/briefs";
 
@@ -121,9 +122,10 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
   addTool(server, db, ctx, "get_brand_context", {
     title: "Get brand context",
     description:
-      "Brand profile and brand-guide fields: description, campaign objective, voice and tone, content pillars, " +
-      "audience personas, competitor context and platform notes. Read this before writing anything for a brand. " +
-      "Empty fields are null: do not fill them in with guesses.",
+      "Brand profile, brand-guide fields and the brand knowledge pack (positioning, offers, audiences and the words " +
+      "they use, voice do/don't examples, banned phrases, proof points, competitors, platform notes). Read this before " +
+      "writing anything for a brand. Only quote proof points marked verified, never use banned phrases, and only name " +
+      "listed competitors. Empty fields are null: do not fill them in with guesses.",
     inputSchema: { brandId },
     readOnly: true,
   }, async ({ brandId }) => {
@@ -143,6 +145,10 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
         audiencePersonas: pick("audiencePersonas"),
         competitorContext: pick("competitorContext"),
         platformNotes: pick("platformNotes"),
+        // Positioning, offers, audiences and their words, voice do/don't,
+        // banned phrases, proof points (only verified ones may be cited),
+        // competitors and platform notes. null if not written yet.
+        knowledgePack: await loadKnowledgePack(db, brandId),
       },
     };
   });
@@ -246,6 +252,7 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
       .map((d) => ({
         id: d.id, status: d.status ?? null, title: d.title, desc: clip(d.desc, 600), standpoint: d.standpoint ?? null,
         metric: d.metric ?? null, change: d.change ?? null, type: d.type ?? null,
+        evidence: clip(d.evidence, 600), confidence: d.confidence ?? null,
         createdAt: d.createdAt ?? null, createdBy: d.createdBy ?? "app", lastReview: d.lastReview ?? null,
       }));
     return { body: withHidden({ items }, hidden), itemCount: items.length };

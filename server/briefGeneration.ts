@@ -7,7 +7,8 @@ import type { Firestore } from "firebase-admin/firestore";
 import {
   ASSET_TYPES, PLATFORMS, normalizeBriefContent, safeParseBriefContent, type BriefContent,
 } from "../src/lib/briefs";
-import { loadBrandContext, compactAnalytics, field, ContextError } from "./aiContext";
+import { loadBrandContext, compactAnalytics, field, brandBlock, ContextError } from "./aiContext";
+import type { KnowledgePack } from "../src/lib/knowledgePack";
 
 type Generate = (contents: string, config: any) => Promise<{ text?: string }>;
 
@@ -112,7 +113,8 @@ or "9:16, 30s"), a CTA, and one publish-ready caption per platform it runs on, i
 
 HONESTY (strict)
 - Never invent statistics, percentages, client results, testimonials, quotes, prices, awards, partner names or dates.
-- Use only facts from the brand context, the approved directions and the analytics summary below.
+- Use only facts from the brand context, the knowledge pack, the approved directions and the analytics summary below.
+  Proof in copy may only come from VERIFIED PROOF POINTS, quoted as written. Never use banned phrases.
 - When a piece of copy needs a fact you don't have, write a clear bracketed placeholder in the copy itself
   (e.g. "[client result: confirm figure]") AND add an "unconfirmed" item whose "field" is the exact path
   (e.g. "assets[0].slides[3].body") and whose "note" says what must be confirmed and by whom.
@@ -125,19 +127,10 @@ VOICE
 Write in the brand's voice and tone. Speak to the listed personas in their language. Respect the platform notes.
 Platforms must be from: ${PLATFORMS.join(", ")}.`;
 
-function buildPrompt(brand: Record<string, any>, analytics: string, direction: DirectionInput | null, n: number, total: number) {
+function buildPrompt(brand: Record<string, any>, knowledge: KnowledgePack | null, analytics: string, direction: DirectionInput | null, n: number, total: number) {
   return `You are a senior content strategist and copywriter producing a production-ready creative brief for "${field(brand.name)}".
 
-BRAND CONTEXT
-- Description: ${field(brand.brandDescription)}
-- Industry: ${field(brand.industry)}
-- Tagline: ${field(brand.tagline)}
-- Voice & tone: ${field(brand.voiceTone)}
-- Campaign objective: ${field(brand.campaignObjective)}
-- Content pillars: ${field(brand.contentPillars)}
-- Audience personas: ${field(brand.audiencePersonas)}
-- Competitor context: ${field(brand.competitorContext)}
-- Platform notes: ${field(brand.platformNotes)}
+${brandBlock(brand, knowledge)}
 
 ANALYTICS SUMMARY (computed from imported data; the only numbers you may cite)
 ${analytics}
@@ -187,13 +180,13 @@ export async function generateV2Briefs(opts: {
     if (e instanceof ContextError) throw new GenerationError(e.message);
     throw e;
   }
-  const { brand, summary } = ctx;
+  const { brand, summary, knowledge } = ctx;
   const analytics = compactAnalytics(summary);
   const directions = opts.directions.filter(Boolean);
 
   const settled = await Promise.allSettled(
     Array.from({ length: count }, (_, i) =>
-      generateOne(opts.generate, buildPrompt(brand, analytics, directions.length ? directions[i % directions.length] : null, i + 1, count)),
+      generateOne(opts.generate, buildPrompt(brand, knowledge, analytics, directions.length ? directions[i % directions.length] : null, i + 1, count)),
     ),
   );
   const briefs: BriefContent[] = [];

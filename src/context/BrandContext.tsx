@@ -699,6 +699,8 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { db } = await import("../lib/firebase");
     const { doc, deleteDoc } = await import("firebase/firestore");
     await deleteDoc(doc(db, "brands", id));
+    // The brand's knowledge pack goes with it.
+    await deleteDoc(doc(db, "brandKnowledge", id)).catch(() => {});
     
     if (activeBrandId === id) {
       const remaining = brands.filter(b => b.id !== id);

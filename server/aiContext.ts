@@ -4,6 +4,8 @@
 import type { Firestore } from "firebase-admin/firestore";
 import { summarizeAnalytics, type AnalyticsRow } from "../mcp/analytics";
 import { DEMO_BRAND_IDS, isFakeRecord } from "../mcp/fakeData";
+import { capConfidence } from "../src/lib/insights";
+import { safeParseKnowledgePack, knowledgePackPrompt, type KnowledgePack } from "../src/lib/knowledgePack";
 
 export class ContextError extends Error {}
 
@@ -15,8 +17,9 @@ export const HONESTY_RULES = `
 HONESTY RULES (strict)
 - Never invent statistics, percentages, growth forecasts, ROI, client results, testimonials, quotes, prices,
   competitor facts, partner names or dates. Do not estimate or predict numbers.
-- Only cite numbers that appear in the ANALYTICS SUMMARY, exactly as given. If the data can't support a claim,
-  say "insufficient data" instead of guessing.
+- Only cite numbers that appear in the ANALYTICS SUMMARY, and claims listed as VERIFIED PROOF POINTS, exactly as
+  given. If the data can't support a claim, say "insufficient data" instead of guessing.
+- Never use the brand's banned phrases. Only name competitors listed in the knowledge pack.
 - If a brand field says "Not specified", don't fill it in with assumptions presented as fact; say what is unknown.`;
 
 // Rows the browser sends (e.g. a file being imported, not yet saved) are reduced
@@ -56,7 +59,16 @@ export async function loadBrandContext(db: Firestore, brandId: string, rowsOverr
     rows = snap.docs.filter((d) => !isFakeRecord("rawAnalytics", d.id, d.data())).map((d) => ({ ...d.data(), id: d.id }) as AnalyticsRow);
   }
   const summary = rows.length ? summarizeAnalytics(rows) : null;
-  return { brand, summary };
+  return { brand, summary, knowledge: await loadKnowledgePack(db, brandId) };
+}
+
+// The brand's knowledge pack, or null if none has been written (or it's invalid).
+export async function loadKnowledgePack(db: Firestore, brandId: string): Promise<KnowledgePack | null> {
+  const snap = await db.collection("brandKnowledge").doc(brandId).get();
+  if (!snap.exists) return null;
+  const { updatedAt, updatedBy, ...rest } = snap.data() as Record<string, any>;
+  const parsed = safeParseKnowledgePack(rest);
+  return "pack" in parsed ? { ...parsed.pack, updatedAt, updatedBy } : null;
 }
 
 export function compactAnalytics(summary: AnalyticsSummary | null) {
@@ -74,8 +86,10 @@ export function compactAnalytics(summary: AnalyticsSummary | null) {
   });
 }
 
-export function brandBlock(brand: Record<string, any>) {
-  return `BRAND CONTEXT
+const knowledgeSection = (k?: KnowledgePack | null) => (k === undefined ? "" : `${knowledgePackPrompt(k)}\n\n`);
+
+export function brandBlock(brand: Record<string, any>, knowledge?: KnowledgePack | null) {
+  return `${knowledgeSection(knowledge)}BRAND CONTEXT
 - Name: ${field(brand.name)}
 - Description: ${field(brand.brandDescription)}
 - Industry: ${field(brand.industry)}
@@ -93,7 +107,7 @@ const STANDPOINTS = ["analytics", "observation", "opportunity", "pattern", "less
 // Enforces the honesty rules on model output for insights: without data there
 // are no "analytics" claims and no numbers; with data, a change that isn't an
 // observed number becomes "insufficient data". Also fixes enum values.
-export function sanitizeInsights(raw: unknown, fromData: boolean, max: number) {
+export function sanitizeInsights(raw: unknown, fromData: boolean, max: number, postsInScope = 0) {
   return (Array.isArray(raw) ? raw : []).slice(0, max).map((i: any) => {
     let standpoint = STANDPOINTS.includes(i?.standpoint) ? i.standpoint : "observation";
     let change = typeof i?.change === "string" && i.change.trim() ? i.change.trim() : "insufficient data";
@@ -110,6 +124,12 @@ export function sanitizeInsights(raw: unknown, fromData: boolean, max: number) {
       metric: String(i?.metric || "").slice(0, 80),
       change: change.slice(0, 60),
       type: ["positive", "warning", "neutral"].includes(i?.type) ? i.type : "neutral",
+      evidence: fromData
+        ? String(i?.evidence || "").slice(0, 1000) || "No supporting figures given."
+        : "No analytics data: based on the brand guide only.",
+      // Data limits cap confidence: no data -> low, under 10 posts -> medium.
+      confidence: capConfidence(i?.confidence, { hasData: fromData, posts: postsInScope }),
+      confidenceReason: String(i?.confidenceReason || "").slice(0, 300),
     };
   }).filter((i) => i.title && i.desc);
 }

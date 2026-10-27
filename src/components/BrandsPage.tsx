@@ -9,11 +9,14 @@ import {
   CheckCircle, 
   Sparkles,
   Trash2,
-  Pencil
+  Pencil,
+  BookOpen
 } from "lucide-react";
+import { BrandKnowledgeEditor } from "./BrandKnowledgeEditor";
 
 export const BrandsPage: React.FC = () => {
-  const { brands, activeBrandId, setActiveBrandId, addBrand, updateBrand, deleteBrand, theme, accentColor } = useBrand();
+  const { brands, activeBrandId, setActiveBrandId, addBrand, updateBrand, deleteBrand, theme, accentColor, user } = useBrand();
+  const [knowledgeBrand, setKnowledgeBrand] = useState<{ id: string; name: string } | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
@@ -373,6 +376,15 @@ export const BrandsPage: React.FC = () => {
                   ) : (
                     <>
                       <button
+                        id={`btn-knowledge-${brand.id}`}
+                        onClick={() => setKnowledgeBrand({ id: brand.id, name: brand.name })}
+                        className="flex items-center gap-1 text-slate-400 hover:text-violet-500 px-1.5 py-1 rounded hover:bg-violet-500/10 transition-colors cursor-pointer text-[10px] font-mono font-bold"
+                        title="Edit the brand knowledge pack used by Gemini and Claude"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>Knowledge</span>
+                      </button>
+                      <button
                         id={`btn-edit-${brand.id}`}
                         onClick={() => startEditBrand(brand)}
                         className="text-slate-400 hover:text-violet-500 p-1 rounded hover:bg-violet-500/10 transition-colors cursor-pointer"
@@ -396,6 +408,14 @@ export const BrandsPage: React.FC = () => {
           );
         })}
       </div>
+      {knowledgeBrand && (
+        <BrandKnowledgeEditor
+          brandId={knowledgeBrand.id}
+          brandName={knowledgeBrand.name}
+          userEmail={user?.email || undefined}
+          onClose={() => setKnowledgeBrand(null)}
+        />
+      )}
     </div>
   );
 };

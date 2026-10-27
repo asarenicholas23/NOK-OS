@@ -23,6 +23,9 @@ const insightItem = z.object({
   metric: text(80).describe("The KPI this is about, e.g. 'Engagement rate'."),
   change: text(60).describe("The change actually seen in the data (e.g. '+4.0 pts'), or 'insufficient data'. Never a forecast."),
   type: z.enum(["positive", "warning", "neutral"]),
+  evidence: text(1000).describe("The figures behind it (platform/format/period), e.g. '9.63% ER on 9 carousels vs 5.07% on 16 images, Sep 2026'. If qualitative, say what it rests on."),
+  confidence: z.enum(["high", "medium", "low"]).describe("high = clear pattern across enough posts; medium = limited data or one period; low = weak/no data (hypothesis)."),
+  confidenceReason: optText(300),
 }).strict();
 
 const directionItem = z.object({

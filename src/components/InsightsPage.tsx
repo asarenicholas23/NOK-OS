@@ -3,6 +3,7 @@ import { useBrand } from "../context/BrandContext";
 import { apiFetch, apiErrorMessage } from "../lib/apiBase";
 import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
 import { ReviewActions, LastReviewNote } from "./ReviewActions";
+import { CONFIDENCE_LEVELS, CONFIDENCE_HELP, type Confidence } from "../lib/insights";
 import { 
   Lightbulb, 
   Zap, 
@@ -63,6 +64,8 @@ export const InsightsPage: React.FC = () => {
   const [newMetric, setNewMetric] = useState("");
   const [newChange, setNewChange] = useState("");
   const [newType, setNewType] = useState<"positive" | "warning" | "neutral">("positive");
+  const [newEvidence, setNewEvidence] = useState("");
+  const [newConfidence, setNewConfidence] = useState<Confidence>("low");
   
   // Generating state
   const [generating, setGenerating] = useState(false);
@@ -75,6 +78,8 @@ export const InsightsPage: React.FC = () => {
   const [editInsightStandpoint, setEditInsightStandpoint] = useState<"analytics" | "observation" | "opportunity" | "pattern" | "lesson">("analytics");
   const [editInsightMetric, setEditInsightMetric] = useState("");
   const [editInsightChange, setEditInsightChange] = useState("");
+  const [editInsightEvidence, setEditInsightEvidence] = useState("");
+  const [editInsightConfidence, setEditInsightConfidence] = useState<Confidence>("low");
   const [editInsightType, setEditInsightType] = useState<"positive" | "warning" | "neutral">("positive");
 
 
@@ -160,6 +165,8 @@ export const InsightsPage: React.FC = () => {
     setEditInsightMetric(item.metric);
     setEditInsightChange(item.change);
     setEditInsightType(item.type);
+    setEditInsightEvidence(item.evidence || "");
+    setEditInsightConfidence(item.confidence || "low");
   };
 
   const handleSaveInsightEdit = async (id: string) => {
@@ -170,7 +177,9 @@ export const InsightsPage: React.FC = () => {
       standpoint: editInsightStandpoint,
       metric: editInsightMetric,
       change: editInsightChange,
-      type: editInsightType
+      type: editInsightType,
+      evidence: editInsightEvidence.trim() || undefined,
+      confidence: editInsightConfidence
     });
     setEditingInsightId(null);
   };
@@ -197,14 +206,18 @@ export const InsightsPage: React.FC = () => {
       standpoint: newStandpoint,
       status: "Pending",
       metric: newMetric || "Custom Audit",
-      change: newChange || "+0.0%",
-      type: newType
+      change: newChange.trim() || "insufficient data",
+      type: newType,
+      evidence: newEvidence.trim() || undefined,
+      confidence: newConfidence
     });
 
     setNewTitle("");
     setNewDesc("");
     setNewMetric("");
     setNewChange("");
+    setNewEvidence("");
+    setNewConfidence("low");
     setShowAddForm(false);
   };
 
@@ -241,7 +254,10 @@ export const InsightsPage: React.FC = () => {
           status: "Pending",
           metric: item.metric,
           change: item.change,
-          type: item.type === "positive" || item.type === "warning" || item.type === "neutral" ? item.type : "positive"
+          type: item.type === "positive" || item.type === "warning" || item.type === "neutral" ? item.type : "neutral",
+          evidence: item.evidence,
+          confidence: item.confidence,
+          confidenceReason: item.confidenceReason
         });
       }
 
@@ -456,6 +472,33 @@ export const InsightsPage: React.FC = () => {
                 isDark ? "bg-slate-950 border-border text-slate-200" : "bg-slate-50 border-slate-200 text-slate-850"
               }`}
             />
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">
+              Evidence (the figures or observations behind it)
+              <textarea
+                rows={2}
+                placeholder="e.g. 9.6% ER on 9 carousels vs 5.1% on 16 images, Sep 2026"
+                value={newEvidence}
+                onChange={e => setNewEvidence(e.target.value)}
+                className={`mt-1 w-full text-xs p-2.5 rounded border normal-case tracking-normal font-sans font-normal focus:outline-none focus:ring-1 ${
+                  isDark ? "bg-slate-950 border-border text-slate-200" : "bg-slate-50 border-slate-200 text-slate-850"
+                }`}
+              />
+            </label>
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">
+              Confidence
+              <select
+                value={newConfidence}
+                onChange={e => setNewConfidence(e.target.value as Confidence)}
+                className={`mt-1 w-full text-xs p-2.5 rounded border normal-case tracking-normal font-sans font-normal focus:outline-none focus:ring-1 ${
+                  isDark ? "bg-slate-950 border-border text-slate-300" : "bg-slate-50 border-slate-200 text-slate-800"
+                }`}
+              >
+                {CONFIDENCE_LEVELS.map(c => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}: {CONFIDENCE_HELP[c]}</option>)}
+              </select>
+            </label>
           </div>
 
           <div className="flex justify-end pt-2">
@@ -696,6 +739,29 @@ export const InsightsPage: React.FC = () => {
                         />
                       </div>
                     </div>
+                    <label className="block text-[9px] font-mono uppercase tracking-wide text-slate-400">
+                      Evidence
+                      <textarea
+                        rows={2}
+                        value={editInsightEvidence}
+                        onChange={(e) => setEditInsightEvidence(e.target.value)}
+                        className={`mt-1 w-full text-xs px-2.5 py-1 border rounded normal-case tracking-normal focus:outline-none focus:border-violet-500 font-sans ${
+                          isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      />
+                    </label>
+                    <label className="block text-[9px] font-mono uppercase tracking-wide text-slate-400">
+                      Confidence
+                      <select
+                        value={editInsightConfidence}
+                        onChange={(e) => setEditInsightConfidence(e.target.value as Confidence)}
+                        className={`mt-1 w-full text-xs px-2.5 py-1 border rounded normal-case tracking-normal focus:outline-none focus:border-violet-500 font-sans ${
+                          isDark ? "bg-slate-950 border-border text-slate-100" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      >
+                        {CONFIDENCE_LEVELS.map(c => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
+                      </select>
+                    </label>
                   </div>
 
                   <div className="flex justify-end space-x-2 pt-2">
@@ -761,6 +827,28 @@ export const InsightsPage: React.FC = () => {
                       <p className={`text-xs leading-relaxed font-sans ${isDark ? "text-slate-400" : "text-slate-600"}`}>
                         {item.desc}
                       </p>
+                      {(item.evidence || item.confidence) && (
+                        <div className="mt-2 space-y-1">
+                          {item.confidence && (
+                            <span
+                              title={item.confidenceReason || CONFIDENCE_HELP[item.confidence]}
+                              className={`inline-block text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border ${
+                                item.confidence === "high" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                  : item.confidence === "medium" ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                  : "bg-slate-500/10 text-slate-500 border-slate-500/30"
+                              }`}
+                            >
+                              {item.confidence} confidence
+                            </span>
+                          )}
+                          {item.evidence && (
+                            <p className="text-[11px] leading-snug text-slate-500">
+                              <span className="font-semibold">Evidence:</span> {item.evidence}
+                            </p>
+                          )}
+                          {item.confidenceReason && <p className="text-[10px] italic text-slate-400">{item.confidenceReason}</p>}
+                        </div>
+                      )}
                     </div>
                   </div>
 

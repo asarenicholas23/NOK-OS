@@ -12,6 +12,7 @@ import { syncProposalToZoho, zohoConfigured } from "./zohoInvoice";
 import { mountMcp } from "./mcp/index";
 import { generateV2Briefs, GenerationError, BRIEF_WRITING_RULES } from "./server/briefGeneration";
 import { loadBrandContext, compactAnalytics, brandBlock, HONESTY_RULES, ContextError, sanitizeInsights } from "./server/aiContext";
+import { knowledgePackPrompt } from "./src/lib/knowledgePack";
 
 dotenv.config();
 
@@ -147,14 +148,14 @@ app.post("/api/generate-insights", requireStaffAuth, async (req, res) => {
     const { brandId, rows, count = 5, sourceType = "data" } = req.body || {};
     const n = Math.min(Math.max(Number(count) || 5, 1), 10);
     const fromData = sourceType !== "guides";
-    const { brand, summary } = await loadBrandContext(adminDb, brandId, fromData ? rows : undefined);
+    const { brand, summary, knowledge } = await loadBrandContext(adminDb, brandId, fromData ? rows : undefined);
     if (fromData && !summary) {
       return res.status(400).json({ error: "No analytics have been imported for this brand yet." });
     }
 
     const prompt = `You are a senior marketing strategist reviewing a brand's social media performance.
 
-${brandBlock(brand)}
+${brandBlock(brand, knowledge)}
 
 ${fromData ? `ANALYTICS SUMMARY (computed from imported data; the only numbers you may cite)
 ${compactAnalytics(summary)}` : "There is no analytics data for this request. Work only from the brand context."}
@@ -171,7 +172,12 @@ never pad the list. Each insight:
 - "change": ${fromData
       ? `the difference actually shown in the summary (e.g. "+4.0 pts vs previous period", "9.6% vs 5.1%"), or "insufficient data". Never a target or forecast.`
       : `exactly "insufficient data".`}
-- "type": "positive", "warning" or "neutral".`;
+- "type": "positive", "warning" or "neutral".
+- "evidence": ${fromData
+      ? `the exact figures from the summary that support it (with platform/format/period), e.g. "Carousels: 9.63% ER on 9 posts vs images 5.07% on 16 posts, Sep 2026".`
+      : `"No analytics data: based on the brand guide only."`}
+- "confidence": "high", "medium" or "low". High only for a clear pattern across enough posts; ${fromData ? "low when dataNotes flag weak data" : `always "low" here`}.
+- "confidenceReason": one short sentence explaining the confidence level.`;
 
     const response = await generateContentWithFallback(prompt, {
       responseMimeType: "application/json",
@@ -186,14 +192,17 @@ never pad the list. Each insight:
             metric: { type: Type.STRING },
             change: { type: Type.STRING },
             type: { type: Type.STRING, enum: ["positive", "warning", "neutral"] },
+            evidence: { type: Type.STRING },
+            confidence: { type: Type.STRING, enum: ["high", "medium", "low"] },
+            confidenceReason: { type: Type.STRING },
           },
-          required: ["title", "desc", "standpoint", "metric", "change", "type"],
+          required: ["title", "desc", "standpoint", "metric", "change", "type", "evidence", "confidence", "confidenceReason"],
         },
       },
     });
 
     const raw = JSON.parse(response.text || "[]");
-    const insights = sanitizeInsights(raw, fromData, n);
+    const insights = sanitizeInsights(raw, fromData, n, summary?.scope.posts ?? 0);
     res.json(insights);
   } catch (error: any) {
     console.error("Gemini Generation Error:", error);
@@ -290,7 +299,7 @@ app.post("/api/generate-briefs", requireStaffAuth, async (req, res) => {
 app.post("/api/suggest-brand-guide", requireStaffAuth, async (req, res) => {
   try {
     const { brandId, brandDescription, campaignObjective } = req.body || {};
-    const { brand, summary } = await loadBrandContext(adminDb, brandId);
+    const { brand, summary, knowledge } = await loadBrandContext(adminDb, brandId);
     const working = {
       ...brand,
       ...(typeof brandDescription === "string" ? { brandDescription } : {}),
@@ -299,7 +308,7 @@ app.post("/api/suggest-brand-guide", requireStaffAuth, async (req, res) => {
 
     const prompt = `You are a senior marketing strategist helping fill in a brand guide.
 
-${brandBlock(working)}
+${brandBlock(working, knowledge)}
 
 ANALYTICS SUMMARY (computed from imported data; the only numbers you may cite)
 ${compactAnalytics(summary)}
@@ -428,10 +437,13 @@ app.post("/api/chat", requireStaffAuth, async (req, res) => {
 
     // Analytics computed in code, so the chat can cite real numbers.
     let analyticsBlock = "";
-    if (includeAnalytics && typeof brandId === "string") {
+    if (typeof brandId === "string") {
       try {
-        const { summary } = await loadBrandContext(adminDb, brandId);
-        analyticsBlock = `\nANALYTICS SUMMARY (computed from imported data; the only numbers you may cite)\n${compactAnalytics(summary)}\n`;
+        const { summary, knowledge } = await loadBrandContext(adminDb, brandId);
+        analyticsBlock = `\n${knowledgePackPrompt(knowledge)}\n`;
+        if (includeAnalytics) {
+          analyticsBlock += `\nANALYTICS SUMMARY (computed from imported data; the only numbers you may cite)\n${compactAnalytics(summary)}\n`;
+        }
       } catch {
         analyticsBlock = "";
       }

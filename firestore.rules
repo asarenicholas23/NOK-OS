@@ -126,6 +126,10 @@ service cloud.firestore {
     match /rawAnalytics/{id} { allow read, write: if isStaff(); }
     match /creativeIdeas/{id} { allow read, write: if isStaff(); }
 
+    // Brand knowledge pack (positioning, proof points, competitor notes):
+    // internal, so staff only. Client review sessions can't read it.
+    match /brandKnowledge/{brandId} { allow read, write: if isStaff(); }
+
     // Claude connector tool-call log. Written only by the server (Admin SDK);
     // staff can read it, nobody can change it from the app.
     match /mcpAuditLog/{id} { allow read: if isStaff(); }
