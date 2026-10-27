@@ -11,6 +11,7 @@ import { proposalTotals, selectedLineItems } from "./src/data/cmsData";
 import { syncProposalToZoho, zohoConfigured } from "./zohoInvoice";
 import { mountMcp } from "./mcp/index";
 import { generateV2Briefs, GenerationError, BRIEF_WRITING_RULES } from "./server/briefGeneration";
+import { loadBrandContext, compactAnalytics, brandBlock, HONESTY_RULES, ContextError, sanitizeInsights } from "./server/aiContext";
 
 dotenv.config();
 
@@ -138,96 +139,66 @@ async function generateContentWithFallback(contents: string, config: any) {
   throw lastError || new Error("All models failed to generate content.");
 }
 
-// API endpoint to generate strategic insights from real uploaded data or from brand guide specifications
+// API endpoint to generate strategic insights. "data" mode works from the
+// analytics summary computed in code (the same one the Claude connector uses);
+// "guides" mode gives qualitative ideas from the brand guide with no numbers.
 app.post("/api/generate-insights", requireStaffAuth, async (req, res) => {
   try {
-    const { tagline, voiceTone, brandGuide, analyticsData, count = 5, sourceType = "data" } = req.body;
-
-    let dataPrompt = "";
-
-    if (sourceType === "guides") {
-      const guideData = brandGuide || {};
-      dataPrompt = `You are a world-class CMO and elite digital marketing strategist.
-We need you to generate exactly ${count} highly valuable, custom strategic insights based solely on the brand's core guide coordinates.
-
-Brand Coordinates:
-- Tagline: "${tagline || ""}"
-- Voice & Tone: "${voiceTone || ""}"
-- Brand Description: "${guideData.brandDescription || "A modern scaling business"}"
-- Campaign Objective: "${guideData.campaignObjective || "General Growth"}"
-- Content Pillars: "${guideData.contentPillars || "Not specified yet"}"
-- Target Audience Personas: "${guideData.audiencePersonas || "Not specified yet"}"
-- Competitor Context: "${guideData.competitorContext || "Not specified yet"}"
-- Platform Notes: "${guideData.platformNotes || "Not specified yet"}"
-
-Since this brand does not have historical performance raw data yet, analyze these positioning guidelines, competitor gaps, target personas, and the active campaign objective, and deduce key strategic priorities, creative hooks, or channel plays as actionable insights.
-
-For each insight, return:
-1. "title": A concise, action-oriented title.
-2. "desc": A detailed strategic description explaining the recommended tactic and how to implement it to achieve the active campaign objective.
-3. "standpoint": A strategic explanation why this is critical based on the brand guide (e.g., "Aligned with our Lead Acquisition objective, we need a high-impact lead magnet to capture busy professional personas.").
-4. "metric": A hypothetical target metric or key KPI to track progress (e.g., "Conversion Rate", "Audience Growth").
-5. "change": A realistic growth target or benchmark expectation (e.g., "+20%", "+15%", "+500 leads").
-6. "type": The insight category. It MUST be one of these exact values: "Audience", "Competitor", "Content", "Creative", "Platform", "SEO", "Conversion".`;
-    } else {
-      if (!analyticsData || !Array.isArray(analyticsData) || analyticsData.length === 0) {
-        return res.status(400).send("No analytics data was provided. Please import some data first.");
-      }
-
-      const guidePrompt = brandGuide && (brandGuide.contentPillars || brandGuide.audiencePersonas || brandGuide.competitorContext || brandGuide.platformNotes) ? `
-Brand Guide Guidelines to obey:
-- Content Pillars: ${brandGuide.contentPillars || "Not specified"}
-- Target Audience Personas: ${brandGuide.audiencePersonas || "Not specified"}
-- Competitor Context: ${brandGuide.competitorContext || "Not specified"}
-- Platform Notes: ${brandGuide.platformNotes || "Not specified"}
-
-Please align all suggestions and insights with these guidelines.
-` : "";
-
-      dataPrompt = `You are an elite marketing strategist and data scientist. Analyze the following social media performance analytics data for a brand with the tagline "${tagline || ""}" and voice tone "${voiceTone || ""}".
-${guidePrompt}
-
-Analytics Data (real uploaded data rows):
-${JSON.stringify(analyticsData.slice(0, 50), null, 2)}
-
-Based on this real data, discover exactly ${count} highly valuable, custom strategic insights. Do not generate generic insights. They must directly reflect the metrics, trends, platforms, content formats, and engagement rates found in the provided data.
-
-For each insight, return:
-1. "title": A concise, action-oriented title.
-2. "desc": A detailed strategic description explaining the finding and suggesting a concrete, high-impact action.
-3. "standpoint": A technical standpoint/evidence summary from the data (e.g., "We observed a 7.2% engagement rate on LinkedIn text posts, surpassing other platform-type combinations by 35%.").
-4. "metric": The primary key performance indicator (e.g., "CTR", "Engagement Rate", "Impressions").
-5. "change": The percentage change or performance difference seen in the data (e.g., "+35.2%", "-14.0%", "+150k").
-6. "type": The insight category. It MUST be one of these exact values: "Audience", "Competitor", "Content", "Creative", "Platform", "SEO", "Conversion".`;
+    const { brandId, rows, count = 5, sourceType = "data" } = req.body || {};
+    const n = Math.min(Math.max(Number(count) || 5, 1), 10);
+    const fromData = sourceType !== "guides";
+    const { brand, summary } = await loadBrandContext(adminDb, brandId, fromData ? rows : undefined);
+    if (fromData && !summary) {
+      return res.status(400).json({ error: "No analytics have been imported for this brand yet." });
     }
 
-    const response = await generateContentWithFallback(dataPrompt, {
+    const prompt = `You are a senior marketing strategist reviewing a brand's social media performance.
+
+${brandBlock(brand)}
+
+${fromData ? `ANALYTICS SUMMARY (computed from imported data; the only numbers you may cite)
+${compactAnalytics(summary)}` : "There is no analytics data for this request. Work only from the brand context."}
+${HONESTY_RULES}
+
+Write up to ${n} strategic insights. Return fewer if the ${fromData ? "data" : "brand context"} only supports fewer;
+never pad the list. Each insight:
+- "title": short and action-oriented.
+- "desc": the finding and one concrete action.
+- "standpoint": ${fromData
+      ? `"analytics" when the finding is backed by numbers in the summary; otherwise "pattern", "observation", "lesson" or "opportunity".`
+      : `"opportunity" or "observation" (never "analytics": there is no data).`}
+- "metric": the KPI it concerns (e.g. "Engagement rate").
+- "change": ${fromData
+      ? `the difference actually shown in the summary (e.g. "+4.0 pts vs previous period", "9.6% vs 5.1%"), or "insufficient data". Never a target or forecast.`
+      : `exactly "insufficient data".`}
+- "type": "positive", "warning" or "neutral".`;
+
+    const response = await generateContentWithFallback(prompt, {
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.ARRAY,
         items: {
           type: Type.OBJECT,
           properties: {
-            title: { type: Type.STRING, description: "Action-oriented title of the insight." },
-            desc: { type: Type.STRING, description: "Detailed strategy description explaining the finding and action." },
-            standpoint: { type: Type.STRING, description: "The technical evidence summary or supporting observation from the data." },
-            metric: { type: Type.STRING, description: "Primary KPI name e.g. 'Engagement Rate', 'Impressions', 'CTR'." },
-            change: { type: Type.STRING, description: "Casing/numeric change indicator e.g. '+24.5%' or '+150k' based on the metrics." },
-            type: { 
-              type: Type.STRING, 
-              description: "Must be one of: 'Audience', 'Competitor', 'Content', 'Creative', 'Platform', 'SEO', 'Conversion'." 
-            }
+            title: { type: Type.STRING },
+            desc: { type: Type.STRING },
+            standpoint: { type: Type.STRING, enum: ["analytics", "observation", "opportunity", "pattern", "lesson"] },
+            metric: { type: Type.STRING },
+            change: { type: Type.STRING },
+            type: { type: Type.STRING, enum: ["positive", "warning", "neutral"] },
           },
-          required: ["title", "desc", "standpoint", "metric", "change", "type"]
-        }
-      }
+          required: ["title", "desc", "standpoint", "metric", "change", "type"],
+        },
+      },
     });
 
-    const text = response.text || "[]";
-    res.json(JSON.parse(text));
+    const raw = JSON.parse(response.text || "[]");
+    const insights = sanitizeInsights(raw, fromData, n);
+    res.json(insights);
   } catch (error: any) {
     console.error("Gemini Generation Error:", error);
-    res.status(500).send(error.message || "Failed to generate insights.");
+    if (error instanceof ContextError) return res.status(400).json({ error: error.message });
+    res.status(500).json({ error: "Failed to generate insights." });
   }
 });
 
@@ -250,7 +221,9 @@ Please construct your content directions to directly enforce and align with thes
 ${guidePrompt}
 ${JSON.stringify(approvedInsights, null, 2)}
 
-Synthesize exactly ${count} brand positioning content pillars/directions that translate these insights into actionable content themes.
+Synthesize up to ${count} brand positioning content pillars/directions that translate these insights into actionable content themes.
+Return fewer if the insights only support fewer. Build only on the insights and guidelines above.
+${HONESTY_RULES}
 
 For each brand direction, provide:
 1. "pillar": A bold, inspiring name for this content theme (e.g. "Authority-Led Case Studies").
@@ -312,53 +285,45 @@ app.post("/api/generate-briefs", requireStaffAuth, async (req, res) => {
   }
 });
 
-// API endpoint to suggest strategic brand guide details
+// API endpoint to suggest brand guide fields. Uses the brand record (with the
+// description/objective currently being edited) and the computed analytics.
 app.post("/api/suggest-brand-guide", requireStaffAuth, async (req, res) => {
   try {
-    const { 
-      brandName, 
-      industry, 
-      tagline, 
-      voiceTone, 
-      brandDescription, 
-      campaignObjective, 
-      analyticsData
-    } = req.body;
+    const { brandId, brandDescription, campaignObjective } = req.body || {};
+    const { brand, summary } = await loadBrandContext(adminDb, brandId);
+    const working = {
+      ...brand,
+      ...(typeof brandDescription === "string" ? { brandDescription } : {}),
+      ...(typeof campaignObjective === "string" ? { campaignObjective } : {}),
+    };
 
-    const dataPrompt = `You are a world-class Chief Marketing Officer (CMO) and elite digital marketing strategist.
-    
-We need you to suggest strategic brand positioning and guidelines for the following brand:
-- Brand Name: ${brandName || "Active Brand"}
-- Industry: ${industry || "SaaS"}
-- Tagline: ${tagline || ""}
-- Voice & Tone: ${voiceTone || ""}
-- Brand Description: ${brandDescription || "Not provided yet"}
-- Active Campaign Objective: ${campaignObjective || "General Brand Growth"}
+    const prompt = `You are a senior marketing strategist helping fill in a brand guide.
 
-${analyticsData && Array.isArray(analyticsData) && analyticsData.length > 0 ? `
-Here is real performance analytics data from our recent postings (use this to identify top performing platforms, content topics, and formats, and align the suggestions with these proven insights):
-${JSON.stringify(analyticsData.slice(0, 50), null, 2)}
-` : "No historical performance data is uploaded yet. Rely on digital marketing best practices, competitor intelligence, and campaign objective strategies."}
+${brandBlock(working)}
 
-Using your vast marketing expertise, the provided brand coordinates, campaign objective, and raw performance metrics (if any), generate high-impact strategic content to fill in the brand guidelines.
+ANALYTICS SUMMARY (computed from imported data; the only numbers you may cite)
+${compactAnalytics(summary)}
+${HONESTY_RULES}
 
-Please construct:
-1. Content Pillars (The core content pillars that represent what the brand should post about, with specific focus areas geared towards achieving the campaign objective. Make it actionable, detailed, and directly useful for content creation.)
-2. Target Audience Personas (Detailed, rich customer profiles/target personas, including demographics, key pain points, media consumption habits, and why they fit our campaign objective.)
-3. Competitor Context (Strategic analysis of the competitive environment and how our brand can differentiate itself. What are competitors doing? How do we carve out an unfair advantage?)
-4. Platform Notes (Platform-specific tips and content distribution strategies across channels like LinkedIn, YouTube, Instagram, Twitter/X, etc., matching the campaign objective to maximize conversion or engagement.)
+Suggest these four brand guide fields as plain text a strategist can edit:
+1. contentPillars: 3-5 pillars the brand should post about, each with what it covers and why it serves the objective.
+   Where the analytics show what performs, say so with the exact figures; otherwise base them on the brand context.
+2. audiencePersonas: 2-3 personas written as HYPOTHESES to validate (who, needs, objections, where they spend time).
+   Label anything not supported by the brand context as an assumption.
+3. competitorContext: how the brand can differentiate. Do NOT name specific competitors or state facts about them
+   unless they appear in the brand context; instead list what to research ("check how competitors price X").
+4. platformNotes: per-platform guidance. Cite the analytics by platform where they exist; otherwise say
+   "no data yet for <platform>" and give general guidance.`;
 
-Return a single JSON object containing these 4 suggested fields. Maintain a highly professional, authoritative, action-oriented, and strategic tone. Highlight specific digital marketing tactics that would optimize success for the active campaign objective "${campaignObjective}".`;
-
-    const response = await generateContentWithFallback(dataPrompt, {
+    const response = await generateContentWithFallback(prompt, {
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          contentPillars: { type: Type.STRING, description: "Suggested core content pillars aligned with the brand and objective." },
-          audiencePersonas: { type: Type.STRING, description: "Target customer/audience personas and why they matter." },
-          competitorContext: { type: Type.STRING, description: "Analysis of competitor positioning and how we differentiate." },
-          platformNotes: { type: Type.STRING, description: "Platform notes, tips, and distribution channels to prioritize." }
+          contentPillars: { type: Type.STRING },
+          audiencePersonas: { type: Type.STRING },
+          competitorContext: { type: Type.STRING },
+          platformNotes: { type: Type.STRING }
         },
         required: ["contentPillars", "audiencePersonas", "competitorContext", "platformNotes"]
       }
@@ -367,7 +332,8 @@ Return a single JSON object containing these 4 suggested fields. Maintain a high
     res.json(JSON.parse(response.text || "{}"));
   } catch (error: any) {
     console.error("Error generating brand guide suggestions:", error);
-    res.status(500).send(error.message || "Failed to generate suggestions.");
+    if (error instanceof ContextError) return res.status(400).json({ error: error.message });
+    res.status(500).json({ error: "Failed to generate suggestions." });
   }
 });
 
@@ -402,6 +368,8 @@ Each of the 3 items should fall into one of these distinct categories:
 3. "hashtag" - A highly targeted, hand-curated hashtag block or category combination.
 
 Ensure the copy drafts and concepts are extremely specific, of the highest visual/copy standard, aligned perfectly with the brand's voice and tone.
+${HONESTY_RULES}
+If copy needs a fact you don't have (a result, price, date or quote), write a bracketed placeholder like "[confirm figure]".
 
 Return a JSON object with this exact schema:
 {
@@ -456,7 +424,18 @@ Make sure all JSON keys are correct, and return exactly 3 ideas.`;
 // API endpoint for conversational AI Chatbot with Brand and Performance Context
 app.post("/api/chat", requireStaffAuth, async (req, res) => {
   try {
-    const { messages, brandContext, performanceContext } = req.body;
+    const { messages, brandContext, performanceContext, brandId, includeAnalytics } = req.body;
+
+    // Analytics computed in code, so the chat can cite real numbers.
+    let analyticsBlock = "";
+    if (includeAnalytics && typeof brandId === "string") {
+      try {
+        const { summary } = await loadBrandContext(adminDb, brandId);
+        analyticsBlock = `\nANALYTICS SUMMARY (computed from imported data; the only numbers you may cite)\n${compactAnalytics(summary)}\n`;
+      } catch {
+        analyticsBlock = "";
+      }
+    }
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).send("Messages array is required.");
@@ -491,6 +470,9 @@ Active Brand Profile:
 
 Active Strategic Insights & Performance Context:
 ${JSON.stringify(performanceContext || [], null, 2)}
+
+${analyticsBlock}
+${HONESTY_RULES}
 
 You are talking to the workspace manager. You can help them:
 1. Brainstorm creative ideas, content pillars, or slide outlines.
@@ -579,8 +561,8 @@ Your goal is to extract the ENTIRE full article and convert it into rich, beauti
 Instructions:
 1. "title": Extract the exact article title.
 2. "category": Identify the post category or platform (e.g. "Substack Series", "Blogger Archive", "Growth Strategy").
-3. "readTime": Estimate reading time e.g. "5 min read".
-4. "coverImage": Extract the main header/featured image URL if present in the HTML/meta tags, or return an appropriate high quality Unsplash image URL related to the topic if none found.
+3. "readTime": Return an empty string (reading time is calculated from the text).
+4. "coverImage": The main header/featured image URL if it is present in the HTML/meta tags. If there is none, return an empty string. Never make up an image URL.
 5. "authorName": Author name (default to "Osei Kofi" if not specified).
 6. "authorRole": Author role (default to "Lead Strategist, N.O.K Social").
 7. "excerpt": A compelling 1-2 sentence summary hook (150-200 characters).
@@ -617,6 +599,14 @@ Return JSON in this exact structure:
     });
 
     const parsed = JSON.parse(aiResponse.text || "{}");
+    // Reading time from the actual word count (~200 words a minute), not a guess.
+    const words = String(parsed.contentMarkdown || "").split(/\s+/).filter(Boolean).length;
+    parsed.readTime = `${Math.max(1, Math.round(words / 200))} min read`;
+    // Keep only a real http(s) cover URL that came from the source.
+    if (typeof parsed.coverImage !== "string" || !/^https?:\/\//.test(parsed.coverImage)
+        || (scrapedHtml && !scrapedHtml.replace(/&amp;/g, "&").includes(parsed.coverImage.replace(/&amp;/g, "&")))) {
+      parsed.coverImage = "";
+    }
     res.json(parsed);
   } catch (error: any) {
     console.error("Error importing blog post:", error);

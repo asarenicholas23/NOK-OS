@@ -19,3 +19,15 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   }
   return fetch(`${API_BASE_URL}${path}`, { ...options, headers });
 }
+
+// Readable message from a failed API response ({ error } JSON or plain text).
+export async function apiErrorMessage(response: Response, fallback: string): Promise<string> {
+  const text = await response.text().catch(() => "");
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.error === "string") return parsed.error;
+  } catch {
+    // not JSON
+  }
+  return text || fallback;
+}

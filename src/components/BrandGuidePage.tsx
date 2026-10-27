@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useBrand } from "../context/BrandContext";
-import { apiFetch } from "../lib/apiBase";
+import { apiFetch, apiErrorMessage } from "../lib/apiBase";
 import { 
   Palette, Copy, Check, Type, Sparkles, Sliders, Save, FileText, Users, Flame, Globe,
   Megaphone, Shield, Send, Heart, Target, AlertCircle, RefreshCw, ShoppingBag, Award
@@ -193,19 +193,17 @@ export const BrandGuidePage: React.FC = () => {
       const response = await apiFetch("/api/suggest-brand-guide", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // The server reads the saved brand and computes analytics; these two
+        // fields may still be unsaved edits on this page.
         body: JSON.stringify({
-          brandName: activeBrand.name,
-          industry: activeBrand.industry,
-          tagline: activeBrand.tagline,
-          voiceTone: activeBrand.voiceTone,
+          brandId: activeBrand.id,
           brandDescription: brandDescription,
-          campaignObjective: activeObjective.title + " - " + activeObjective.fullDesc,
-          analyticsData: rawAnalytics || []
+          campaignObjective: activeObjective.title + " - " + activeObjective.fullDesc
         })
       });
 
       if (!response.ok) {
-        throw new Error("AI generation endpoint failed");
+        throw new Error(await apiErrorMessage(response, "AI generation endpoint failed"));
       }
 
       const data = await response.json();

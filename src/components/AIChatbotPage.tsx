@@ -201,7 +201,9 @@ How can I help you today? You can:
             content: m.text
           })),
           brandContext,
-          performanceContext
+          performanceContext,
+          brandId: activeBrand?.id,
+          includeAnalytics: injectPerformance
         })
       });
 

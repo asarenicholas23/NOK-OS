@@ -7,8 +7,7 @@ import type { Firestore } from "firebase-admin/firestore";
 import {
   ASSET_TYPES, PLATFORMS, normalizeBriefContent, safeParseBriefContent, type BriefContent,
 } from "../src/lib/briefs";
-import { summarizeAnalytics, type AnalyticsRow } from "../mcp/analytics";
-import { DEMO_BRAND_IDS, isFakeRecord } from "../mcp/fakeData";
+import { loadBrandContext, compactAnalytics, field, ContextError } from "./aiContext";
 
 type Generate = (contents: string, config: any) => Promise<{ text?: string }>;
 
@@ -96,7 +95,6 @@ const RESPONSE_SCHEMA = {
   required: ["title", "pillar", "personas", "platforms", "keyMessage", "rationale", "assets", "productionNotes", "unconfirmed", "successMeasures"],
 };
 
-const field = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : "Not specified");
 
 // The writing rules shared by brief generation and the chatbot.
 export const BRIEF_WRITING_RULES = `
@@ -126,31 +124,6 @@ HONESTY (strict)
 VOICE
 Write in the brand's voice and tone. Speak to the listed personas in their language. Respect the platform notes.
 Platforms must be from: ${PLATFORMS.join(", ")}.`;
-
-function compactAnalytics(summary: ReturnType<typeof summarizeAnalytics> | null) {
-  if (!summary) return "No analytics have been imported for this brand.";
-  return JSON.stringify({
-    scope: summary.scope,
-    totals: summary.totals,
-    byPlatform: summary.byPlatform.slice(0, 6).map(({ key, posts, impressions, engagementRate }) => ({ key, posts, impressions, engagementRate })),
-    byFormat: summary.byFormat.slice(0, 6).map(({ key, posts, impressions, engagementRate }) => ({ key, posts, impressions, engagementRate })),
-    topPosts: summary.topPosts.slice(0, 3),
-    periodChange: summary.periodChange?.change ?? null,
-    dataNotes: summary.dataNotes,
-  });
-}
-
-async function loadContext(db: Firestore, brandId: string) {
-  if (DEMO_BRAND_IDS.has(brandId)) throw new GenerationError("This is a demo brand.");
-  const brandSnap = await db.collection("brands").doc(brandId).get();
-  if (!brandSnap.exists) throw new GenerationError("Brand not found.");
-  const brand = brandSnap.data() as Record<string, any>;
-
-  const rowsSnap = await db.collection("rawAnalytics").where("brandId", "==", brandId).get();
-  const rows = rowsSnap.docs.filter((d) => !isFakeRecord("rawAnalytics", d.id, d.data())).map((d) => ({ ...d.data(), id: d.id }) as AnalyticsRow);
-  const summary = rows.length ? summarizeAnalytics(rows) : null;
-  return { brand, summary };
-}
 
 function buildPrompt(brand: Record<string, any>, analytics: string, direction: DirectionInput | null, n: number, total: number) {
   return `You are a senior content strategist and copywriter producing a production-ready creative brief for "${field(brand.name)}".
@@ -207,7 +180,14 @@ export async function generateV2Briefs(opts: {
   count: number;
 }) {
   const count = Math.min(Math.max(Math.round(opts.count) || 3, 1), 5);
-  const { brand, summary } = await loadContext(opts.db, opts.brandId);
+  let ctx;
+  try {
+    ctx = await loadBrandContext(opts.db, opts.brandId);
+  } catch (e) {
+    if (e instanceof ContextError) throw new GenerationError(e.message);
+    throw e;
+  }
+  const { brand, summary } = ctx;
   const analytics = compactAnalytics(summary);
   const directions = opts.directions.filter(Boolean);
 

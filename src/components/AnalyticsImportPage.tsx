@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useBrand } from "../context/BrandContext";
-import { apiFetch } from "../lib/apiBase";
+import { apiFetch, apiErrorMessage } from "../lib/apiBase";
 import { cleanAndNormalizeData, excelToCSV } from "../utils/dataCleaner";
 import { 
   UploadCloud, 
@@ -74,22 +74,17 @@ export const AnalyticsImportPage: React.FC = () => {
       const response = await apiFetch("/api/generate-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // The file being imported isn't saved yet, so its rows go along; the
+        // server computes the summary from them and reads the brand guide itself.
         body: JSON.stringify({
-          tagline: activeBrand.tagline,
-          voiceTone: activeBrand.voiceTone,
-          brandGuide: {
-            contentPillars: activeBrand.contentPillars || "",
-            audiencePersonas: activeBrand.audiencePersonas || "",
-            competitorContext: activeBrand.competitorContext || "",
-            platformNotes: activeBrand.platformNotes || ""
-          },
-          analyticsData: parsedRows.slice(0, 150)
+          brandId: activeBrand.id,
+          rows: parsedRows,
+          sourceType: "data"
         })
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Failed to generate strategic insights");
+        throw new Error(await apiErrorMessage(response, "Failed to generate strategic insights"));
       }
 
       const list = await response.json();

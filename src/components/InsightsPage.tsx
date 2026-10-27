@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useBrand } from "../context/BrandContext";
-import { apiFetch } from "../lib/apiBase";
+import { apiFetch, apiErrorMessage } from "../lib/apiBase";
 import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
 import { 
   Lightbulb, 
@@ -213,31 +213,20 @@ export const InsightsPage: React.FC = () => {
     }
     setGenerating(true);
     try {
-      const payload = sourceType === "data" ? rawAnalytics : [];
 
       const response = await apiFetch("/api/generate-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // The server reads the brand guide and computes the analytics itself.
         body: JSON.stringify({
-          tagline: activeBrand?.tagline || "Global Standards",
-          voiceTone: activeBrand?.voiceTone || "Professional, Objective",
-          brandGuide: {
-            brandDescription: activeBrand?.brandDescription || "",
-            campaignObjective: activeBrand?.campaignObjective || "awareness",
-            contentPillars: activeBrand?.contentPillars || "",
-            audiencePersonas: activeBrand?.audiencePersonas || "",
-            competitorContext: activeBrand?.competitorContext || "",
-            platformNotes: activeBrand?.platformNotes || ""
-          },
-          analyticsData: sourceType === "data" ? payload.slice(0, 150) : undefined,
+          brandId: activeBrand?.id,
           count: generationCount,
           sourceType
         })
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Failed to generate strategic insights from ${sourceType === "data" ? "data" : "guides"} source.`);
+        throw new Error(await apiErrorMessage(response, "Failed to generate strategic insights."));
       }
 
       const generated = await response.json();
