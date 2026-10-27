@@ -32,6 +32,7 @@ export type { Brand };
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useTheme } from "./ThemeContext";
 import { briefPrimaryPlatform, captionFor, approvalBlockers, type BriefContent, type BriefHeader } from "../lib/briefs";
+import { decisionForStatus, makeReviewEntry, REVIEW_STATUS, type ReviewDecision } from "../lib/review";
 
 export interface AppNotification {
   id: string;
@@ -62,7 +63,10 @@ interface BrandContextType {
   deleteCalendarEvent: (id: string) => Promise<void>;
   addCreativeBrief: (brief: NewCreativeBrief) => Promise<void>;
   createV2Brief: (content: BriefContent, header?: Partial<Omit<BriefHeader, "id" | "brandId">>) => Promise<string>;
-  updateCreativeBrief: (id: string, brief: Partial<CreativeBrief>) => Promise<void>;
+  updateCreativeBrief: (id: string, brief: Partial<CreativeBrief>, reviewNote?: string) => Promise<void>;
+  // Approve / reject (reason required) / needs changes (note required) on an
+  // insight, direction or brief. Records who, when and why.
+  reviewItem: (kind: "insight" | "direction" | "brief", id: string, decision: ReviewDecision, note?: string) => Promise<void>;
   deleteCreativeBrief: (id: string) => Promise<void>;
   bulkApproveBriefs: (ids: string[]) => Promise<void>;
   addBrand: (brand: Omit<Brand, "id">) => Promise<void>;
@@ -82,7 +86,7 @@ interface BrandContextType {
   ideas: CreativeIdea[];
   leads: Lead[];
   addInsight: (insight: Omit<StrategicInsight, "id" | "brandId">) => Promise<void>;
-  updateInsight: (id: string, insight: Partial<StrategicInsight>) => Promise<void>;
+  updateInsight: (id: string, insight: Partial<StrategicInsight>, reviewNote?: string) => Promise<void>;
   deleteInsight: (id: string) => Promise<void>;
   addCreativeIdea: (idea: Omit<CreativeIdea, "id" | "brandId">) => Promise<void>;
   updateCreativeIdea: (id: string, idea: Partial<CreativeIdea>) => Promise<void>;
@@ -92,7 +96,7 @@ interface BrandContextType {
   saveRawAnalyticsRows: (rows: Omit<RawAnalyticsRow, "id" | "brandId">[], datasetType?: "baseline" | "comparison") => Promise<void>;
   clearRawAnalytics: (datasetType?: "baseline" | "comparison" | "all") => Promise<void>;
   addDirection: (direction: Omit<BrandDirection, "id" | "brandId">) => Promise<void>;
-  updateDirection: (id: string, direction: Partial<BrandDirection>) => Promise<void>;
+  updateDirection: (id: string, direction: Partial<BrandDirection>, reviewNote?: string) => Promise<void>;
   deleteDirection: (id: string) => Promise<void>;
   bulkApproveDirections: (ids: string[]) => Promise<void>;
   bulkDeleteDirections: (ids: string[]) => Promise<void>;
@@ -529,7 +533,18 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return ref.id;
   };
 
-  const updateCreativeBrief = async (id: string, briefPatch: Partial<CreativeBrief>) => {
+  // When a status change is a review decision, record it: the entry goes on the
+  // item's feedback history and lastReview. Unchanged status = no entry.
+  const reviewFieldsFor = async (previousStatus: unknown, nextStatus: unknown, note?: string) => {
+    const decision = decisionForStatus(nextStatus);
+    if (!decision || previousStatus === nextStatus) return {};
+    const { arrayUnion } = await import("firebase/firestore");
+    // Older buttons don't ask for a reason; mark it rather than block them.
+    const entry = makeReviewEntry(decision, note || (decision === "approved" ? undefined : "(no reason given)"), "staff", user?.email || undefined);
+    return { feedback: arrayUnion(entry), lastReview: entry };
+  };
+
+  const updateCreativeBrief = async (id: string, briefPatch: Partial<CreativeBrief>, reviewNote?: string) => {
     const { db } = await import("../lib/firebase");
     const { doc, setDoc, collection, addDoc } = await import("firebase/firestore");
     
@@ -560,7 +575,9 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       brandId: existingBrief?.brandId || activeBrandId
     };
     
-    await setDoc(doc(db, "briefs", id), cleanFirestoreData(mergedBriefPayload), { merge: true });
+    const review = await reviewFieldsFor(existingBrief?.status, brief.status, reviewNote ?? (brief as any).revisionNotes);
+    // Review fields go after cleaning: arrayUnion is a Firestore sentinel.
+    await setDoc(doc(db, "briefs", id), { ...cleanFirestoreData(mergedBriefPayload), ...review }, { merge: true });
     
     // If status is changed to Approved, ensure it is available in Posting Queue
     if (brief.status === "Approved") {
@@ -611,7 +628,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const batch = writeBatch(db);
     for (const b of proposedBriefsToApprove) {
-      batch.update(doc(db, "briefs", b.id), { status: "Approved" });
+      batch.update(doc(db, "briefs", b.id), { status: "Approved", ...(await reviewFieldsFor(b.status, "Approved")) });
       
       // Auto-sync into Posting Queue
       const briefTitle = b.title;
@@ -733,11 +750,21 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addNotification("Strategic Insight Logged", `Insight "${insight.title}" has been successfully added.`, "success");
   };
 
-  const updateInsight = async (id: string, insight: Partial<StrategicInsight>) => {
+  const updateInsight = async (id: string, insight: Partial<StrategicInsight>, reviewNote?: string) => {
     const { db } = await import("../lib/firebase");
     const { doc, setDoc } = await import("firebase/firestore");
-    await setDoc(doc(db, "strategicInsights", id), cleanFirestoreData(insight), { merge: true });
+    const review = await reviewFieldsFor(insights.find(i => i.id === id)?.status, insight.status, reviewNote);
+    await setDoc(doc(db, "strategicInsights", id), { ...cleanFirestoreData(insight), ...review }, { merge: true });
     addNotification("Insight Updated", "Strategic insight details were modified.", "info");
+  };
+
+  const reviewItem = async (kind: "insight" | "direction" | "brief", id: string, decision: ReviewDecision, note?: string) => {
+    // Validates that reject / needs changes carry a reason (throws otherwise).
+    makeReviewEntry(decision, note, "staff");
+    const status = REVIEW_STATUS[decision];
+    if (kind === "insight") return updateInsight(id, { status }, note);
+    if (kind === "direction") return updateDirection(id, { status }, note);
+    return updateCreativeBrief(id, { status, ...(decision === "changes_requested" ? { revisionNotes: note } : {}) }, note);
   };
 
   const deleteInsight = async (id: string) => {
@@ -759,10 +786,11 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addNotification("Positioning Direction Logged", `Direction pillar "${direction.pillar}" has been successfully added.`, "success");
   };
 
-  const updateDirection = async (id: string, direction: Partial<BrandDirection>) => {
+  const updateDirection = async (id: string, direction: Partial<BrandDirection>, reviewNote?: string) => {
     const { db } = await import("../lib/firebase");
     const { doc, setDoc } = await import("firebase/firestore");
-    await setDoc(doc(db, "brandDirections", id), cleanFirestoreData(direction), { merge: true });
+    const review = await reviewFieldsFor(directions.find(d => d.id === id)?.status || "Pending", direction.status, reviewNote);
+    await setDoc(doc(db, "brandDirections", id), { ...cleanFirestoreData(direction), ...review }, { merge: true });
     addNotification("Direction Updated", "Brand positioning direction details were modified.", "info");
   };
 
@@ -777,9 +805,12 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { db } = await import("../lib/firebase");
     const { doc, writeBatch } = await import("firebase/firestore");
     const batch = writeBatch(db);
-    ids.forEach(id => {
-      batch.update(doc(db, "brandDirections", id), { status: "Approved" });
-    });
+    for (const id of ids) {
+      batch.update(doc(db, "brandDirections", id), {
+        status: "Approved",
+        ...(await reviewFieldsFor(directions.find(d => d.id === id)?.status || "Pending", "Approved")),
+      });
+    }
     await batch.commit();
     addNotification("Directions Approved", `Successfully approved ${ids.length} positioning directions in bulk.`, "success");
   };
@@ -799,9 +830,12 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { db } = await import("../lib/firebase");
     const { doc, writeBatch } = await import("firebase/firestore");
     const batch = writeBatch(db);
-    ids.forEach(id => {
-      batch.update(doc(db, "strategicInsights", id), { status: "Approved" });
-    });
+    for (const id of ids) {
+      batch.update(doc(db, "strategicInsights", id), {
+        status: "Approved",
+        ...(await reviewFieldsFor(insights.find(i => i.id === id)?.status, "Approved")),
+      });
+    }
     await batch.commit();
     addNotification("Insights Approved", `Successfully approved ${ids.length} insights in bulk.`, "success");
   };
@@ -934,6 +968,7 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addCreativeBrief,
       createV2Brief,
       updateCreativeBrief,
+      reviewItem,
       deleteCreativeBrief,
       bulkApproveBriefs,
       addBrand,

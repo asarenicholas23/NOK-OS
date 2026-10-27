@@ -231,7 +231,7 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
     description: "Strategic insights for a brand, newest first. Filter by status or by who created them.",
     inputSchema: {
       brandId,
-      status: z.enum(["Draft", "Pending", "Approved", "Rejected"]).optional(),
+      status: z.enum(["Draft", "Pending", "Approved", "Changes Requested", "Rejected"]).optional(),
       createdBy: z.enum(["claude", "app"]).optional().describe("'claude' = drafted through this connector; 'app' = everything else."),
       limit: limit(20, 100),
     },
@@ -246,7 +246,7 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
       .map((d) => ({
         id: d.id, status: d.status ?? null, title: d.title, desc: clip(d.desc, 600), standpoint: d.standpoint ?? null,
         metric: d.metric ?? null, change: d.change ?? null, type: d.type ?? null,
-        createdAt: d.createdAt ?? null, createdBy: d.createdBy ?? "app",
+        createdAt: d.createdAt ?? null, createdBy: d.createdBy ?? "app", lastReview: d.lastReview ?? null,
       }));
     return { body: withHidden({ items }, hidden), itemCount: items.length };
   });
@@ -256,7 +256,7 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
     description: "Content directions (pillars with strategy, focus and checklist) for a brand, newest first.",
     inputSchema: {
       brandId,
-      status: z.enum(["Draft", "Pending", "Approved", "Rejected"]).optional(),
+      status: z.enum(["Draft", "Pending", "Approved", "Changes Requested", "Rejected"]).optional(),
       createdBy: z.enum(["claude", "app"]).optional(),
       limit: limit(20, 100),
     },
@@ -271,6 +271,7 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
       .map((d) => ({
         id: d.id, status: d.status || "Pending", pillar: d.pillar, strategy: clip(d.strategy, 600), focus: d.focus ?? null,
         checklist: Array.isArray(d.checklist) ? d.checklist : [], createdAt: d.createdAt ?? null, createdBy: d.createdBy ?? "app",
+        lastReview: d.lastReview ?? null,
       }));
     return { body: withHidden({ items }, hidden), itemCount: items.length };
   });
@@ -283,7 +284,7 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
       "unconfirmedCount > 0 means the brief can't be approved yet. Use get_brief for one brief's full content.",
     inputSchema: {
       brandId,
-      status: z.enum(["Draft", "Proposed", "Approved", "Changes Requested", "In Progress"]).optional(),
+      status: z.enum(["Draft", "Proposed", "Approved", "Changes Requested", "In Progress", "Rejected"]).optional(),
       createdBy: z.enum(["claude", "app"]).optional(),
       from: isoDate.optional(),
       to: isoDate.optional(),
@@ -307,6 +308,7 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
           platform: briefPrimaryPlatform(b) ?? null, format: briefFormatLabel(b) ?? null, pillar: briefPillar(b) ?? null,
           hook: clip(briefHook(b), 160), unconfirmedCount: approvalBlockers(b).length,
           progressTracking: d.progressTracking ?? null, revisionNotes: clip(d.revisionNotes, 300), createdBy: d.createdBy ?? "app",
+          lastReview: d.lastReview ?? null,
         };
       });
     return { body: withHidden({ items }, hidden), itemCount: items.length };
@@ -371,26 +373,52 @@ export function registerReadTools(server: McpServer, db: Firestore, ctx: CallCon
   addTool(server, db, ctx, "list_recent_feedback", {
     title: "List review feedback",
     description:
-      "Review decisions on this brand's insights, directions and briefs: approvals, rejections and change requests " +
-      "with any notes. NOK OS does not yet record when a decision was made or why an insight/direction was rejected, " +
-      "so results are not time-ordered and only brief change requests carry a reason.",
-    inputSchema: { brandId, limit: limit(30, 100) },
+      "Review decisions on this brand's insights, directions and briefs, newest first: approved, rejected (with reason) " +
+      "and changes requested (with what to change), by staff or the client, with dates. Use it to learn what the brand " +
+      "accepts and rejects before drafting. Items reviewed before feedback was recorded appear at the end without dates.",
+    inputSchema: {
+      brandId,
+      days: z.number().int().min(1).max(365).default(30).describe("Only decisions from the last N days."),
+      decision: z.enum(["approved", "rejected", "changes_requested"]).optional(),
+      limit: limit(30, 100),
+    },
     readOnly: true,
-  }, async ({ brandId, limit }) => {
+  }, async ({ brandId, days, decision, limit }) => {
     await loadBrand(db, brandId);
     const [insights, directions, briefs] = await Promise.all([
       brandDocs(db, "strategicInsights", brandId),
       brandDocs(db, "brandDirections", brandId),
       brandDocs(db, "briefs", brandId),
     ]);
-    const decided = (s: unknown) => s === "Approved" || s === "Rejected" || s === "Changes Requested";
-    const items = [
-      ...briefs.docs.filter((d) => decided(d.status)).map((d) => ({ kind: "brief", id: d.id, title: d.title, decision: d.status, reason: d.revisionNotes ?? null, approver: d.approver ?? null, createdBy: d.createdBy ?? "app" })),
-      ...insights.docs.filter((d) => decided(d.status)).map((d) => ({ kind: "insight", id: d.id, title: d.title, decision: d.status, reason: null, createdBy: d.createdBy ?? "app" })),
-      ...directions.docs.filter((d) => decided(d.status)).map((d) => ({ kind: "direction", id: d.id, title: d.pillar, decision: d.status, reason: null, createdBy: d.createdBy ?? "app" })),
-    ].slice(0, limit);
+    const since = new Date(Date.now() - days * 86_400_000).toISOString();
+    const sources: { kind: string; docs: Doc[]; label: (d: Doc) => string }[] = [
+      { kind: "insight", docs: insights.docs, label: (d) => d.title },
+      { kind: "direction", docs: directions.docs, label: (d) => d.pillar },
+      { kind: "brief", docs: briefs.docs, label: (d) => d.title },
+    ];
+    const dated: any[] = [];
+    const undated: any[] = [];
+    for (const { kind, docs, label } of sources) {
+      for (const d of docs) {
+        const history = Array.isArray(d.feedback) ? d.feedback : [];
+        for (const e of history) {
+          if (!e?.at || e.at < since || (decision && e.decision !== decision)) continue;
+          dated.push({
+            kind, id: d.id, title: label(d), decision: e.decision, note: e.note ?? null, by: e.role === "client" ? "client" : e.by ?? "staff",
+            at: e.at, currentStatus: d.status ?? null, createdBy: d.createdBy ?? "app",
+          });
+        }
+        // Older decisions recorded only as a status (before review history existed).
+        const legacy = d.status === "Approved" ? "approved" : d.status === "Rejected" ? "rejected" : d.status === "Changes Requested" ? "changes_requested" : null;
+        if (!history.length && legacy && (!decision || decision === legacy)) {
+          undated.push({ kind, id: d.id, title: label(d), decision: legacy, note: kind === "brief" ? clip(d.revisionNotes, 300) : null, by: null, at: null, currentStatus: d.status, createdBy: d.createdBy ?? "app" });
+        }
+      }
+    }
+    dated.sort((x, y) => String(y.at).localeCompare(String(x.at)));
+    const items = [...dated, ...undated].slice(0, limit);
     return {
-      body: withHidden({ items, note: "Decision dates and insight/direction reasons are not stored yet." }, insights.hidden + directions.hidden + briefs.hidden),
+      body: withHidden({ since, items }, insights.hidden + directions.hidden + briefs.hidden),
       itemCount: items.length,
     };
   });

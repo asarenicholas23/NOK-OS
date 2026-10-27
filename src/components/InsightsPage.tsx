@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useBrand } from "../context/BrandContext";
 import { apiFetch, apiErrorMessage } from "../lib/apiBase";
 import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
+import { ReviewActions, LastReviewNote } from "./ReviewActions";
 import { 
   Lightbulb, 
   Zap, 
@@ -35,6 +36,7 @@ export const InsightsPage: React.FC = () => {
     insights, 
     addInsight, 
     updateInsight, 
+    reviewItem,
     deleteInsight, 
     bulkApproveInsights, 
     bulkDeleteInsights,
@@ -46,7 +48,7 @@ export const InsightsPage: React.FC = () => {
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   // Filter states
-  const [statusFilter, setStatusFilter] = useState<"All" | "Draft" | "Pending" | "Approved" | "Rejected">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Draft" | "Pending" | "Approved" | "Changes Requested" | "Rejected">("All");
   const [claudeOnly, setClaudeOnly] = useState(false);
   const [standpointFilter, setStandpointFilter] = useState<string>("All");
   
@@ -474,10 +476,10 @@ export const InsightsPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3">
           {/* Status buttons */}
           <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-border" : "bg-slate-100 border-slate-200"}`}>
-            {(["All", "Draft", "Pending", "Approved", "Rejected"] as const).map(status => (
+            {(["All", "Draft", "Pending", "Approved", "Changes Requested", "Rejected"] as const).map(status => (
               <button
                 key={status}
-                id={`filter-status-${status.toLowerCase()}`}
+                id={`filter-status-${status.toLowerCase().replace(/\s+/g, "-")}`}
                 onClick={() => setStatusFilter(status)}
                 className={`px-3 py-1.5 text-[10px] font-mono font-bold rounded-md transition-colors cursor-pointer ${
                   statusFilter === status
@@ -782,31 +784,15 @@ export const InsightsPage: React.FC = () => {
                       </span>
                     </div>
 
+                    <LastReviewNote review={item.lastReview} />
+
                     {/* Active control action buttons */}
                     <div className="flex items-center justify-between gap-2 pt-1">
-                      <div className="flex space-x-1">
-                        {!isApproved && (
-                          <button
-                            id={`approve-btn-${item.id}`}
-                            onClick={() => handleApprove(item.id)}
-                            className="p-1.5 hover:bg-emerald-600/15 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 rounded transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Approve</span>
-                          </button>
-                        )}
-
-                        {!isRejected && (
-                          <button
-                            id={`reject-btn-${item.id}`}
-                            onClick={() => handleReject(item.id)}
-                            className="p-1.5 hover:bg-rose-600/15 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            <span>Reject</span>
-                          </button>
-                        )}
-                      </div>
+                      <ReviewActions
+                        idPrefix={`insight-${item.id}`}
+                        status={item.status}
+                        onReview={(decision, note) => reviewItem("insight", item.id, decision, note)}
+                      />
 
                       <div className="flex items-center space-x-1">
                         <button

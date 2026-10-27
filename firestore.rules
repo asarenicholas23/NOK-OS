@@ -39,13 +39,27 @@ service cloud.firestore {
         || request.resource.data.get('unconfirmed', []).size() == 0;
     }
 
+    // Clients may only approve or request changes on a brief that is in front of
+    // them (Proposed / Changes Requested), and may only add one review entry,
+    // never edit or remove history.
+    function clientReviewOk() {
+      let before = resource.data.get('feedback', []);
+      let after = request.resource.data.get('feedback', []);
+      return resource.data.status in ['Proposed', 'Changes Requested', 'Approved']
+        && request.resource.data.status in ['Approved', 'Changes Requested']
+        && (after == before
+            || (after.size() == before.size() + 1
+                && request.resource.data.lastReview.role == 'client'));
+    }
+
     match /briefs/{briefId} {
       allow read: if isStaff() || isClientForBrand(resource.data.brandId);
       // Clients may only flip approval state / leave revision notes on a brief
       // that already belongs to their brand — never its content, and never create/delete.
       allow update: if approvalAllowed() && (isStaff()
         || (isClientForBrand(resource.data.brandId)
-            && onlyKeysChanged(['status', 'approver', 'revisionNotes'])));
+            && onlyKeysChanged(['status', 'approver', 'revisionNotes', 'feedback', 'lastReview'])
+            && clientReviewOk()));
       allow create: if isStaff() && approvalAllowed();
       allow delete: if isStaff();
     }

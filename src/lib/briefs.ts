@@ -8,12 +8,14 @@
 //   production-ready content (slide copy, scene scripts, captions).
 
 import { z } from "zod";
+import type { Reviewable } from "./review";
 
 // ---------- shared header (both versions) ----------
 
-export type BriefStatus = "Draft" | "Proposed" | "Approved" | "Changes Requested" | "In Progress";
+// "Rejected" is staff-only: rejected briefs are never shown to clients.
+export type BriefStatus = "Draft" | "Proposed" | "Approved" | "Changes Requested" | "In Progress" | "Rejected";
 
-export interface BriefHeader {
+export interface BriefHeader extends Reviewable {
   id: string;
   brandId: string;
   title: string;

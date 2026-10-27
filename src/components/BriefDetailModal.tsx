@@ -24,6 +24,7 @@ import { ClaudeDraftBadge, isClaudeDraft } from "./ClaudeDraftBadge";
 import { toLegacyView, isV2, approvalBlockers } from "../lib/briefs";
 import { BriefV2View } from "./briefs/BriefV2View";
 import { BriefV2Editor } from "./briefs/BriefV2Editor";
+import { LastReviewNote } from "./ReviewActions";
 import { downloadSingleBriefPDF } from "../utils/pdfGenerator";
 
 interface BriefDetailModalProps {
@@ -38,6 +39,8 @@ interface BriefDetailModalProps {
   audience?: "staff" | "client";
   // Staff only: save edits to the brief (v2 editor, "Mark confirmed").
   onUpdate?: (patch: Partial<CreativeBrief>) => Promise<void>;
+  // Staff only: reject with a reason.
+  onReject?: (brief: CreativeBrief, reason: string) => Promise<void>;
 }
 
 export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
@@ -49,7 +52,8 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
   onApprove,
   onRequestChanges,
   audience = "staff",
-  onUpdate
+  onUpdate,
+  onReject
 }) => {
   const [activeTab, setActiveTab] = useState<"owner" | "designer" | "slides">("owner");
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -60,6 +64,9 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
   const v2 = isV2(brief) ? brief : null;
   const blockers = approvalBlockers(brief);
   const [editing, setEditing] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectError, setRejectError] = useState("");
   const canEdit = !!v2 && audience === "staff" && !!onUpdate && brief.status !== "Approved";
 
   const handleCopy = (field: string, text?: string) => {
@@ -380,6 +387,45 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
           )}
         </div>
 
+        {audience === "staff" && brief.lastReview && (
+          <div className={`px-6 py-2 border-t ${isDark ? "border-slate-800" : "border-slate-100"}`}>
+            <LastReviewNote review={brief.lastReview} />
+          </div>
+        )}
+
+        {audience === "staff" && rejecting && onReject && (
+          <div className={`px-6 py-3 border-t space-y-2 ${isDark ? "border-slate-800" : "border-slate-100"}`}>
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400">
+              Reason for rejecting
+              <textarea
+                autoFocus
+                rows={2}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="mt-1 w-full px-2 py-1.5 rounded border text-xs bg-transparent border-slate-500/40 normal-case tracking-normal focus:outline-none focus:ring-1 focus:ring-violet-500"
+              />
+            </label>
+            {rejectError && <p className="text-[11px] text-rose-500" role="alert">{rejectError}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!rejectReason.trim()) { setRejectError("Add a reason for rejecting."); return; }
+                  await onReject(brief, rejectReason.trim());
+                  setRejecting(false);
+                  onClose();
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-rose-600 hover:bg-rose-500 text-white cursor-pointer"
+              >
+                Confirm reject
+              </button>
+              <button type="button" onClick={() => { setRejecting(false); setRejectError(""); }} className="px-3 py-1.5 rounded-lg text-xs font-mono border border-slate-500/40 text-slate-400 cursor-pointer">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Modal Footer with Actions */}
         <div className={`px-6 py-4 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 ${
           isDark ? "bg-[#121316] border-slate-800" : "bg-slate-50 border-slate-100"
@@ -406,6 +452,17 @@ export const BriefDetailModal: React.FC<BriefDetailModalProps> = ({
           </div>
 
           <div className="flex items-center space-x-3">
+            {audience === "staff" && onReject && brief.status !== "Rejected" && !rejecting && (
+              <button
+                id="btn-modal-reject-brief"
+                type="button"
+                onClick={() => setRejecting(true)}
+                className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-mono font-bold bg-rose-600/15 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 transition-all cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Reject</span>
+              </button>
+            )}
             <button
               id="btn-modal-request-changes"
               type="button"

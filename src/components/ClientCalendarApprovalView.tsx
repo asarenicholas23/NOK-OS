@@ -36,6 +36,7 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  arrayUnion,
   getDoc,
   getDocs,
   writeBatch
@@ -45,6 +46,13 @@ import { getWeekAnchorMonday, addDays } from "../utils/weekSchedule";
 import { RequestChangesModal } from "./RequestChangesModal";
 import { BriefDetailModal } from "./BriefDetailModal";
 import { approvalBlockers } from "../lib/briefs";
+import { makeReviewEntry, type ReviewDecision } from "../lib/review";
+
+// Client decisions are recorded on the brief's review history (role "client").
+const clientReview = (decision: ReviewDecision, note?: string) => {
+  const entry = makeReviewEntry(decision, note, "client", "Client (Verified Portal)");
+  return { feedback: arrayUnion(entry), lastReview: entry };
+};
 import { downloadCalendarPDF } from "../utils/pdfGenerator";
 
 export const ClientCalendarApprovalView: React.FC = () => {
@@ -218,7 +226,7 @@ export const ClientCalendarApprovalView: React.FC = () => {
         // Filter for this share link's target period
         const filtered = list.filter((brief) => {
           // Drafts (including Claude's) are internal until staff move them on.
-          if (brief.status === "Draft") return false;
+          if (brief.status === "Draft" || brief.status === "Rejected") return false;
           // If specific week-scoped link
           if (shareLink.periodType === "week" && shareLink.weekNumber !== undefined) {
             return (brief.weekNumber || 1) === shareLink.weekNumber;
@@ -246,7 +254,8 @@ export const ClientCalendarApprovalView: React.FC = () => {
       const briefRef = doc(db, "briefs", brief.id);
       await updateDoc(briefRef, {
         status: "Approved",
-        approver: "Client (Verified Portal)"
+        approver: "Client (Verified Portal)",
+        ...clientReview("approved")
       });
 
       if (shareLink) {
@@ -273,7 +282,8 @@ export const ClientCalendarApprovalView: React.FC = () => {
       const briefRef = doc(db, "briefs", briefId);
       await updateDoc(briefRef, {
         status: "Changes Requested",
-        revisionNotes: notes
+        revisionNotes: notes,
+        ...clientReview("changes_requested", notes)
       });
 
       if (shareLink && selectedBriefForChanges) {
@@ -311,7 +321,8 @@ export const ClientCalendarApprovalView: React.FC = () => {
         const ref = doc(db, "briefs", b.id);
         batch.update(ref, {
           status: "Approved",
-          approver: "Client (Verified Portal)"
+          approver: "Client (Verified Portal)",
+          ...clientReview("approved")
         });
       });
 
@@ -357,7 +368,8 @@ export const ClientCalendarApprovalView: React.FC = () => {
         const ref = doc(db, "briefs", b.id);
         batch.update(ref, {
           status: "Approved",
-          approver: "Client (Verified Portal)"
+          approver: "Client (Verified Portal)",
+          ...clientReview("approved")
         });
       });
 

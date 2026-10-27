@@ -86,6 +86,10 @@ type Kind = keyof typeof KINDS;
 
 // ---------- helpers ----------
 
+// Claude may edit its own items while they are drafts, or after staff sent
+// them back with "needs changes" (they then return to Draft for re-review).
+const REVISABLE = ["Draft", "Changes Requested"];
+
 const brandId = z.string().min(1).max(128).describe("Brand id from list_brands.");
 const requestId = z.string().regex(/^[A-Za-z0-9_-]{8,100}$/, "8-100 letters, digits, - or _")
   .describe("A unique id you choose for this batch (e.g. a UUID). Reuse the same id when retrying so no duplicates are created.");
@@ -189,9 +193,10 @@ export function registerWriteTools(server: McpServer, db: Firestore, ctx: CallCo
     ...write,
     title: "Edit a Claude draft",
     description:
-      "Change fields on an insight, direction or brief that Claude drafted and that is still in Draft status. " +
-      "Only the fields you pass change. Status, brand and ownership can't be changed; items staff created or have " +
-      "already reviewed can't be edited.",
+      "Change fields on an insight, direction or brief that Claude drafted, while it is in Draft or was sent back with " +
+      "'needs changes' (read the note with list_recent_feedback first; the revised item returns to Draft for re-review). " +
+      "Only the fields you pass change. Status, brand and ownership can't be set; staff-created, approved or rejected " +
+      "items can't be edited.",
     inputSchema: {
       brandId,
       kind: z.enum(["insight", "direction", "brief"]),
@@ -212,8 +217,9 @@ export function registerWriteTools(server: McpServer, db: Firestore, ctx: CallCo
       const data = snap.data();
       if (!snap.exists || !data || data.brandId !== brandId) throw new ToolError(`No ${kind} "${id}" for this brand.`);
       if (data.createdBy !== "claude") throw new ToolError(`This ${kind} was not drafted by Claude, so it can't be edited here.`);
-      if (data.status !== "Draft") throw new ToolError(`This ${kind} is "${data.status}", not Draft. Only unreviewed drafts can be edited.`);
-      tx.update(ref, { ...changes, updatedAt: new Date().toISOString() });
+      if (!REVISABLE.includes(data.status)) throw new ToolError(`This ${kind} is "${data.status}". Only drafts, or Claude items sent back with "needs changes", can be edited.`);
+      // A revised "needs changes" item goes back to Draft for staff to re-review.
+      tx.update(ref, { ...changes, ...(data.status === "Changes Requested" ? { status: "Draft" } : {}), updatedAt: new Date().toISOString() });
     });
     return { body: { updated: id, fields: Object.keys(changes) }, itemCount: 1 };
   });
@@ -231,7 +237,7 @@ async function updateBriefDraft(db: Firestore, brandId: string, id: string, patc
     const data = snap.data();
     if (!snap.exists || !data || data.brandId !== brandId) throw new ToolError(`No brief "${id}" for this brand.`);
     if (data.createdBy !== "claude") throw new ToolError("This brief was not drafted by Claude, so it can't be edited here.");
-    if (data.status !== "Draft") throw new ToolError(`This brief is "${data.status}", not Draft. Only unreviewed drafts can be edited.`);
+    if (!REVISABLE.includes(data.status)) throw new ToolError(`This brief is "${data.status}". Only drafts, or Claude briefs sent back with "needs changes", can be edited.`);
 
     let changes: Record<string, unknown>;
     if (data.schemaVersion === 2) {
@@ -249,7 +255,7 @@ async function updateBriefDraft(db: Firestore, brandId: string, id: string, patc
     }
     if (Object.keys(changes).length === 0) throw new ToolError("patch has no fields to change.");
     fields = Object.keys(changes);
-    tx.update(ref, { ...changes, updatedAt: new Date().toISOString() });
+    tx.update(ref, { ...changes, ...(data.status === "Changes Requested" ? { status: "Draft" } : {}), updatedAt: new Date().toISOString() });
   });
   return { body: { updated: id, fields }, itemCount: 1 };
 }

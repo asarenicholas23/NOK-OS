@@ -54,6 +54,7 @@ export const CalendarPage: React.FC = () => {
     directions,
     addCreativeBrief,
     updateCreativeBrief,
+    reviewItem,
     bulkApproveBriefs,
     theme,
     accentColor,
@@ -579,6 +580,7 @@ export const CalendarPage: React.FC = () => {
           activeColor={activeColor}
           onClose={() => setSelectedBriefForDetail(null)}
           onUpdate={(patch) => updateCreativeBrief(selectedBriefForDetail.id, patch)}
+          onReject={(brief, reason) => reviewItem("brief", brief.id, "rejected", reason)}
           onApprove={async (brief) => {
             if (approvalBlockers(brief).length > 0) return;
             await updateCreativeBrief(brief.id, { status: "Approved" });

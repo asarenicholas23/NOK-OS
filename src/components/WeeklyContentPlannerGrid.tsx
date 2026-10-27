@@ -527,6 +527,12 @@ const StatusPill: React.FC<{ status: CreativeBrief["status"]; compact?: boolean 
           <AlertCircle className={compact ? "w-2 h-2 mr-0.5" : "w-3 h-3 mr-1"} />Changes
         </span>
       );
+    case "Rejected":
+      return (
+        <span className={`${base} ${size} bg-rose-500/15 text-rose-400 border-rose-500/30`}>
+          <AlertCircle className={compact ? "w-2 h-2 mr-0.5" : "w-3 h-3 mr-1"} />Rejected
+        </span>
+      );
     case "Draft":
       return (
         <span className={`${base} ${size} bg-slate-500/15 text-slate-400 border-slate-500/30`}>

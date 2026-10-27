@@ -176,6 +176,7 @@ export interface CalendarEvent {
 // Creative brief types live in ./briefs (shared with the API server and the
 // Claude connector). Re-exported here so existing imports keep working.
 export type { CreativeBrief, CreativeBriefV1, CreativeBriefV2, NewCreativeBrief } from "./briefs";
+import type { Reviewable } from "./review";
 import type { CreativeBrief } from "./briefs";
 
 export interface AnalyticsMetric {
@@ -189,14 +190,14 @@ export interface AnalyticsMetric {
 }
 
 
-export interface StrategicInsight {
+export interface StrategicInsight extends Reviewable {
   id: string;
   brandId: string;
   title: string;
   desc: string;
   standpoint: "analytics" | "observation" | "opportunity" | "pattern" | "lesson";
   // "Draft" = written by Claude, not yet reviewed. "Pending" = awaiting review.
-  status: "Draft" | "Pending" | "Approved" | "Rejected";
+  status: "Draft" | "Pending" | "Approved" | "Rejected" | "Changes Requested";
   metric: string;
   change: string;
   type: "positive" | "warning" | "neutral";
@@ -207,14 +208,14 @@ export interface StrategicInsight {
   requestId?: string;
 }
 
-export interface BrandDirection {
+export interface BrandDirection extends Reviewable {
   id: string;
   brandId: string;
   pillar: string;
   strategy: string;
   focus: string;
   checklist: string[];
-  status?: "Draft" | "Pending" | "Approved" | "Rejected";
+  status?: "Draft" | "Pending" | "Approved" | "Rejected" | "Changes Requested";
   createdAt?: string;
   // Set to "claude" on drafts written through the Claude connector (mcp/).
   createdBy?: "claude";

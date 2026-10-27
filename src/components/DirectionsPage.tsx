@@ -3,6 +3,7 @@ import { useBrand } from "../context/BrandContext";
 import { apiFetch } from "../lib/apiBase";
 import { ClaudeDraftBadge, ClaudeDraftFilter, isClaudeDraft } from "./ClaudeDraftBadge";
 import { generateBriefs } from "../lib/generateBriefs";
+import { ReviewActions, LastReviewNote } from "./ReviewActions";
 import { 
   Waypoints, 
   Compass, 
@@ -40,6 +41,7 @@ export const DirectionsPage: React.FC = () => {
     bulkDeleteDirections,
     addCreativeBrief, 
     createV2Brief,
+    reviewItem,
     addNotification 
   } = useBrand();
 
@@ -47,7 +49,7 @@ export const DirectionsPage: React.FC = () => {
   const activeColor = activeBrand?.primaryColor || accentColor || "violet";
 
   // Filter & selection states
-  const [statusFilter, setStatusFilter] = useState<"All" | "Draft" | "Pending" | "Approved" | "Rejected">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Draft" | "Pending" | "Approved" | "Changes Requested" | "Rejected">("All");
   const [claudeOnly, setClaudeOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -448,14 +450,14 @@ export const DirectionsPage: React.FC = () => {
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <div className={`flex rounded-lg p-1 border ${isDark ? "bg-slate-950 border-border" : "bg-slate-100 border-slate-200"}`}>
-            {(["All", "Draft", "Pending", "Approved", "Rejected"] as const).map(status => {
+            {(["All", "Draft", "Pending", "Approved", "Changes Requested", "Rejected"] as const).map(status => {
               const count = status === "All" 
                 ? directions.length 
                 : directions.filter(d => (d.status || "Pending") === status).length;
               return (
                 <button
                   key={status}
-                  id={`filter-directions-${status.toLowerCase()}`}
+                  id={`filter-directions-${status.toLowerCase().replace(/\s+/g, "-")}`}
                   onClick={() => setStatusFilter(status)}
                   className={`px-3 py-1.5 text-[10px] font-mono font-bold rounded-md transition-colors cursor-pointer ${
                     statusFilter === status
@@ -702,31 +704,15 @@ export const DirectionsPage: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Controls and buttons line */}
-                      <div className="flex items-center justify-between gap-2 pt-3 border-t border-border/40" onClick={e => e.stopPropagation()}>
-                        <div className="flex space-x-1.5">
-                          {!isApproved && (
-                            <button
-                              id={`approve-dir-btn-${dir.id}`}
-                              onClick={() => updateDirection(dir.id, { status: "Approved" })}
-                              className="px-2 py-1 hover:bg-emerald-600/15 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 rounded transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono font-semibold"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Approve</span>
-                            </button>
-                          )}
+                      <div className="pt-3 border-t border-border/40"><LastReviewNote review={dir.lastReview} /></div>
 
-                          {!isRejected && (
-                            <button
-                              id={`reject-dir-btn-${dir.id}`}
-                              onClick={() => updateDirection(dir.id, { status: "Rejected" })}
-                              className="px-2 py-1 hover:bg-rose-600/15 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono font-semibold"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                              <span>Reject</span>
-                            </button>
-                          )}
-                        </div>
+                      {/* Controls and buttons line */}
+                      <div className="flex items-center justify-between gap-2 pt-3" onClick={e => e.stopPropagation()}>
+                        <ReviewActions
+                          idPrefix={`direction-${dir.id}`}
+                          status={dir.status || "Pending"}
+                          onReview={(decision, note) => reviewItem("direction", dir.id, decision, note)}
+                        />
 
                         <div className="flex items-center space-x-1">
                           <button
